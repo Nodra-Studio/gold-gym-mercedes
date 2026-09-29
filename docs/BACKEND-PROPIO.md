@@ -2,7 +2,7 @@
 
 ## Estado de esta entrega
 
-El código para Supabase Auth y PostgreSQL está implementado. El proyecto Supabase `gold-gym-mercedes` ya fue creado en la organización `alexpereyra-dev`, región São Paulo, con referencia `iqopbxqxqelptvfsxaxt`. Se aplicaron las migraciones del esquema y de optimización de políticas/índices. Se guardaron APP_URL, SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY y el secreto DATABASEURL en Vercel Production. Existe una cuenta inicial confirmada en Auth. Falta guardar GOLD_GYM_OWNER_ID, redesplegar y verificar la conexión real desde Vercel. Las pantallas explican que el acceso está en preparación y los módulos de datos permanecen cerrados mientras falta configuración.
+El código para Supabase Auth y PostgreSQL está implementado. El proyecto Supabase `gold-gym-mercedes` ya fue creado en la organización `alexpereyra-dev`, región São Paulo, con referencia `iqopbxqxqelptvfsxaxt`. Se aplicaron las migraciones del esquema y de optimización de políticas/índices. Se guardaron APP_URL, SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY y el secreto DATABASEURL en Vercel Production. Existe una cuenta inicial confirmada en Auth. GOLD_GYM_OWNER_ID ya fue guardado y el despliegue completó. El 29/09/2026 se corrigió la confianza TLS incorporando la CA pública oficial de Supabase con validación de certificado y hostname. La comprobación desde Vercel avanzó de SELF_SIGNED_CERT_IN_CHAIN a 28P01: la contraseña de PostgreSQL guardada en el secreto de conexión es rechazada. El titular debe actualizar DATABASEURL (o DATABASE_URL, que tiene prioridad) con la credencial vigente y redesplegar. El login y los módulos de gestión aún no están validados en producción.
 
 La base remota fue verificada: 14 tablas con RLS, sin acceso al esquema para anon/authenticated, rol de aplicación sin superusuario/BYPASSRLS y prueba transaccional de aislamiento completada con rollback (sin datos persistidos). Advisors: sin avisos de seguridad; quedan sólo índices sin uso, esperables en una base nueva. Las pruebas locales ejecutan el motor PostgreSQL de PGlite y las API reales del dominio. Las pruebas del proveedor de autenticación usan un cliente simulado: falta validar envío/recepción de correos, PKCE, cookies, recuperación y revocación contra el proyecto remoto. No hay datos reales migrados.
 
@@ -39,8 +39,16 @@ pnpm run test:vercel
 pnpm run build
 ```
 
-61 pruebas: 39 del dominio SQLite, 13 sobre PostgreSQL (incluidos RLS, transacciones y restauración), 9 de límites de autenticación y respuestas. Los totales incluyen los contenedores de pruebas. GitHub Actions ejecuta las mismas verificaciones; las pruebas de Vercel sin variables confirman el cierre seguro de los módulos privados.
+65 pruebas: 39 del dominio SQLite, 13 sobre PostgreSQL (incluidos RLS, transacciones y restauración), 9 de límites de autenticación y respuestas, 2 de diagnóstico seguro y 2 de confianza TLS. Los totales incluyen los contenedores de pruebas. GitHub Actions ejecuta las mismas verificaciones; las pruebas de Vercel sin variables confirman el cierre seguro de los módulos privados.
 
 ## Pendientes después de activar
 
 Respaldos automáticos y restauración remota ensayada; métricas y alertas; paginación de listados grandes; devoluciones/anulaciones auditadas; pruebas concurrentes contra PostgreSQL remoto; integración y prueba física del molinete; aprobación del contenido público y políticas del club. El alta de una cuenta no implica que sea un socio ni le asigna una cuota.
+
+## Diagnóstico de conexión
+
+`GET /api/health` realiza una consulta sin filas sobre el esquema privado. Responde únicamente `ok` (200) o `unavailable` (503), sin caché. La falta de configuración sigue bloqueada por el proxy. Los logs de Vercel registran sólo códigos de error permitidos, nunca credenciales, consultas ni mensajes originales.
+
+La CA oficial está incorporada en `lib/postgres/tls.mjs`, compartida por la aplicación y `backend:check`. Sólo se utiliza para hosts de Supabase. No desactivar `rejectUnauthorized` para resolver problemas TLS. La CA vence el 26/04/2031 y debe actualizarse desde la fuente oficial cuando corresponda.
+
+Para el error 28P01, corregir el secreto de conexión en Vercel Production con la contraseña vigente de **Database**, no la de Auth. Conservar host/puerto/usuario de la URI Transaction pooler del panel Connect, codificar caracteres reservados de la contraseña y redesplegar. No pegar contraseñas en incidencias, commits ni chats. Verificar que `/api/health` devuelve 200 antes de repetir el ingreso del dueño.
