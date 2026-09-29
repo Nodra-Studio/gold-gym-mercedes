@@ -1,4 +1,5 @@
 import postgres from 'postgres';
+import { databaseTLS } from './tls.mjs';
 import { createDatabase, type Query } from './adapter';
 let database: D1Database | undefined;
 export function getPostgresDatabase(): D1Database | undefined {
@@ -8,7 +9,7 @@ export function getPostgresDatabase(): D1Database | undefined {
   if (database) return database;
   const client = postgres(url, {
     prepare: false, max: 3, idle_timeout: 20, connect_timeout: 10,
-    ssl: 'verify-full',
+    ssl: databaseTLS(url),
     types: { bigint: { to: 20, from: [20], serialize: String, parse: Number } },
   });
   const run = (connection: typeof client): Query => async (sql, values) => {

@@ -1,9 +1,10 @@
 import postgres from 'postgres';
+import { databaseTLS } from '../lib/postgres/tls.mjs';
 const required=['APP_URL','SUPABASE_URL','SUPABASE_PUBLISHABLE_KEY','DATABASE_URL','GOLD_GYM_OWNER_ID'];
 const databaseUrl=process.env.DATABASE_URL || process.env.DATABASEURL;
 const missing=required.filter(name=>name==='DATABASE_URL' ? !databaseUrl : !process.env[name]);
 if(missing.length){console.error('Faltan variables: '+missing.join(', '));process.exit(1);}
-const sql=postgres(databaseUrl,{prepare:false,max:1,ssl:'verify-full',connect_timeout:10});
+const sql=postgres(databaseUrl,{prepare:false,max:1,ssl:databaseTLS(databaseUrl),connect_timeout:10});
 try{
  await sql.begin(async tx=>{
   await tx.unsafe('SET LOCAL ROLE gold_gym_app');
