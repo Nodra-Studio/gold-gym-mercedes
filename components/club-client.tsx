@@ -1,4 +1,5 @@
 "use client";
+import { apiFetch } from "@/lib/api-fetch";
 import { csvDocument } from "@/lib/csv";
 import { requestId } from "@/lib/club";
 import { useCallback, useEffect, useState } from "react";
@@ -52,8 +53,9 @@ export function useClub() {
     [loading, setLoading] = useState(true),
     [busy, setBusy] = useState(false);
   const refresh = useCallback(async () => {
+    setLoading(true);
     try {
-      const r = await fetch("/api/club", { cache: "no-store" }),
+      const r = await apiFetch("/api/club", { cache: "no-store" }),
         j = (await r.json()) as ClubData & {
           error?: string;
         };
@@ -61,21 +63,23 @@ export function useClub() {
       setData(j);
       setError("");
     } catch (e) {
+      setData(null);
       setError(e instanceof Error ? e.message : "No pudimos cargar los datos.");
     } finally {
       setLoading(false);
     }
   }, []);
   // Initial remote load; state changes only after the asynchronous request resolves.
-  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => {
+    // Loading belongs to this remote request lifecycle.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     void refresh();
   }, [refresh]);
   async function mutate(payload: Record<string, unknown>) {
     setBusy(true);
     setError("");
     try {
-      const r = await fetch("/api/club", {
+      const r = await apiFetch("/api/club", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload),
@@ -336,7 +340,7 @@ export default function ClubDashboard() {
               Object.keys(input).length
             )
               throw Error("No acepta parámetros.");
-            const r = await fetch("/api/club");
+            const r = await apiFetch("/api/club");
             if (!r.ok) throw Error("No se pudo leer el club.");
             const d: ClubData = await r.json();
             await refresh();

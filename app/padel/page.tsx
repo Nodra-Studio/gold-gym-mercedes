@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ArrowUpRight, MapPin, ArrowRight } from "lucide-react";
+import { MapPin, CalendarDays, UserRound, Utensils } from "lucide-react";
 import { SiteHeader } from "@/components/site-header";
 import { SiteFooter } from "@/components/site-footer";
 import { brand, venues } from "@/lib/content";
@@ -24,22 +24,8 @@ export default function Padel() {
               Nos vemos en la cancha.
             </p>
             <div className="hero-actions">
-              <a
-                className="button gold"
-                href={brand.fixedBookings}
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                Consultá por turnos <ArrowUpRight size={20} />
-              </a>
-              <a
-                href={brand.booking}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-link"
-              >
-                Donde Juego para iPhone <ArrowUpRight size={16} />
-              </a>
+              <Link className="button gold" href="/jugar"><CalendarDays size={20} aria-hidden="true" /> Reservar cancha</Link>
+              <Link href="/cuenta" className="text-link"><UserRound size={18} aria-hidden="true" /> Mis reservas</Link>
             </div>
             <div className="hero-foot">
               <span>4 CANCHAS</span>
@@ -113,7 +99,7 @@ export default function Padel() {
               target="_blank"
               rel="noopener noreferrer"
             >
-              Ver menú del buffet <ArrowUpRight size={18} />
+              <Utensils size={18} aria-hidden="true" /> Ver menú del buffet
             </a>
             <a
               href={brand.padel}
@@ -121,7 +107,7 @@ export default function Padel() {
               target="_blank"
               rel="noopener noreferrer"
             >
-              Novedades y torneos <ArrowUpRight size={18} />
+              <img className="brand-icon" src="/icons/instagram.svg" alt="" width={18} height={18} /> Novedades y torneos
             </a>
             <a
               href={venues[2].map}
@@ -129,7 +115,7 @@ export default function Padel() {
               target="_blank"
               rel="noopener noreferrer"
             >
-              Cómo llegar <ArrowUpRight size={18} />
+              <MapPin size={18} aria-hidden="true" /> Cómo llegar
             </a>
           </div>
         </section>
@@ -140,24 +126,10 @@ export default function Padel() {
             <br />
             <em>Un buen plan.</em>
           </h2>
-          <a
-            href={brand.fixedBookings}
-            className="button gold"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Consultá disponibilidad <ArrowUpRight size={20} />
-          </a>
-          <p className="muted">
-            La reserva se coordina por los canales actuales del club.
-          </p>
+          <Link href="/jugar" className="button gold"><CalendarDays size={20} aria-hidden="true" /> Elegir mi próximo turno</Link>
+          <p className="muted">Elegí el día y la cancha. Consultá tus reservas desde tu cuenta.</p>
         </section>
-        <div className="preview-entry">
-          <span>Presentación privada · nueva plataforma</span>
-          <Link href="/reservas">
-            Probar la agenda de pádel <ArrowRight size={16} />
-          </Link>
-        </div>
+
       </main>
       <SiteFooter />
     </>

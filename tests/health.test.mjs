@@ -26,3 +26,19 @@ await test('Readiness uses a read-only query and keeps failures private', async 
     assert.deepEqual(output, ['{"event":"backend_unavailable","code":"28P01"}']);
   } finally { console.error = previous; }
 });
+
+await test('Client requests reject unavailable services and preserve credential errors', async () => {
+  const { apiFetch } = await import(moduleUrl(readFileSync('lib/api-fetch.ts', 'utf8')));
+  const originalFetch = globalThis.fetch;
+  try {
+    globalThis.fetch = async () => new Response('<html>error</html>', { status: 502 });
+    await assert.rejects(apiFetch('/api/club'), /conectar/);
+    globalThis.fetch = async () => new Response('<html>login</html>', { status: 200 });
+    await assert.rejects(apiFetch('/api/club'), /datos esperados/);
+    globalThis.fetch = async () => Response.json({ error: 'Credenciales incorrectas' }, { status: 401 });
+    await assert.rejects(apiFetch('/api/club'), /sesión terminó/);
+    const response = await apiFetch('/api/auth', { method: 'POST' });
+    assert.equal(response.status, 401);
+    assert.equal((await response.json()).error, 'Credenciales incorrectas');
+  } finally { globalThis.fetch = originalFetch; }
+});

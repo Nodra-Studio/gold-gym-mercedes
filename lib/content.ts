@@ -2,8 +2,6 @@ export const brand = {
   instagram: "https://www.instagram.com/goldgym_mercedes/",
   padel: "https://www.instagram.com/goldgym_padel/",
   contact: "https://wa.link/t1221x",
-  fixedBookings: "https://wa.link/r6a6g8",
-  booking: "https://apps.apple.com/ar/app/donde-juego/id1220652585",
   buffet: "https://menu.fu.do/lodebauti-bufet/qr-menu",
 };
 export const venues = [

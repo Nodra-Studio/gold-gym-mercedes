@@ -58,7 +58,7 @@ const schema = z.discriminatedUnion("action", [
   z.object({
     action: z.literal("access"),
     dni: z.string().regex(/^\d{7,8}$/, "Ingresá 7 u 8 números"),
-    venue: z.enum(["Calle 30", "Calle 23", "Unión Gold Club"]),
+    venue: z.enum(["Calle 30", "Calle 23", "Unión Gold Club"]).optional(),
   }),
   z.object({
     action: z.literal("booking"),
@@ -512,7 +512,7 @@ export async function POST(req: Request) {
             m?.name ?? "DNI no registrado",
             decision.allowed ? 1 : 0,
             decision.reason,
-            input.venue,
+            "Todas las sedes",
             now,
           )
           .run();

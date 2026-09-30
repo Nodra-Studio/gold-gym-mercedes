@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import { useState } from "react";
-import { ArrowUpRight, Menu, X } from "lucide-react";
+import { MessageCircle, UserRound, Menu, X } from "lucide-react";
 import { brand } from "@/lib/content";
 export function SiteHeader() {
   const [open, setOpen] = useState(false);
@@ -34,13 +34,14 @@ export function SiteHeader() {
         <Link onClick={() => setOpen(false)} href="/padel">
           Pádel
         </Link>
+        <Link onClick={() => setOpen(false)} href="/club"><UserRound size={16} aria-hidden="true" /> Mi club</Link>
         <a
           className="button gold small"
           href={brand.contact}
           target="_blank"
           rel="noopener noreferrer"
         >
-          Sumate a Gold <ArrowUpRight size={16} />
+          Sumate a Gold <MessageCircle size={16} aria-hidden="true" />
         </a>
       </nav>
     </header>

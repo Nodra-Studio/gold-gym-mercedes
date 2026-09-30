@@ -218,6 +218,13 @@ try {
         }
       },
     );
+    await t.test("Acceso único por DNI sin seleccionar sede", async () => {
+      const result = await post({ action: "access", dni: "99000001" });
+      assert.equal(result.status, 200);
+      assert.equal(result.allowed, true);
+      const state = await get();
+      assert.ok(state.accesses.some(a => a.venue === "Todas las sedes"));
+    });
     await t.test(
       "Un cobro repetido no duplica pago ni extiende dos veces",
       async () => {

@@ -1,4 +1,5 @@
 "use client";
+import { apiFetch } from "@/lib/api-fetch";
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import {
@@ -30,7 +31,7 @@ export default function TeamClient() {
     [notice, setNotice] = useState("");
   async function load() {
     try {
-      const r = await fetch("/api/team", { cache: "no-store" }),
+      const r = await apiFetch("/api/team", { cache: "no-store" }),
         j = (await r.json()) as Team & { error?: string };
       if (!r.ok) throw Error(j.error);
       setData(j);
@@ -39,15 +40,16 @@ export default function TeamClient() {
     }
   }
   // Load remote identity and permissions once on mount.
-  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => {
+    // Loading belongs to this remote request lifecycle.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     void load();
   }, []);
   async function save(input: Staff) {
     setBusy(true);
     setError("");
     try {
-      const r = await fetch("/api/team", {
+      const r = await apiFetch("/api/team", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({

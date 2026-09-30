@@ -1,4 +1,5 @@
 "use client";
+import { apiFetch } from "@/lib/api-fetch";
 import { useEffect, useState } from "react";
 import { money } from "@/lib/club";
 import { ErrorNotice } from "@/components/club-client";
@@ -21,9 +22,11 @@ export default function BookingPaymentHistory({
     [error, setError] = useState("");
   useEffect(() => {
     const controller = new AbortController();
+    // Clear the previous booking before requesting this booking’s payment history.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setData(null);
     setError("");
-    void fetch("/api/booking-payments?" + new URLSearchParams({ bookingId }), {
+    void apiFetch("/api/booking-payments?" + new URLSearchParams({ bookingId }), {
       signal: controller.signal,
     })
       .then(async (r) => {

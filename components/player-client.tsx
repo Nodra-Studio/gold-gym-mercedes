@@ -1,4 +1,5 @@
 "use client";
+import { apiFetch } from "@/lib/api-fetch";
 import { useCallback, useEffect, useState, useRef } from "react";
 import Link from "next/link";
 import {
@@ -38,6 +39,7 @@ export default function PlayerClient() {
     [data, setData] = useState<Portal | null>(null),
     [error, setError] = useState(""),
     [busy, setBusy] = useState(false),
+    [loading, setLoading] = useState(true),
     [notice, setNotice] = useState(""),
     [selected, setSelected] = useState<{
       court: number;
@@ -49,28 +51,34 @@ export default function PlayerClient() {
   const requestVersion = useRef(0);
   const load = useCallback(async () => {
     const version = ++requestVersion.current;
+    setLoading(true);
     try {
-      const r = await fetch("/api/player?day=" + day, { cache: "no-store" }),
+      const r = await apiFetch("/api/player?day=" + day, { cache: "no-store" }),
         j = (await r.json()) as Portal & { error?: string };
       if (!r.ok) throw Error(j.error);
       if (version !== requestVersion.current) return;
       setData(j);
       setError("");
     } catch (e) {
-      if (version === requestVersion.current)
+      if (version === requestVersion.current) {
+        setData(null);
         setError(e instanceof Error ? e.message : "No se pudo cargar.");
+      }
+    } finally {
+      if (version === requestVersion.current) setLoading(false);
     }
   }, [day]);
   // Fetches remote availability when the selected date changes.
-  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => {
+    // Loading belongs to this remote request lifecycle.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     void load();
   }, [load]);
   async function mutate(input: unknown) {
     setBusy(true);
     setError("");
     try {
-      const r = await fetch("/api/player", {
+      const r = await apiFetch("/api/player", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(input),
@@ -98,13 +106,13 @@ export default function PlayerClient() {
           <h1>Elegí cancha. Armá el partido.</h1>
           <p>Reservas de tu cuenta · pago coordinado con el club</p>
         </div>
-        <Link className="button small" href="/equipo">
+        <Link className="button small" href="/cuenta">
           Mi acceso
         </Link>
       </header>
       <p className="notice">
-        Portal de demostración con datos de prueba. Para sumar jugadores,
-        administración debe habilitar su cuenta y el acceso al sitio privado.
+        Reservá directamente con Gold Gym y encontrá tus partidos en un solo lugar.
+        Si tu cuenta todavía no está habilitada, consultá en recepción.
       </p>
       {!selected && !cancel && <ErrorNotice error={error} />}{" "}
       {notice && (
@@ -112,7 +120,8 @@ export default function PlayerClient() {
           {notice}
         </p>
       )}
-      {!data && !error && <Loading />}
+      {loading && <Loading />}
+      {!loading && !data && <div className="connection-empty"><button className="button gold" onClick={() => void load()}>Volver a cargar</button><Link className="button" href="/acceso?returnTo=/jugar">Iniciar sesión</Link></div>}
       {data && (
         <>
           <section className="panel">
@@ -160,7 +169,7 @@ export default function PlayerClient() {
                     key={start}
                     start={start}
                     data={data}
-                    disabled={busy || data.day !== day}
+                    disabled={busy || loading || !!error || data.day !== day}
                     onPick={(court) => {
                       setError("");
                       setSelected({

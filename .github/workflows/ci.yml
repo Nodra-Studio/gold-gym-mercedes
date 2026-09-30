@@ -20,11 +20,8 @@ jobs:
       - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
           node-version: '22'
-      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
-        with:
-          run_install: false
-      - run: pnpm install --frozen-lockfile
-      - run: pnpm test
-      - run: pnpm run build:vercel
-      - run: pnpm run test:vercel
-      - run: pnpm run build
+      - run: npm ci
+      - run: npm test
+      - run: npm run build:vercel
+      - run: npm run test:vercel
+      - run: npm run build

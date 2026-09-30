@@ -1,16 +1,14 @@
 "use client";
+import { apiFetch } from "@/lib/api-fetch";
 import Link from "next/link";
 import { useState, useRef } from "react";
 import { ArrowLeft, ScanLine, CheckCircle2, TriangleAlert } from "lucide-react";
 import {
   Field,
-  SelectField,
-  Option,
   ErrorNotice,
 } from "@/components/club-client";
 export default function Kiosk() {
   const [dni, setDni] = useState(""),
-    [venue, setVenue] = useState("Calle 30"),
     [busy, setBusy] = useState(false),
     [error, setError] = useState(""),
     [result, setResult] = useState<{
@@ -26,10 +24,10 @@ export default function Kiosk() {
     setError("");
     setResult(null);
     try {
-      const r = await fetch("/api/club", {
+      const r = await apiFetch("/api/club", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ action: "access", dni, venue }),
+          body: JSON.stringify({ action: "access", dni }),
         }),
         j = (await r.json()) as {
           error?: string;
@@ -68,15 +66,8 @@ export default function Kiosk() {
         <h1>
           Bienvenido a <em>Gold.</em>
         </h1>
-        <p>Ingresá tu DNI para validar tu acceso.</p>
+        <p>Un solo club. Todas las sedes. Ingresá tu DNI.</p>
         <form onSubmit={check} style={{ marginTop: 30 }}>
-          <Field label="Sede">
-            <SelectField value={venue} onChange={setVenue}>
-              {["Calle 30", "Calle 23", "Unión Gold Club"].map((x) => (
-                <Option key={x}>{x}</Option>
-              ))}
-            </SelectField>
-          </Field>
           <div style={{ marginTop: 20 }}>
             <Field label="Número de DNI">
               <input
@@ -93,7 +84,7 @@ export default function Kiosk() {
               />
             </Field>
           </div>
-          <button className="button gold" type="submit" disabled={busy}>
+          <button className="button gold" type="submit" disabled={busy} aria-busy={busy}>
             <ScanLine size={22} />
             {busy ? "Verificando…" : "Validar ingreso"}
           </button>

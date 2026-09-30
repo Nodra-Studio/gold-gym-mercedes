@@ -5,6 +5,7 @@ import {
   MapPin,
   Dumbbell,
   MoveUpRight,
+  MessageCircle,
 } from "lucide-react";
 import { SiteHeader } from "@/components/site-header";
 import { SiteFooter } from "@/components/site-footer";
@@ -253,7 +254,7 @@ export default function Home() {
             target="_blank"
             rel="noopener noreferrer"
           >
-            Escribinos por WhatsApp <ArrowUpRight size={20} />
+            Escribinos por WhatsApp <MessageCircle size={20} aria-hidden="true" />
           </a>
         </section>
       </main>

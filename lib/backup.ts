@@ -120,7 +120,7 @@ export const backupSchema = z
       .strict()
       .optional(),
     exportedAt: stamp,
-    fieldNotes: z.record(z.string()).optional(),
+    fieldNotes: z.record(z.string(), z.string()).optional(),
     records: z
       .object({
         plans: z.array(row.plans),

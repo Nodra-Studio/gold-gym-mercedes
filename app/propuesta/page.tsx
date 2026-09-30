@@ -23,9 +23,9 @@ export default function Proposal() {
         acompañe el día a día. Y una agenda de pádel conectada con el club.
       </p>
       <div className="notice">
-        Presentación privada. Los módulos operativos usan datos de prueba. Los
-        canales y los sistemas actuales de Gold Gym siguen funcionando como
-        hasta ahora.
+        Plataforma propia de Gold Gym: web, socios, acceso por DNI y reservas de
+        pádel en un solo proyecto. La puesta en marcha requiere validar los datos
+        del club y conectar el hardware de acceso.
       </div>
       <section className="panel">
         <p className="phase">ETAPA 01 · PRESENCIA DIGITAL</p>

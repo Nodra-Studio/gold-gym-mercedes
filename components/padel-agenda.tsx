@@ -2,6 +2,7 @@
 import BookingPaymentHistory from "@/components/booking-payment-history";
 import { requestId, slotPassed } from "@/lib/club";
 import { useState } from "react";
+import Link from "next/link";
 import {
   ChevronLeft,
   ChevronRight,
@@ -71,7 +72,7 @@ export default function PadelAgenda() {
           {notice}
         </div>
       )}
-      <div className="stats">
+      {data && <div className="stats">
         <div className="stat">
           <span>RESERVAS DEL DÍA</span>
           <strong>{played.length}</strong>
@@ -83,7 +84,7 @@ export default function PadelAgenda() {
             {slots.filter((s) => !slotPassed(day, s)).length * 4 -
               bookings.filter((b) => !slotPassed(day, b.start)).length}
           </strong>
-          <small>Según la agenda de ejemplo</small>
+          <small>Disponibilidad del club</small>
         </div>
         <div className="stat">
           <span>TOTAL RESERVADO</span>
@@ -95,7 +96,7 @@ export default function PadelAgenda() {
           <strong>{money(played.reduce((s, b) => s + b.deposit, 0))}</strong>
           <small>No procesa pagos online</small>
         </div>
-      </div>
+      </div>}
       <section className="panel">
         <div className="panel-heading">
           <div className="date-controls">
@@ -147,6 +148,8 @@ export default function PadelAgenda() {
         </div>
         {loading && !data ? (
           <Loading />
+        ) : !data ? (
+          <div className="connection-empty"><p>No pudimos consultar la agenda. Los horarios no están disponibles hasta recuperar la conexión.</p><button className="button gold" onClick={() => void refresh()}>Volver a cargar</button><Link href="/acceso" className="button">Iniciar sesión</Link></div>
         ) : (
           <div className="calendar-wrap">
             <div className="calendar-grid">
@@ -162,7 +165,7 @@ export default function PadelAgenda() {
                   start={start}
                   day={day}
                   bookings={bookings}
-                  disabled={!data || busy}
+                  disabled={!data || busy || loading}
                   onClick={open}
                 />
               ))}

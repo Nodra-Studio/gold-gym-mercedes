@@ -1,4 +1,5 @@
 'use client';
+import { apiFetch } from "@/lib/api-fetch";
 import { useState, type FormEvent } from 'react';
 import Link from 'next/link';
 type Mode = 'login' | 'signup' | 'recover' | 'password';
@@ -14,7 +15,7 @@ export default function AuthForm({ mode, configured, initialError = '', initialM
     event.preventDefault(); setBusy(true); setError(''); setMessage('');
     const data = new FormData(event.currentTarget);
     try {
-      const response = await fetch('/api/auth', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: mode, email: data.get('email') ?? undefined, password: data.get('password') ?? undefined, returnTo: new URLSearchParams(location.search).get('returnTo') ?? '/cuenta' }) });
+      const response = await apiFetch('/api/auth', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: mode, email: data.get('email') ?? undefined, password: data.get('password') ?? undefined, returnTo: new URLSearchParams(location.search).get('returnTo') ?? '/cuenta' }) });
       const result = await response.json() as { error?: string; next?: string; message?: string };
       if (!response.ok) throw new Error(result.error ?? 'No pudimos completar la solicitud.');
       if (result.next) location.assign(result.next); else setMessage(result.message ?? "Solicitud completada.");

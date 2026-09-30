@@ -1,4 +1,5 @@
 "use client";
+import { apiFetch } from "@/lib/api-fetch";
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import {
@@ -16,7 +17,7 @@ export default function SettingsClient() {
     [busy, setBusy] = useState(false),
     [notice, setNotice] = useState("");
   useEffect(() => {
-    void fetch("/api/settings")
+    void apiFetch("/api/settings")
       .then(async (r) => {
         const j = (await r.json()) as {
           padel_price: number;
@@ -56,7 +57,7 @@ export default function SettingsClient() {
             setBusy(true);
             setError("");
             try {
-              const r = await fetch("/api/settings", {
+              const r = await apiFetch("/api/settings", {
                   method: "POST",
                   headers: { "Content-Type": "application/json" },
                   body: JSON.stringify({

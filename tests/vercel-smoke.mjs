@@ -17,7 +17,7 @@ try {
     await delay(500);
   }
   assert.ok(ready, `Next server did not start: ${logs}`);
-  for (const path of ['/', '/padel', '/propuesta', '/acceso', '/recuperar', '/crear-cuenta', '/actualizar-clave']) {
+  for (const path of ['/', '/club', '/padel', '/propuesta', '/acceso', '/recuperar', '/crear-cuenta', '/actualizar-clave']) {
     const res = await fetch(base + path);
     assert.equal(res.status, 200, path);
     assert.match(await res.text(), /Gold Gym/);

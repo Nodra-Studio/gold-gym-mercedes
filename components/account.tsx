@@ -1,4 +1,5 @@
 'use client';
+import { apiFetch } from "@/lib/api-fetch";
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 export default function Account() {
@@ -6,7 +7,7 @@ export default function Account() {
   const [error, setError] = useState(''), [busy, setBusy] = useState(false);
   useEffect(() => {
     const controller = new AbortController();
-    fetch('/api/team', { cache: 'no-store', signal: controller.signal }).then(async response => {
+    apiFetch('/api/team', { cache: 'no-store', signal: controller.signal }).then(async response => {
       if (response.status === 401) { location.assign('/acceso'); return; }
       const data = await response.json() as { userId: string; role: string; error?: string };
       if (!response.ok) throw new Error(data.error);
@@ -17,7 +18,7 @@ export default function Account() {
   async function logout() {
     setBusy(true); setError('');
     try {
-      const response = await fetch('/api/auth', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'logout' }) });
+      const response = await apiFetch('/api/auth', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'logout' }) });
       if (!response.ok) throw new Error('No pudimos cerrar sesión. Volvé a intentar.');
       location.assign('/acceso');
     } catch (e) { setError((e as Error).message); setBusy(false); }
