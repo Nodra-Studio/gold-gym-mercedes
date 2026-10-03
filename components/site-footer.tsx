@@ -7,7 +7,7 @@ export function SiteFooter() {
       <div className="footer-top">
         <div>
           <strong>GOLD GYM</strong>
-          <p>Nos vemos en el club.</p>
+          <p>Más de 3 gimnasios, un centro exclusivo de pilates y canchas de pádel de primer nivel. <br /> Entrená, sumate al movimiento y superá tus objetivos con nosotros.</p>
         </div>
         <nav className="footer-socials" aria-label="Redes y contacto">
           <div><a className="social-icon" href={brand.instagram} target="_blank" rel="noopener noreferrer" aria-label="Instagram de Gold Gym" title="Instagram de Gold Gym"><img src="/icons/instagram.svg" alt="" width={22} height={22} /></a><small>Gimnasio</small></div>
