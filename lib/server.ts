@@ -92,6 +92,22 @@ export async function body(req: Request, maxLength = 16000) {
   }
 }
 export function apiError(error: unknown) {
+  if (!(error instanceof ClubError)) {
+    // Record only recognized infrastructure codes, never error messages,
+    // query parameters, connection strings, or authentication inputs.
+    const allowedCodes = new Set([
+      "28P01", "28000", "3D000", "42501", "42P01", "42703", "53300",
+      "57P03", "08P01", "08006", "ECONNREFUSED", "ECONNRESET",
+      "ETIMEDOUT", "ENOTFOUND", "CONNECT_TIMEOUT", "CONNECTION_CLOSED",
+      "SELF_SIGNED_CERT_IN_CHAIN", "UNABLE_TO_VERIFY_LEAF_SIGNATURE",
+      "CERT_HAS_EXPIRED", "ERR_TLS_CERT_ALTNAME_INVALID",
+    ]);
+    const candidate = error && typeof error === "object" && "code" in error
+      ? String(error.code) : "";
+    console.error("[gold-gym] infrastructure failure", {
+      code: allowedCodes.has(candidate) ? candidate : "UNCLASSIFIED",
+    });
+  }
   return Response.json(
     {
       error:
