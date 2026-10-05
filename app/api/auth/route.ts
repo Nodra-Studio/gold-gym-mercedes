@@ -5,7 +5,7 @@ import { allowAuthAttempt } from '@/lib/auth/rate-limit';
 import { body, ClubError, apiError } from '@/lib/server';
 export const dynamic = 'force-dynamic';
 const email = z.string().trim().email().max(254);
-const password = z.string().min(12, 'Usá al menos 12 caracteres.').max(128);
+const password = z.string().min(8, 'Usá al menos 8 caracteres.').max(128);
 const schema = z.discriminatedUnion('action', [
   z.object({ action: z.literal('login'), email, password: z.string().min(1).max(128), returnTo: z.string().optional() }),
   z.object({ action: z.literal('signup'), email, password }),
