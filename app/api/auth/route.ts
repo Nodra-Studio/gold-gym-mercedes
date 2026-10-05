@@ -41,6 +41,12 @@ export async function POST(request: Request) {
       await client.auth.resetPasswordForEmail(input.email, { redirectTo: callback.href });
       return reply({ message: 'Si existe una cuenta con ese correo, recibirás un enlace para recuperar el acceso.' });
     }
+    // Signing out must also work when the session has expired or is absent.
+    if (input.action === 'logout') {
+      const { error: logoutError } = await client.auth.signOut({ scope: 'local' });
+      if (logoutError) throw new ClubError('No pudimos cerrar la sesión. Volvé a intentar.', 503);
+      return reply({ next: '/acceso' });
+    }
     const { data, error } = await client.auth.getUser();
     if (error || !data.user) throw new ClubError('Iniciá sesión o abrí nuevamente el enlace del correo.', 401);
     if (input.action === 'password') {
@@ -51,8 +57,5 @@ export async function POST(request: Request) {
       if (signoutError) throw new ClubError('La contraseña cambió, pero no pudimos cerrar todas las sesiones. Volvé a cerrar sesión.', 503);
       return reply({ next: '/acceso?changed=1' });
     }
-    const { error: logoutError } = await client.auth.signOut({ scope: 'local' });
-    if (logoutError) throw new ClubError('No pudimos cerrar la sesión. Volvé a intentar.', 503);
-    return reply({ next: '/acceso' });
   } catch (error) { return apiError(error); }
 }
