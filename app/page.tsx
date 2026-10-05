@@ -1,16 +1,27 @@
 import Link from "next/link";
 import {
-  ArrowRight,
-  ArrowUpRight,
-  MapPin,
-  Dumbbell,
-  MoveUpRight,
+  ArrowRight, 
+  ArrowUpRight, 
+  MapPin, 
+  MoveUpRight, 
   MessageCircle,
+  Dumbbell, 
+  Activity, 
+  Trophy, 
+  Zap,
 } from "lucide-react";
 import { SiteHeader } from "@/components/site-header";
 import { SiteFooter } from "@/components/site-footer";
 import { brand, venues } from "@/lib/content";
+
 export default function Home() {
+  const items = [
+    { text: "ENTRENÁ", icon: <Dumbbell size={22} aria-hidden="true" /> },
+    { text: "CONECTÁ", icon: <Activity size={24} aria-hidden="true" /> },
+    { text: "COMPETÍ", icon: <Trophy size={24} aria-hidden="true" /> },
+    { text: "SUPERATE", icon: <Zap size={24} aria-hidden="true" /> }
+  ];
+
   return (
     <>
       <a className="skip-link" href="#contenido">
@@ -67,12 +78,23 @@ export default function Home() {
             </div>
           </div>
         </section>
-        <div className="statement-strip">
-          <span>Un lugar. Muchas formas de moverte.</span>
-          <Dumbbell size={24} />
-          <span>Entrená a tu manera.</span>
-          <Dumbbell size={24} />
-          <span>Sentite parte.</span>
+        <div className="marquee" aria-label="Entrená, conectá, competí, superate">
+          <div className="marquee-track">
+            {[0, 1, 2, 3].map((copy) => (
+              <div
+                key={copy}
+                className="marquee-group"
+                aria-hidden={copy > 0 ? true : undefined}
+              >
+                {items.map((item) => (
+                  <span key={item.text} className="marquee-item">
+                    {item.text}
+                    {item.icon}
+                  </span>
+                ))}
+              </div>
+            ))}
+          </div>
         </div>
         <section id="entrena" className="section training">
           <div className="section-heading">

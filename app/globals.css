@@ -1612,3 +1612,61 @@ button[aria-busy="true"] { cursor: progress; }
 @media(max-width: 600px) { .club-service { gap: 14px; grid-template-columns: 30px 1fr 18px; } .club-service > svg { width: 26px; } }
 
 .social-icon img, .brand-icon { filter: brightness(0) invert(1); }
+
+/* Franja animada */
+.marquee {
+  overflow: hidden;
+  background: var(--gold);
+  color: #161910;
+  padding: 18px 0;
+}
+.marquee-track {
+  display: flex;
+  width: max-content;
+  animation: marquee 30s linear infinite;
+}
+.marquee:hover .marquee-track {
+  animation-play-state: paused;
+}
+.marquee-group {
+  display: flex;
+  flex-shrink: 0;
+}
+.marquee-item {
+  display: flex;
+  align-items: center;
+  gap: 22px;
+  padding-right: 56px; /* en vez de gap: así cada copia mide exactamente lo mismo */
+  white-space: nowrap;
+  font-size: clamp(1.15rem, 2.2vw, 1.7rem);
+  font-weight: 900;
+  letter-spacing: -0.03em;
+}
+.marquee-item svg {
+  flex-shrink: 0;
+  opacity: 0.7;
+}
+@keyframes marquee {
+  from { transform: translate3d(0, 0, 0); }
+  to   { transform: translate3d(-50%, 0, 0); } /* 4 copias → avanza 2 = loop perfecto */
+}
+
+@media (max-width: 760px) {
+  .marquee { padding: 14px 0; }
+  .marquee-item { gap: 14px; padding-right: 36px; }
+  .marquee-track { animation-duration: 22s; }
+}
+
+/* Si el usuario pidió menos movimiento: franja quieta y centrada */
+@media (prefers-reduced-motion: reduce) {
+  .marquee-track { animation-duration: 60s; }
+  html {
+    scroll-behavior: auto;
+  }
+  *:not(.marquee-track),
+  *::before,
+  *::after {
+    transition: none !important;
+    animation: none !important;
+  }
+}
