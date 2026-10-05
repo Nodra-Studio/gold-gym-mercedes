@@ -1,3 +1,10 @@
+export class ApiError extends Error {
+  constructor(message: string, public readonly status: number) {
+    super(message);
+    this.name = 'ApiError';
+  }
+}
+
 /** Bounded requests: failed services must not leave the interface loading forever. */
 export async function apiFetch(input: RequestInfo | URL, init: RequestInit = {}): Promise<Response> {
   const controller = new AbortController();
@@ -10,7 +17,7 @@ export async function apiFetch(input: RequestInfo | URL, init: RequestInit = {})
     const body = await response.arrayBuffer();
     const json = response.headers.get('content-type')?.includes('application/json');
     if (!response.ok) {
-      if (response.status === 401 && !String(input).startsWith('/api/auth')) throw new Error('Tu sesión terminó. Iniciá sesión para continuar.');
+      if (response.status === 401 && !String(input).startsWith('/api/auth')) throw new ApiError('Tu sesión terminó. Iniciá sesión para continuar.', 401);
       if (response.status === 403) throw new Error('Tu cuenta no tiene permiso para esta acción. Consultá en recepción.');
       if (response.status >= 500) throw new Error('No pudimos conectar con el sistema del club. Volvé a intentar en unos instantes.');
       if (!json) throw new Error('El servicio no está disponible. Volvé a intentar.');

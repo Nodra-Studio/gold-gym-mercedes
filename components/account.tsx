@@ -1,5 +1,5 @@
 'use client';
-import { apiFetch } from "@/lib/api-fetch";
+import { apiFetch, ApiError } from "@/lib/api-fetch";
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 export default function Account() {
@@ -8,11 +8,14 @@ export default function Account() {
   useEffect(() => {
     const controller = new AbortController();
     apiFetch('/api/team', { cache: 'no-store', signal: controller.signal }).then(async response => {
-      if (response.status === 401) { location.assign('/acceso'); return; }
       const data = await response.json() as { userId: string; role: string; error?: string };
       if (!response.ok) throw new Error(data.error);
       setAccount(data);
-    }).catch(e => { if (e.name !== 'AbortError') setError(e.message); });
+    }).catch(e => {
+      if (controller.signal.aborted) return;
+      if (e instanceof ApiError && e.status === 401) { location.assign('/acceso'); return; }
+      if (e.name !== 'AbortError') setError(e.message);
+    });
     return () => controller.abort();
   }, []);
   async function logout() {
