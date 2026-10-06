@@ -5,24 +5,18 @@ import {
   MapPin, 
   MoveUpRight, 
   MessageCircle,
-  Dumbbell, 
-  Activity, 
-  Trophy, 
+  Dumbbell,
+  Activity,
+  Trophy,
   Zap,
 } from "lucide-react";
 import { SiteHeader } from "@/components/site-header";
 import { SiteFooter } from "@/components/site-footer";
 import { ScrollReveal } from "@/components/scroll-reveal";
+import { WaveMarquee } from "@/components/wave-marquee";
 import { brand, venues } from "@/lib/content";
 
 export default function Home() {
-  const items = [
-    { text: "ENTRENÁ", icon: <Dumbbell size={22} aria-hidden="true" /> },
-    { text: "CONECTÁ", icon: <Activity size={24} aria-hidden="true" /> },
-    { text: "COMPETÍ", icon: <Trophy size={24} aria-hidden="true" /> },
-    { text: "SUPERATE", icon: <Zap size={24} aria-hidden="true" /> }
-  ];
-
   return (
     <>
       <a className="skip-link" href="#contenido">
@@ -79,24 +73,14 @@ export default function Home() {
             </div>
           </div>
         </section>
-        <div className="marquee" aria-label="Entrená, conectá, competí, superate">
-          <div className="marquee-track">
-            {[0, 1, 2, 3].map((copy) => (
-              <div
-                key={copy}
-                className="marquee-group"
-                aria-hidden={copy > 0 ? true : undefined}
-              >
-                {items.map((item) => (
-                  <span key={item.text} className="marquee-item">
-                    {item.text}
-                    {item.icon}
-                  </span>
-                ))}
-              </div>
-            ))}
-          </div>
-        </div>
+        <WaveMarquee
+          items={[
+            { text: "ENTRENÁ", icon: <Dumbbell size={24} /> },
+            { text: "CONECTÁ", icon: <Activity size={24} /> },
+            { text: "COMPETÍ", icon: <Trophy size={24} /> },
+            { text: "SUPERATE", icon: <Zap size={24} /> },
+          ]}
+        />
         <section id="entrena" className="section training">
           <div className="section-heading" data-reveal>
             <div>
