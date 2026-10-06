@@ -1322,6 +1322,49 @@ try {
         assert.equal(safeCsv.csvCell("+5491112345678"), '"\'+5491112345678"');
       },
     );
+    await t.test("Terminal: avisos a 7 días, último día y bloqueo al vencer", () => {
+      const day = "2026-10-05";
+      for (const remaining of [8, 7, 1, 0]) {
+        const d = logic.accessDecision({status: "active", expires: logic.addDays(day, remaining)}, day);
+        assert.equal(d.allowed, true);
+        assert.equal(d.daysRemaining, remaining);
+        assert.equal(!!d.warning, remaining <= 7);
+      }
+      assert.match(logic.accessDecision({status:"active",expires:day}, day).warning, /vence hoy/);
+      assert.equal(logic.accessDecision({status:"active",expires:logic.addDays(day,-1)}, day).allowed, false);
+      assert.equal(logic.accessDecision({status:"paused",expires:logic.addDays(day,7)}, day).allowed, false);
+      assert.equal(logic.accessDecision(null, day).allowed, false);
+    });
+    await t.test("Dos recepciones no sobrescriben fichas ni renovaciones recientes", async () => {
+      runtime.setUser("owner-a");
+      const original = (await get()).members[0];
+      const payload = {action:"member",id:original.id,name:original.name,dni:original.dni,phone:original.phone,planId:original.plan_id,status:original.status,expires:original.expires,original};
+      assert.equal((await post({...payload,phone:"11111111"})).status,200);
+      assert.equal((await post({...payload,phone:"22222222"})).status,409);
+      const changed = (await get()).members.find(m=>m.id===original.id);
+      assert.equal(changed.phone,"11111111");
+      const plan = (await get()).plans.find(p=>p.id===changed.plan_id);
+      assert.equal((await post({action:"payment",memberId:changed.id,expectedPrice:plan.price,method:"Efectivo",requestKey:key()})).status,200);
+      assert.equal((await post({...payload,original:changed,phone:"33333333"})).status,409);
+      assert.notEqual((await get()).members.find(m=>m.id===changed.id).expires,changed.expires);
+      assert.equal((await post({...payload,original:undefined})).status,409);
+    });
+    await t.test("Edición y auditoría se revierten juntas si falla el guardado", async () => {
+      runtime.setUser("owner-a");
+      const original = (await get()).members[0];
+      const before = db.prepare("SELECT count(*) as n FROM audit").get().n;
+      db.exec("CREATE TRIGGER test_member_failure BEFORE UPDATE ON members BEGIN SELECT RAISE(ABORT, 'test failure'); END");
+      try {
+        assert.equal((await post({action:"member",id:original.id,name:original.name,dni:original.dni,phone:"99999999",planId:original.plan_id,status:original.status,expires:original.expires,original})).status,503);
+        assert.equal(db.prepare("SELECT count(*) as n FROM audit").get().n,before);
+      } finally { db.exec("DROP TRIGGER test_member_failure"); }
+    });
+    await t.test("Ingreso registra sede sin exigir una cuenta del socio", async () => {
+      runtime.setUser("owner-a");
+      const m=(await get()).members[0];
+      assert.equal((await post({action:"access",dni:m.dni,venue:"Calle 23"})).status,200);
+      assert.equal(db.prepare("SELECT venue FROM accesses ORDER BY created_at DESC LIMIT 1").get().venue,"Calle 23");
+    });
     await t.test("Fecha de Argentina y último día de vigencia", () => {
       assert.equal(
         logic.localDay(new Date("2026-09-24T01:00:00Z")),
@@ -1340,3 +1383,4 @@ try {
   db.close();
   rmSync(folder, { recursive: true, force: true });
 }
+

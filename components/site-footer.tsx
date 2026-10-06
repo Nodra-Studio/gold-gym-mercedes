@@ -17,9 +17,10 @@ export function SiteFooter() {
       </div>
       <div className="footer-bottom">
         <span>Mercedes, Buenos Aires · Argentina</span>
-        <Link href="/club"><LayoutDashboard size={16} aria-hidden="true" /> Mi club</Link>
+        <Link href="/acceso"><LayoutDashboard size={16} aria-hidden="true" /> Acceso del personal</Link>
         <Link href="/propuesta">Presentación del proyecto</Link>
       </div>
     </footer>
   );
 }
+

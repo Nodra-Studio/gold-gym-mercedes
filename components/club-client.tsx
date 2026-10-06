@@ -52,8 +52,8 @@ export function useClub() {
     [error, setError] = useState(""),
     [loading, setLoading] = useState(true),
     [busy, setBusy] = useState(false);
-  const refresh = useCallback(async () => {
-    setLoading(true);
+  const load = useCallback(async (silent = false) => {
+    if (!silent) setLoading(true);
     try {
       const r = await apiFetch("/api/club", { cache: "no-store" }),
         j = (await r.json()) as ClubData & {
@@ -61,20 +61,28 @@ export function useClub() {
         };
       if (!r.ok) throw Error(j.error);
       setData(j);
-      setError("");
+      if (!silent) setError("");
     } catch (e) {
-      setData(null);
+      if (!silent) setData(null);
       setError(e instanceof Error ? e.message : "No pudimos cargar los datos.");
     } finally {
       setLoading(false);
     }
   }, []);
+  const refresh = useCallback(() => load(), [load]);
   // Initial remote load; state changes only after the asynchronous request resolves.
   useEffect(() => {
     // Loading belongs to this remote request lifecycle.
     // eslint-disable-next-line react-hooks/set-state-in-effect
     void refresh();
   }, [refresh]);
+  useEffect(() => {
+    if (busy) return;
+    const sync = () => { if (document.visibilityState === "visible") void load(true); };
+    const timer = setInterval(sync, 30000);
+    window.addEventListener("focus", sync);
+    return () => { clearInterval(timer); window.removeEventListener("focus", sync); };
+  }, [busy, load]);
   async function mutate(payload: Record<string, unknown>) {
     setBusy(true);
     setError("");
@@ -147,9 +155,8 @@ export function WorkspaceHeader({
         </nav>
       </div>
       <div className="notice">
-        <strong>Entorno de presentación.</strong> Usá datos ficticios. Los
-        cambios se guardan en tu espacio privado y no afectan al club. Importes,
-        horarios y reglas de ejemplo, a definir con Gold Gym.
+        <strong>Gestión del personal.</strong> Registrá socios, cuotas y reservas desde recepción.
+        Los clientes ingresan con su DNI en la terminal, sin crear una cuenta.
       </div>
     </>
   );
@@ -986,7 +993,7 @@ function MemberForm({
     [expires, setExpires] = useState(member?.expires ?? data.today),
     [status, setStatus] = useState(member?.status ?? "active");
   return !data.plans.length ? (
-    <p>Primero creá un plan en la sección Planes.</p>
+    <p>Primero creá un plan en la sección Planes. Los socios se registran aquí con su DNI; no necesitan cuenta, correo ni contraseña.</p>
   ) : (
     <form
       onSubmit={(e) => {
@@ -994,6 +1001,7 @@ function MemberForm({
         submit({
           action: "member",
           id: member?.id,
+          original: member ?? undefined,
           name,
           dni,
           phone,
@@ -1003,6 +1011,7 @@ function MemberForm({
         });
       }}
     >
+      <p className="muted" style={{ marginBottom: 20 }}>Alta administrativa del socio. No se crea una cuenta de acceso ni se envían correos al cliente.</p>
       <div className="form-grid">
         <Field label="Nombre y apellido" full>
           <input
@@ -1361,3 +1370,4 @@ function PriceForm({
     </form>
   );
 }
+

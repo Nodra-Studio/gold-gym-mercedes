@@ -119,7 +119,12 @@ export function accessDecision(
   if (member.status !== "active")
     return { allowed: false, reason: "Membresía pausada" };
   if (member.expires < day) return { allowed: false, reason: "Cuota vencida" };
-  return { allowed: true, reason: "Membresía vigente" };
+  const daysRemaining = Math.round((Date.parse(member.expires + "T12:00:00Z") - Date.parse(day + "T12:00:00Z")) / 86400000);
+  const warning = daysRemaining <= 7
+    ? daysRemaining === 0 ? "Tu cuota vence hoy. Acercate a recepción para renovarla."
+      : `Tu cuota vence en ${daysRemaining} ${daysRemaining === 1 ? "día" : "días"}. Acercate a recepción para renovarla.`
+    : null;
+  return { allowed: true, reason: "Membresía vigente", warning, daysRemaining };
 }
 export function isValidDay(day: string) {
   return (
@@ -149,3 +154,4 @@ export function slotPassed(day: string, minutes: number, now = new Date()) {
   const [hours, mins] = time.split(":").map(Number);
   return day < today || (day === today && minutes <= hours * 60 + mins);
 }
+

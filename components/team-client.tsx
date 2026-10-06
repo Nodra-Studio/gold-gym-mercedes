@@ -80,7 +80,7 @@ export default function TeamClient() {
       <header className="work-header">
         <div>
           <p className="eyebrow">GOLD GYM / EQUIPO</p>
-          <h1>Cada persona, su acceso.</h1>
+          <h1>Accesos del personal.</h1>
           <p>Permisos para trabajar sobre el mismo club.</p>
         </div>
       </header>
@@ -158,10 +158,10 @@ export default function TeamClient() {
               </button>
             </div>
             <p className="muted">
-              Para entrar al sitio privado, la persona también necesita acceso
-              desde la configuración de compartir del sitio. Agregarla aquí
-              define su rol dentro del club; no envía invitaciones ni cambia la
-              privacidad del sitio.
+              Creá una cuenta del personal en /crear-cuenta, confirmá su correo y copiá el identificador de /cuenta.
+              Agregala aquí como Recepción o Terminal. Los socios se cargan en Gimnasio, sin cuenta.
+              Una cuenta de recepción puede abrirse en varias computadoras a la vez.
+              Para el molinete usá una cuenta distinta con rol Terminal, sin acceso a la gestión.
             </p>
             {data.members.map((m) => (
               <div className="list-row" key={m.user_id}>
@@ -204,14 +204,14 @@ export default function TeamClient() {
               <strong>Recepción</strong>
               <p>
                 Socios, cuotas, clases, agenda e ingresos. Sin modificar
-                precios, equipo o respaldos.
+                precios, equipo o respaldos. La misma cuenta puede usarse en varias recepciones a la vez; los cambios se guardan en la misma base.
               </p>
             </div>
             <div className="list-row">
               <strong>Terminal</strong>
               <p>
                 Validar un DNI y registrar el resultado. Sin consultar listados
-                del club.
+                del club. Usá esta cuenta exclusiva en la pantalla del molinete; el cliente solo ingresa su DNI.
               </p>
             </div>
           </section>
@@ -277,7 +277,7 @@ function StaffForm({
           >
             <Option value="reception">Recepción</Option>
             <Option value="gate">Terminal de ingreso</Option>
-            <Option value="player">Jugador de pádel</Option>
+
           </SelectField>
         </Field>
         <Field label="Estado">
@@ -300,3 +300,4 @@ function StaffForm({
     </form>
   );
 }
+

@@ -24,7 +24,7 @@ export default function Padel() {
               Nos vemos en la cancha.
             </p>
             <div className="hero-actions">
-              <Link className="button gold" href="/jugar"><CalendarDays size={20} aria-hidden="true" /> Reservar cancha</Link>
+              <Link className="button gold" href={brand.contact}><CalendarDays size={20} aria-hidden="true" /> Reservar por recepción</Link>
               <Link href="/cuenta" className="text-link"><UserRound size={18} aria-hidden="true" /> Mis reservas</Link>
             </div>
             <div className="hero-foot">
@@ -126,7 +126,7 @@ export default function Padel() {
             <br />
             <em>Un buen plan.</em>
           </h2>
-          <Link href="/jugar" className="button gold"><CalendarDays size={20} aria-hidden="true" /> Elegir mi próximo turno</Link>
+          <Link href={brand.contact} className="button gold"><CalendarDays size={20} aria-hidden="true" /> Consultar mi próximo turno</Link>
           <p className="muted">Elegí el día y la cancha. Consultá tus reservas desde tu cuenta.</p>
         </section>
 
@@ -135,3 +135,4 @@ export default function Padel() {
     </>
   );
 }
+

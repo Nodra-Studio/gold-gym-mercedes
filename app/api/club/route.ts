@@ -40,6 +40,7 @@ const schema = z.discriminatedUnion("action", [
   }),
   z.object({
     action: z.literal("member"),
+    original: z.object({ name: z.string(), dni: z.string(), phone: z.string(), plan_id: z.string(), status: z.string(), expires: z.string() }).optional(),
     id: id.optional(),
     name,
     dni: z.string().regex(/^\d{7,8}$/, "El DNI debe tener 7 u 8 números"),
@@ -391,23 +392,19 @@ export async function POST(req: Request) {
         await owned("plans", input.planId);
         if (input.id) {
           await owned("members", input.id);
-          await db.batch([
-            db
-              .prepare(
-                "UPDATE members SET name=?,dni=?,phone=?,plan_id=?,status=?,expires=? WHERE id=? AND owner=?",
-              )
-              .bind(
-                input.name,
-                input.dni,
-                input.phone,
-                input.planId,
-                input.status,
-                input.expires,
-                input.id,
-                owner,
-              ),
-            log("Socio actualizado", input.name),
+          if (!input.original) throw new ClubError("Actualizá la ficha antes de guardar.", 409);
+          const original = input.original;
+          const auditId = crypto.randomUUID();
+          // Both statements share the database's serialized write transaction.
+          // A stale snapshot inserts no audit record and cannot update the member.
+          const result = await db.batch([
+            db.prepare("INSERT INTO audit(id,owner,action,detail,created_at) SELECT ?,?,?,?,? WHERE EXISTS (SELECT 1 FROM members WHERE id=? AND owner=? AND name=? AND dni=? AND phone=? AND plan_id=? AND status=? AND expires=?)")
+              .bind(auditId, owner, "Socio actualizado", `${input.name} · operador ${context.userId}`, now,
+                input.id, owner, original.name, original.dni, original.phone, original.plan_id, original.status, original.expires),
+            db.prepare("UPDATE members SET name=?,dni=?,phone=?,plan_id=?,status=?,expires=? WHERE id=? AND owner=? AND EXISTS (SELECT 1 FROM audit WHERE id=? AND owner=?)")
+              .bind(input.name, input.dni, input.phone, input.planId, input.status, input.expires, input.id, owner, auditId, owner),
           ]);
+          if (!result[1].meta.changes) throw new ClubError("Otra recepción modificó esta ficha o registró un pago. Cerrá la ficha, actualizá los datos y volvé a editarla.", 409);
         } else
           await db.batch([
             db
@@ -512,7 +509,7 @@ export async function POST(req: Request) {
             m?.name ?? "DNI no registrado",
             decision.allowed ? 1 : 0,
             decision.reason,
-            "Todas las sedes",
+            input.venue ?? "Todas las sedes",
             now,
           )
           .run();
@@ -731,3 +728,4 @@ export async function POST(req: Request) {
     return failure(e);
   }
 }
+

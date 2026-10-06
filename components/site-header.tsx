@@ -34,7 +34,7 @@ export function SiteHeader() {
         <Link onClick={() => setOpen(false)} href="/padel">
           Pádel
         </Link>
-        <Link onClick={() => setOpen(false)} href="/club"><UserRound size={16} aria-hidden="true" /> Mi club</Link>
+        <Link onClick={() => setOpen(false)} href="/club"><UserRound size={16} aria-hidden="true" /> El club</Link>
         <a
           className="button gold small"
           href={brand.contact}
@@ -47,3 +47,4 @@ export function SiteHeader() {
     </header>
   );
 }
+
