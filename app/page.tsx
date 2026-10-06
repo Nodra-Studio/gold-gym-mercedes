@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { SiteHeader } from "@/components/site-header";
 import { SiteFooter } from "@/components/site-footer";
+import { ScrollReveal } from "@/components/scroll-reveal";
 import { brand, venues } from "@/lib/content";
 
 export default function Home() {
@@ -97,7 +98,7 @@ export default function Home() {
           </div>
         </div>
         <section id="entrena" className="section training">
-          <div className="section-heading">
+          <div className="section-heading" data-reveal>
             <div>
               <p className="eyebrow">01 / ENCONTRÁ LO TUYO</p>
               <h2>
@@ -113,7 +114,7 @@ export default function Home() {
             </p>
           </div>
           <div className="training-grid">
-            <article className="discipline strength">
+            <article className="discipline strength" data-reveal>
               <div className="discipline-icon">
                 <Dumbbell />
               </div>
@@ -141,7 +142,7 @@ export default function Home() {
                 height="400"
               />
             </article>
-            <article className="discipline pilates">
+            <article className="discipline pilates" data-reveal data-reveal-delay="1">
               <img
                 src="/images/pilates.webp"
                 alt="Estudio de Gold Pilates"
@@ -163,7 +164,12 @@ export default function Home() {
                 </a>
               </div>
             </article>
-            <Link className="discipline padel-card" href="/padel">
+            <Link
+              className="discipline padel-card"
+              href="/padel"
+              data-reveal
+              data-reveal-delay="2"
+            >
               <img
                 src="/images/padel.webp"
                 alt="Jugadores en las canchas de Unión Gold Club"
@@ -183,7 +189,7 @@ export default function Home() {
           </div>
         </section>
         <section className="club-feature">
-          <div className="club-photo">
+          <div className="club-photo" data-reveal="zoom">
             <img
               src="/images/padel.webp"
               alt="Cancha de pádel al aire libre en Unión Gold Club"
@@ -192,7 +198,7 @@ export default function Home() {
               loading="lazy"
             />
           </div>
-          <div className="club-copy">
+          <div className="club-copy" data-reveal data-reveal-delay="1">
             <p className="eyebrow">UNIÓN GOLD CLUB</p>
             <h2>
               El partido termina.
@@ -221,7 +227,7 @@ export default function Home() {
           </div>
         </section>
         <section id="sedes" className="section">
-          <div className="section-heading">
+          <div className="section-heading" data-reveal>
             <div>
               <p className="eyebrow">02 / CERCA TUYO</p>
               <h2>
@@ -240,6 +246,8 @@ export default function Home() {
                 key={v.name}
                 href={v.map}
                 className="venue"
+                data-reveal
+                data-reveal-delay={Math.min(i + 1, 3)}
                 target="_blank"
                 rel="noopener noreferrer"
               >
@@ -258,14 +266,14 @@ export default function Home() {
               </a>
             ))}
           </div>
-          <p className="muted venue-note">
+          <p className="muted venue-note" data-reveal>
             Los horarios pueden variar por sede y actividad. Consultanos antes
             de tu primera visita.
           </p>
         </section>
         <section className="closing-cta">
-          <p className="eyebrow">EMPEZÁ POR UNA CHARLA</p>
-          <h2>
+          <p className="eyebrow" data-reveal>EMPEZÁ POR UNA CHARLA</p>
+          <h2 data-reveal data-reveal-delay="1">
             El próximo paso
             <br />
             <em>lo damos juntos.</em>
@@ -275,12 +283,15 @@ export default function Home() {
             href={brand.contact}
             target="_blank"
             rel="noopener noreferrer"
+            data-reveal
+            data-reveal-delay="2"
           >
             Escribinos por WhatsApp <MessageCircle size={20} aria-hidden="true" />
           </a>
         </section>
       </main>
       <SiteFooter />
+      <ScrollReveal />
     </>
   );
 }

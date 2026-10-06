@@ -1445,6 +1445,47 @@ p {
     padding-left: 10px;
   }
 }
+/* Entrance animations. The hero plays on load; [data-reveal] elements play
+   when ScrollReveal sees them enter the viewport. "backwards" fill hands the
+   element back to its own styles afterwards, so hover transforms keep working. */
+.hero-copy > *,
+.hero-visual {
+  animation: reveal-up 0.9s cubic-bezier(0.22, 1, 0.36, 1) backwards;
+}
+.hero-copy > :nth-child(2) { animation-delay: 0.1s; }
+.hero-copy > :nth-child(3) { animation-delay: 0.2s; }
+.hero-copy > :nth-child(4) { animation-delay: 0.3s; }
+.hero-copy > :nth-child(5) { animation-delay: 0.4s; }
+.hero-visual {
+  animation-name: reveal-zoom;
+  animation-duration: 1.1s;
+  animation-delay: 0.15s;
+}
+.reveal-ready [data-reveal]:not(.is-revealed) {
+  opacity: 0;
+}
+.reveal-ready [data-reveal].is-revealed {
+  animation: reveal-up 0.8s cubic-bezier(0.22, 1, 0.36, 1) backwards;
+}
+.reveal-ready [data-reveal="zoom"].is-revealed {
+  animation-name: reveal-zoom;
+  animation-duration: 1s;
+}
+.reveal-ready [data-reveal-delay="1"].is-revealed { animation-delay: 0.12s; }
+.reveal-ready [data-reveal-delay="2"].is-revealed { animation-delay: 0.24s; }
+.reveal-ready [data-reveal-delay="3"].is-revealed { animation-delay: 0.36s; }
+@keyframes reveal-up {
+  from {
+    opacity: 0;
+    transform: translateY(36px);
+  }
+}
+@keyframes reveal-zoom {
+  from {
+    opacity: 0;
+    transform: scale(0.94);
+  }
+}
 @media (prefers-reduced-motion: reduce) {
   html {
     scroll-behavior: auto;
