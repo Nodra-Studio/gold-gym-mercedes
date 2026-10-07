@@ -126,7 +126,12 @@ export default function Home() {
                 height="400"
               />
             </article>
-            <article className="discipline pilates" data-reveal data-reveal-delay="1">
+            <Link
+              className="discipline pilates"
+              href="/pilates"
+              data-reveal
+              data-reveal-delay="1"
+            >
               <img
                 src="/images/pilates.webp"
                 alt="Estudio de Gold Pilates"
@@ -138,16 +143,11 @@ export default function Home() {
                 <span className="number">02</span>
                 <h3>Pilates</h3>
                 <p>Un momento para conectar con tu cuerpo.</p>
-                <a
-                  className="text-link"
-                  href={brand.contact}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  Consultá horarios <ArrowUpRight size={18} />
-                </a>
+                <span className="text-link">
+                  Consultá por tu plan <ArrowUpRight size={18} />
+                </span>
               </div>
-            </article>
+            </Link>
             <Link
               className="discipline padel-card"
               href="/padel"

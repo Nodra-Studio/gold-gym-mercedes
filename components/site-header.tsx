@@ -31,6 +31,9 @@ export function SiteHeader() {
         <Link onClick={() => setOpen(false)} href="/#sedes">
           Sedes
         </Link>
+        <Link onClick={() => setOpen(false)} href="/pilates">
+          Pilates
+        </Link>
         <Link onClick={() => setOpen(false)} href="/padel">
           Pádel
         </Link>

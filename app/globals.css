@@ -1682,3 +1682,107 @@ button[aria-busy="true"] { cursor: progress; }
   color: #161910;
   opacity: 0.7;
 }
+
+/* Gold Pilates */
+.hero-visual > .pilates-badge {
+  position: absolute;
+  top: 22px;
+  left: 22px;
+  width: clamp(72px, 9vw, 108px);
+  height: auto;
+  padding: 8px;
+  border-radius: 50%;
+  background: #111310cc;
+  backdrop-filter: blur(4px);
+}
+.pilates-method {
+  margin-top: 70px;
+}
+.pilates-details {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 26px;
+}
+.pilates-details img {
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
+  border-radius: 50%; /* óvalo, como las fotos de detalle del estudio */
+  margin-bottom: 22px;
+  transition: transform 0.5s ease;
+}
+.pilates-details article:hover img {
+  transform: scale(1.04);
+}
+.pilates-details small {
+  color: var(--gold);
+}
+.pilates-details h3 {
+  font-size: 1.3rem;
+  margin: 10px 0 8px;
+}
+.pilates-details p {
+  font-size: 0.88rem;
+}
+.pilates-studio {
+  padding-top: 20px;
+}
+.pilates-gallery {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr;
+  grid-template-rows: repeat(2, minmax(0, 280px));
+  gap: 14px;
+}
+.pilates-gallery img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.pilates-gallery img:first-child {
+  grid-row: span 2;
+}
+@media (max-width: 1100px) {
+  .pilates-details {
+    grid-template-columns: repeat(3, 1fr);
+    row-gap: 40px;
+  }
+  .pilates-gallery {
+    grid-template-rows: repeat(2, minmax(0, 220px));
+  }
+}
+@media (max-width: 760px) {
+  .pilates-method {
+    margin-top: 40px;
+  }
+  /* En celulares los detalles pasan a un carrusel que se desliza con el dedo */
+  .pilates-details {
+    display: flex;
+    gap: 18px;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    scroll-padding-inline: 5vw;
+    margin: 0 -5vw;
+    padding: 0 5vw 10px;
+    scrollbar-width: none;
+  }
+  .pilates-details::-webkit-scrollbar {
+    display: none;
+  }
+  .pilates-details article {
+    flex: 0 0 58%;
+    scroll-snap-align: start;
+  }
+  .pilates-gallery {
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: none;
+    gap: 10px;
+  }
+  .pilates-gallery img {
+    aspect-ratio: 1;
+  }
+  .pilates-gallery img:first-child {
+    grid-row: auto;
+    grid-column: 1 / -1;
+    aspect-ratio: 4 / 3;
+  }
+}
