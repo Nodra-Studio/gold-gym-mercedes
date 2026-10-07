@@ -109,7 +109,7 @@ export default function Padel() {
               target="_blank"
               rel="noopener noreferrer"
             >
-              <img src="/icons/instagram.svg" width={18} height={18} alt="" />
+              <span className="gg-instagram-icon" aria-hidden="true" />
               Novedades y torneos <ArrowUpRight size={16} />
             </a>
             <a

@@ -18,11 +18,11 @@ export function SiteFooter() {
         </p>
         <nav className="gg-footer-social" aria-label="Redes y contacto">
           <a href={brand.instagram} target="_blank" rel="noopener noreferrer">
-            <img src="/icons/instagram.svg" width={18} height={18} alt="" />{" "}
+            <span className="gg-instagram-icon" aria-hidden="true" />{" "}
             Gold Gym <ArrowUpRight size={15} />
           </a>
           <a href={brand.padel} target="_blank" rel="noopener noreferrer">
-            <img src="/icons/instagram.svg" width={18} height={18} alt="" />{" "}
+            <span className="gg-instagram-icon" aria-hidden="true" />{" "}
             Gold Pádel <ArrowUpRight size={15} />
           </a>
           <a href={brand.contact} target="_blank" rel="noopener noreferrer">

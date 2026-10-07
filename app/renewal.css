@@ -1836,3 +1836,14 @@ body:has(.admin-shell) [data-slot="dialog-content"] .muted {
 .gg-final .gg-kicker > span {
   background: #000;
 }
+
+/* Logo de Instagram en el dorado de la marca: el SVG original es rosa, así que se usa como máscara. */
+.gg-instagram-icon {
+  display: inline-block;
+  flex-shrink: 0;
+  width: 18px;
+  height: 18px;
+  background-color: #d3b36b;
+  -webkit-mask: url("/icons/instagram.svg") center / contain no-repeat;
+  mask: url("/icons/instagram.svg") center / contain no-repeat;
+}
