@@ -1,15 +1,114 @@
-import Link from 'next/link';
-import { SiteHeader } from '@/components/site-header';
-import { SiteFooter } from '@/components/site-footer';
-import { brand } from '@/lib/content';
-export const metadata = { title: 'El club · Gold Gym' };
+import { ArrowUpRight } from "lucide-react";
+import { SiteHeader } from "@/components/site-header";
+import { SiteFooter } from "@/components/site-footer";
+import { brand } from "@/lib/content";
+export const metadata = { title: "Cómo sumarte · Gold Gym" };
 export default function Club() {
-  return <><SiteHeader /><main className="club-home">
-    <header className="club-intro"><p className="eyebrow">GOLD GYM / SOCIOS</p><h1>Tu DNI.<br /><em>Tu entrada al club.</em></h1><p>No necesitás crear una cuenta ni recordar una contraseña. Recepción se encarga de tu inscripción.</p><a href={brand.contact} className="button gold">Consultar en recepción</a></header>
-    <div className="club-services">
-      <section className="club-service"><div><small>01 / INSCRIPCIÓN</small><h2>Registrate en recepción</h2><p>El personal carga tu nombre, DNI, teléfono y plan, y registra tus pagos.</p></div></section>
-      <section className="club-service"><div><small>02 / INGRESO</small><h2>Ingresá tu DNI en la terminal</h2><p>La pantalla del club te indica si podés pasar. Si tu cuota vence dentro de los próximos 7 días, te avisa para que la renueves.</p></div></section>
-      <section className="club-service"><div><small>03 / RESERVAS</small><h2>Coordiná con recepción</h2><p>El personal registra tus clases y reservas de pádel. Todo sin crear una cuenta.</p></div></section>
-    </div><p style={{marginTop:40}}><Link href="/acceso" className="text-link">Acceso del personal</Link></p>
-  </main><SiteFooter /></>;
+  return (
+    <div className="marketing gg-secondary">
+      <SiteHeader />
+      <main id="contenido">
+        <section className="gg-hero">
+          <div>
+            <p className="gg-kicker">SUMATE A GOLD</p>
+            <h1>
+              TU DNI.
+              <br />
+              <span>TU ENTRADA.</span>
+            </h1>
+            <p className="gg-lead">
+              Sin cuentas ni contraseñas.
+              <br />
+              Pasá por recepción. El equipo se ocupa de tu inscripción.
+            </p>
+            <a
+              href={brand.contact}
+              className="gg-button"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Consultar en recepción <ArrowUpRight size={20} />
+            </a>
+          </div>
+          <div className="gg-document-art">
+            <span>GOLD GYM / SOCIOS</span>
+            <strong>
+              VOS TRAÉS
+              <br />
+              LAS GANAS.
+            </strong>
+            <p>Nosotros te ayudamos a dar el primer paso.</p>
+          </div>
+        </section>
+        <section className="gg-club-band">
+          <div>
+            <p className="gg-kicker">TODO EMPIEZA EN RECEPCIÓN</p>
+            <h2>
+              TRES PASOS.
+              <br />
+              <span>Y A MOVERTE.</span>
+            </h2>
+          </div>
+          <div className="gg-steps">
+            {[
+              [
+                "01",
+                "Te registramos",
+                "El personal carga tu nombre, DNI, contacto y plan, y registra tus pagos.",
+              ],
+              [
+                "02",
+                "Ingresás con tu DNI",
+                "En la terminal del club, ingresá tu documento. La pantalla te indica si podés pasar.",
+              ],
+              [
+                "03",
+                "Te avisamos con tiempo",
+                "Desde 7 días antes del vencimiento, la terminal te avisa que tenés que renovar. Si hay un problema, recepción te ayuda.",
+              ],
+            ].map(([n, t, p]) => (
+              <div key={n}>
+                <span>{n}</span>
+                <div>
+                  <h3>{t}</h3>
+                  <p>{p}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+        <section className="gg-faq gg-section">
+          <div>
+            <p className="gg-kicker">TU ACTIVIDAD, ORGANIZADA</p>
+            <h2>
+              LO COORDINAMOS
+              <br />
+              <span>CON VOS.</span>
+            </h2>
+          </div>
+          <div>
+            <details open>
+              <summary>
+                Clases y reservas de pádel <ArrowUpRight size={20} />
+              </summary>
+              <p>
+                Consultá los horarios y coordiná tu lugar con recepción. El
+                personal registra tu reserva y te confirma los detalles.
+              </p>
+            </details>
+            <details>
+              <summary>
+                Qué pasa si mi cuota está vencida? <ArrowUpRight size={20} />
+              </summary>
+              <p>
+                La terminal te avisa y te indica que pases por recepción para
+                regularizar tu cuota antes de ingresar.
+              </p>
+            </details>
+          </div>
+        </section>
+      </main>
+      <SiteFooter />
+    </div>
+  );
 }

@@ -1,59 +1,59 @@
 import type { Metadata } from "next";
-import Link from "next/link";
-import { MapPin, CalendarDays, UserRound, Utensils } from "lucide-react";
+import { ArrowUpRight, MapPin, Utensils } from "lucide-react";
 import { SiteHeader } from "@/components/site-header";
 import { SiteFooter } from "@/components/site-footer";
 import { brand, venues } from "@/lib/content";
 export const metadata: Metadata = { title: "Pádel · Unión Gold Club" };
 export default function Padel() {
   return (
-    <>
+    <div className="marketing gg-secondary">
       <SiteHeader />
-      <main>
-        <section className="hero padel-hero">
-          <div className="hero-copy">
-            <p className="eyebrow">UNIÓN GOLD CLUB / MERCEDES</p>
+      <main id="contenido">
+        <section className="gg-hero">
+          <div>
+            <p className="gg-kicker">PÁDEL / CLUB UNIÓN</p>
             <h1>
-              ¿SALE
+              SALE
               <br />
-              <em>PARTIDO?</em>
+              <span>PARTIDO?</span>
             </h1>
-            <p className="hero-description">
+            <p className="gg-lead">
               Traé la paleta. Juntá a tu equipo.
               <br />
               Nos vemos en la cancha.
             </p>
-            <div className="hero-actions">
-              <Link className="button gold" href={brand.contact}><CalendarDays size={20} aria-hidden="true" /> Reservar por recepción</Link>
-              <Link href="/cuenta" className="text-link"><UserRound size={18} aria-hidden="true" /> Mis reservas</Link>
-            </div>
-            <div className="hero-foot">
-              <span>4 CANCHAS</span>
-              <span>SINTÉTICO + BLINDEX</span>
+            <a
+              href={brand.contact}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="gg-button"
+            >
+              Coordinar un turno <ArrowUpRight size={20} />
+            </a>
+            <div className="gg-hero-note">
+              <span>4 CANCHAS / SINTÉTICO + BLINDEX</span>
+              <span>MERCEDES</span>
             </div>
           </div>
-          <div className="hero-visual">
+          <figure className="gg-single-photo">
             <img
               src="/images/padel.webp"
-              alt="Partido en una cancha de Unión Gold Club"
-              width="1080"
-              height="1350"
+              alt="Canchas de pádel de Club Unión"
+              width={1080}
+              height={1350}
               fetchPriority="high"
             />
-            <div className="image-caption">
-              <span>CALLE 103 Y 28 · MERCEDES</span>
-              <MapPin />
-            </div>
-          </div>
+            <figcaption>CLUB UNIÓN · CALLE 103 Y 28</figcaption>
+          </figure>
         </section>
-        <section className="section">
-          <div className="section-heading">
+        <section className="gg-section">
+          <div className="gg-section-head">
             <div>
-              <p className="eyebrow">MÁS QUE UN TURNO</p>
+              <p className="gg-kicker">MÁS QUE UN TURNO</p>
               <h2>
-                Tu próximo
+                TU PRÓXIMO
                 <br />
-                <em>punto de encuentro.</em>
+                <span>PUNTO DE ENCUENTRO.</span>
               </h2>
             </div>
             <p>
@@ -62,7 +62,7 @@ export default function Padel() {
               competir y compartir.
             </p>
           </div>
-          <div className="benefit-grid">
+          <div className="gg-feature-grid">
             {[
               [
                 "01",
@@ -82,57 +82,68 @@ export default function Padel() {
               [
                 "04",
                 "Jugamos en comunidad",
-                "Torneos y encuentros. Encontrá las novedades en nuestro Instagram.",
+                "Encontrá las novedades, torneos y encuentros en nuestro Instagram.",
               ],
-            ].map(([n, h, p]) => (
+            ].map(([n, t, p]) => (
               <article key={n}>
                 <small>{n}</small>
-                <h3>{h}</h3>
+                <h3>{t}</h3>
                 <p>{p}</p>
               </article>
             ))}
           </div>
-          <div className="link-row">
+          <div className="gg-link-row">
             <a
+              className="gg-text-link"
               href={brand.buffet}
-              className="text-link"
               target="_blank"
               rel="noopener noreferrer"
             >
-              <Utensils size={18} aria-hidden="true" /> Ver menú del buffet
+              <Utensils size={18} />
+              Menú del buffet <ArrowUpRight size={16} />
             </a>
             <a
+              className="gg-text-link"
               href={brand.padel}
-              className="text-link"
               target="_blank"
               rel="noopener noreferrer"
             >
-              <img className="brand-icon" src="/icons/instagram.svg" alt="" width={18} height={18} /> Novedades y torneos
+              <img src="/icons/instagram.svg" width={18} height={18} alt="" />
+              Novedades y torneos <ArrowUpRight size={16} />
             </a>
             <a
+              className="gg-text-link"
               href={venues[2].map}
-              className="text-link"
               target="_blank"
               rel="noopener noreferrer"
             >
-              <MapPin size={18} aria-hidden="true" /> Cómo llegar
+              <MapPin size={18} />
+              Cómo llegar <ArrowUpRight size={16} />
             </a>
           </div>
         </section>
-        <section className="closing-cta">
-          <p className="eyebrow">HACETE EL ESPACIO</p>
+        <section className="gg-final">
+          <p className="gg-kicker">HACETE EL ESPACIO</p>
           <h2>
-            Un turno fijo.
+            UN TURNO FIJO.
             <br />
-            <em>Un buen plan.</em>
+            <span>UN BUEN PLAN.</span>
           </h2>
-          <Link href={brand.contact} className="button gold"><CalendarDays size={20} aria-hidden="true" /> Consultar mi próximo turno</Link>
-          <p className="muted">Elegí el día y la cancha. Consultá tus reservas desde tu cuenta.</p>
+          <a
+            href={brand.contact}
+            className="gg-button gg-button-dark"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Consultar disponibilidad <ArrowUpRight />
+          </a>
+          <p>
+            Recepción registra y confirma tu turno. No necesitás crear una
+            cuenta.
+          </p>
         </section>
-
       </main>
       <SiteFooter />
-    </>
+    </div>
   );
 }
-

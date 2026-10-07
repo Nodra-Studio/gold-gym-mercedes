@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import "./renewal.css";
 export const metadata: Metadata = {
   title: {
     default: "Gold Gym · Entrená en Mercedes",

@@ -31,12 +31,21 @@ export function BenefitsCarousel() {
     const card = track?.firstElementChild as HTMLElement | null;
     if (!track || !card) return;
     const gap = parseFloat(getComputedStyle(track).columnGap) || 0;
-    track.scrollBy({ left: direction * (card.offsetWidth + gap), behavior: "smooth" });
+    track.scrollBy({
+      left: direction * (card.offsetWidth + gap),
+      behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches
+        ? "instant"
+        : "smooth",
+    });
   };
 
   return (
     <div className="benefits">
-      <ul ref={trackRef} className="benefits-track" aria-label="Descuentos para socios">
+      <ul
+        ref={trackRef}
+        className="benefits-track"
+        aria-label="Descuentos para socios"
+      >
         {benefits.map((benefit) => (
           <li key={benefit.logo} className="benefit-card">
             <div className="benefit-logo">

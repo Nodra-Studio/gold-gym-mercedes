@@ -58,46 +58,46 @@ const gallery = [
   { image: "accesorios", alt: "Pelotas, aros y accesorios del estudio" },
   { image: "cartel", alt: "Cartel iluminado de Gold Pilates" },
   { image: "recepcion", alt: "Recepción de Gold Pilates" },
-  { image: "recepcion-logo", alt: "Logo de Gold Pilates en la pared de recepción" },
+  {
+    image: "recepcion-logo",
+    alt: "Logo de Gold Pilates en la pared de recepción",
+  },
 ];
 
 export default function Pilates() {
   return (
-    <>
-      <a className="skip-link" href="#contenido">
-        Saltar al contenido
-      </a>
+    <div className="marketing gg-secondary gg-pilates-page">
       <SiteHeader />
       <main id="contenido">
-        <section className="hero">
+        <section className="gg-hero">
           <div className="hero-copy">
-            <p className="eyebrow">
+            <p className="gg-kicker">
               <span /> GOLD PILATES / MERCEDES
             </p>
             <h1>
               TU CUERPO,
               <br />
-              <em>EN EQUILIBRIO.</em>
+              <span>EN EQUILIBRIO.</span>
             </h1>
-            <p className="hero-description">
+            <p className="gg-lead">
               Fuerza, postura y respiración en cada movimiento.
               <br />
               Un momento para conectar con vos.
             </p>
-            <div className="hero-actions">
+            <div className="gg-actions">
               <a
-                className="button gold"
+                className="gg-button"
                 href={brand.contact}
                 target="_blank"
                 rel="noopener noreferrer"
               >
                 Consultá horarios <ArrowUpRight size={19} />
               </a>
-              <a className="text-link" href="#estudio">
+              <a className="gg-text-link" href="#estudio">
                 Conocé el estudio <ArrowRight size={18} />
               </a>
             </div>
-            <div className="hero-foot">
+            <div className="gg-hero-note">
               <span>REFORMER</span>
               <span>TOWER</span>
               <span>MAT</span>
@@ -145,11 +145,11 @@ export default function Pilates() {
             />
           </div>
           <div className="club-copy" data-reveal data-reveal-delay="1">
-            <p className="eyebrow">01 / EL MÉTODO</p>
+            <p className="gg-kicker">01 / EL MÉTODO</p>
             <h2>
               Cuerpo, mente
               <br />
-              <em>y espíritu.</em>
+              <span>y espíritu.</span>
             </h2>
             <p>
               Pilates es la coordinación plena de los tres. Un entrenamiento de
@@ -171,14 +171,14 @@ export default function Pilates() {
           </div>
         </section>
 
-        <section className="section">
-          <div className="section-heading" data-reveal>
+        <section className="gg-section">
+          <div className="gg-section-head" data-reveal>
             <div>
-              <p className="eyebrow">02 / CADA DETALLE CUENTA</p>
+              <p className="gg-kicker">02 / CADA DETALLE CUENTA</p>
               <h2>
                 Precisión
                 <br />
-                <em>en cada movimiento.</em>
+                <span>en cada movimiento.</span>
               </h2>
             </div>
             <p>
@@ -209,14 +209,14 @@ export default function Pilates() {
           </div>
         </section>
 
-        <section id="estudio" className="section pilates-studio">
-          <div className="section-heading" data-reveal>
+        <section id="estudio" className="gg-section pilates-studio">
+          <div className="gg-section-head" data-reveal>
             <div>
-              <p className="eyebrow">03 / EL ESTUDIO</p>
+              <p className="gg-kicker">03 / EL ESTUDIO</p>
               <h2>
                 Un espacio para
                 <br />
-                <em>bajar un cambio.</em>
+                <span>bajar un cambio.</span>
               </h2>
             </div>
             <p>
@@ -241,32 +241,31 @@ export default function Pilates() {
           </div>
         </section>
 
-        <section className="closing-cta">
-          <p className="eyebrow" data-reveal>
+        <section className="gg-final">
+          <p className="gg-kicker" data-reveal>
             TU PRIMERA CLASE
           </p>
           <h2 data-reveal data-reveal-delay="1">
             Reservá tu lugar.
             <br />
-            <em>Nosotros te guiamos.</em>
+            <span>Nosotros te guiamos.</span>
           </h2>
           <a
-            className="button gold"
+            className="gg-button"
             href={brand.contact}
             target="_blank"
             rel="noopener noreferrer"
             data-reveal
             data-reveal-delay="2"
           >
-            Escribinos por WhatsApp <MessageCircle size={20} aria-hidden="true" />
+            Escribinos por WhatsApp{" "}
+            <MessageCircle size={20} aria-hidden="true" />
           </a>
-          <p className="muted">
-            Te contamos horarios y planes disponibles.
-          </p>
+          <p className="muted">Te contamos horarios y planes disponibles.</p>
         </section>
       </main>
       <SiteFooter />
       <ScrollReveal />
-    </>
+    </div>
   );
 }

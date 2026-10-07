@@ -79,10 +79,15 @@ export function useClub() {
   }, [refresh]);
   useEffect(() => {
     if (busy) return;
-    const sync = () => { if (document.visibilityState === "visible") void load(true); };
+    const sync = () => {
+      if (document.visibilityState === "visible") void load(true);
+    };
     const timer = setInterval(sync, 30000);
     window.addEventListener("focus", sync);
-    return () => { clearInterval(timer); window.removeEventListener("focus", sync); };
+    return () => {
+      clearInterval(timer);
+      window.removeEventListener("focus", sync);
+    };
   }, [busy, load]);
   async function mutate(payload: Record<string, unknown>) {
     setBusy(true);
@@ -121,46 +126,20 @@ export function WorkspaceHeader({
   subtitle: string;
 }) {
   return (
-    <>
-      <div className="work-header">
-        <div>
-          <Link
-            href="/"
-            className="text-link"
-            style={{ fontSize: ".7rem", marginBottom: 20 }}
-          >
-            <ArrowLeft size={14} /> Volver a Gold Gym
-          </Link>
-          <p className="eyebrow" style={{ marginBottom: 10 }}>
-            GOLD GYM / CLUB
-          </p>
-          <h1>{title}</h1>
-          <p className="muted" style={{ marginTop: 10 }}>
-            {subtitle}
-          </p>
-        </div>
-        <nav className="work-nav" aria-label="Gestión">
-          <Link
-            href="/gestion"
-            className={active === "gestion" ? "active" : ""}
-          >
-            Gimnasio
-          </Link>
-          <Link
-            href="/reservas"
-            className={active === "reservas" ? "active" : ""}
-          >
-            Pádel
-          </Link>
-          <Link href="/caja" className={active === "caja" ? "active" : ""}>Caja y stock</Link>
-          <Link href="/ingreso">Terminal de ingreso ↗</Link>
-        </nav>
+    <header className="work-header">
+      <div>
+        <p className="eyebrow">
+          {active === "gestion"
+            ? "SOCIOS Y GIMNASIO"
+            : active === "reservas"
+              ? "CLUB UNIÓN / PÁDEL"
+              : "ADMINISTRACIÓN / CAJA"}
+        </p>
+        <h1>{title}</h1>
+        <p className="muted">{subtitle}</p>
       </div>
-      <div className="notice">
-        <strong>Gestión del personal.</strong> Registrá socios, cuotas y reservas desde recepción.
-        Los clientes ingresan con su DNI en la terminal, sin crear una cuenta.
-      </div>
-    </>
+      <span className="workspace-badge">Gold Gym · Mercedes</span>
+    </header>
   );
 }
 export function Field({
@@ -390,8 +369,8 @@ export default function ClubDashboard() {
     <main className="workspace">
       <WorkspaceHeader
         active="gestion"
-        title="El club, en un solo lugar."
-        subtitle="Socios, cuotas, clases e ingresos. Todo a mano."
+        title="Todo listo para un nuevo día."
+        subtitle="Registrá socios, controlá las cuotas y organizá las actividades del club."
       />
       <ErrorNotice error={modal ? "" : error} />
       {!data && error && (
@@ -995,7 +974,10 @@ function MemberForm({
     [expires, setExpires] = useState(member?.expires ?? data.today),
     [status, setStatus] = useState(member?.status ?? "active");
   return !data.plans.length ? (
-    <p>Primero creá un plan en la sección Planes. Los socios se registran aquí con su DNI; no necesitan cuenta, correo ni contraseña.</p>
+    <p>
+      Primero creá un plan en la sección Planes. Los socios se registran aquí
+      con su DNI; no necesitan cuenta, correo ni contraseña.
+    </p>
   ) : (
     <form
       onSubmit={(e) => {
@@ -1013,7 +995,10 @@ function MemberForm({
         });
       }}
     >
-      <p className="muted" style={{ marginBottom: 20 }}>Alta administrativa del socio. No se crea una cuenta de acceso ni se envían correos al cliente.</p>
+      <p className="muted" style={{ marginBottom: 20 }}>
+        Alta administrativa del socio. No se crea una cuenta de acceso ni se
+        envían correos al cliente.
+      </p>
       <div className="form-grid">
         <Field label="Nombre y apellido" full>
           <input
@@ -1117,7 +1102,11 @@ function PaymentForm({
         <Field label="Sede donde se cobra" full>
           <SelectField value={venue} onChange={setVenue} required>
             <Option value="">Elegí una sede</Option>
-            {branches.map(b => <Option key={b.id} value={b.id}>{b.name}</Option>)}
+            {branches.map((b) => (
+              <Option key={b.id} value={b.id}>
+                {b.name}
+              </Option>
+            ))}
           </SelectField>
         </Field>
         <Field label="Medio de pago" full>
@@ -1380,4 +1369,3 @@ function PriceForm({
     </form>
   );
 }
-

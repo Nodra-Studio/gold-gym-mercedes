@@ -1,26 +1,42 @@
 import Link from "next/link";
-import { LayoutDashboard } from "lucide-react";
+import { ArrowUpRight } from "lucide-react";
 import { brand } from "@/lib/content";
 export function SiteFooter() {
   return (
-    <footer className="site-footer">
-      <div className="footer-top">
-        <div>
-          <strong>GOLD GYM</strong>
-          <p>Más de 3 gimnasios, un centro exclusivo de pilates y canchas de pádel de primer nivel. <br /> Entrená, sumate al movimiento y superá tus objetivos con nosotros.</p>
-        </div>
-        <nav className="footer-socials" aria-label="Redes y contacto">
-          <div><a className="social-icon" href={brand.instagram} target="_blank" rel="noopener noreferrer" aria-label="Instagram de Gold Gym" title="Instagram de Gold Gym"><img src="/icons/instagram.svg" alt="" width={22} height={22} /></a><small>Gimnasio</small></div>
-          <div><a className="social-icon" href={brand.padel} target="_blank" rel="noopener noreferrer" aria-label="Instagram de Gold Gym Pádel" title="Instagram de Gold Gym Pádel"><img src="/icons/instagram.svg" alt="" width={22} height={22} /></a><small>Pádel</small></div>
-          <div><a className="social-icon" href={brand.contact} target="_blank" rel="noopener noreferrer" aria-label="Contactar por WhatsApp" title="Contactar por WhatsApp"><img src="/icons/whatsapp.svg" alt="" width={22} height={22} /></a><small>Contacto</small></div>
+    <footer className="gg-footer">
+      <div className="gg-footer-main">
+        <Link className="gg-brand" href="/">
+          <img src="/images/logo.webp" alt="" width={64} height={64} />
+          <span>
+            GOLD GYM<small>MERCEDES, BUENOS AIRES</small>
+          </span>
+        </Link>
+        <p>
+          Tu lugar para entrenar.
+          <br />
+          Tu club para encontrarte.
+        </p>
+        <nav className="gg-footer-social" aria-label="Redes y contacto">
+          <a href={brand.instagram} target="_blank" rel="noopener noreferrer">
+            <img src="/icons/instagram.svg" width={18} height={18} alt="" />{" "}
+            Gold Gym <ArrowUpRight size={15} />
+          </a>
+          <a href={brand.padel} target="_blank" rel="noopener noreferrer">
+            <img src="/icons/instagram.svg" width={18} height={18} alt="" />{" "}
+            Gold Pádel <ArrowUpRight size={15} />
+          </a>
+          <a href={brand.contact} target="_blank" rel="noopener noreferrer">
+            WhatsApp <ArrowUpRight size={15} />
+          </a>
         </nav>
       </div>
-      <div className="footer-bottom">
-        <span>Mercedes, Buenos Aires · Argentina</span>
-        <Link href="/acceso"><LayoutDashboard size={16} aria-hidden="true" /> Acceso del personal</Link>
-        <Link href="/propuesta">Presentación del proyecto</Link>
+      <div className="gg-footer-bottom">
+        <span>Musculación · Pilates · Pádel</span>
+        <Link href="/acceso">
+          Acceso del personal <ArrowUpRight size={14} />
+        </Link>
+        <span>Diseño y desarrollo por Nodra Studio</span>
       </div>
     </footer>
   );
 }
-
