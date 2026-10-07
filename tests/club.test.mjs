@@ -1279,7 +1279,7 @@ try {
       runtime.setUser("player-a");assert.equal((await bookingPaymentsApi.GET(new Request("https://test.local/api/booking-payments?bookingId="+booking.id))).status,403);
     });
     await t.test("Respaldo v2 conserva cobros de pádel; v1 no inventa historial",async()=>{
-      runtime.setUser("ledger-owner");const snapshot=await(await exporter.GET()).json();assert.equal(snapshot.schemaVersion,3);assert.equal(snapshot.records.booking_payments.length,2);
+      runtime.setUser("ledger-owner");const snapshot=await(await exporter.GET()).json();assert.equal(snapshot.schemaVersion,4);assert.equal(snapshot.records.booking_payments.length,2);
       runtime.setUser("ledger-restored");assert.equal((await call(backupApi,{action:"restore",requestKey:key(),backup:snapshot})).status,200);
       const restored=await(await exporter.GET()).json();assert.equal(restored.records.booking_payments.length,2);assert.ok(restored.records.booking_payments.every(p=>restored.records.bookings.some(b=>b.id===p.booking_id)));
       const missing=structuredClone(snapshot);delete missing.records.booking_payments;assert.equal((await call(backupApi,{action:"check",requestKey:key(),backup:missing})).status,400);
@@ -1319,6 +1319,8 @@ try {
         assert.equal(safeCsv.csvCell("  =1+1"), '"\'  =1+1"');
         assert.equal(safeCsv.csvCell('Ana; "A"'), '"Ana; ""A"""');
         assert.equal(safeCsv.csvCell(1200), '"1200"');
+        assert.equal(safeCsv.csvCell(-500), '"-500"');
+        assert.equal(safeCsv.csvCell("-500"), '"\'-500"');
         assert.equal(safeCsv.csvCell("+5491112345678"), '"\'+5491112345678"');
       },
     );

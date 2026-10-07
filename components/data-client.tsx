@@ -312,6 +312,7 @@ export default function DataClient() {
                       products: "Productos",
                       cash_entries: "Caja",
                       stock_moves: "Movimientos de stock",
+                      product_changes: "Historial de productos",
                     }[name] ?? name}
                   </span>
                   <strong>{count}</strong>

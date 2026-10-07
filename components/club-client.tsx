@@ -1278,7 +1278,7 @@ function SessionForm({
         </Field>
         <Field label="Sede">
           <SelectField value={venue} onChange={setVenue}>
-            {["Calle 30", "Calle 23", "Club Vélez", "Pilates"].map((x) => (
+            {["Calle 30", "Calle 23", "Club Unión", "Pilates"].map((x) => (
               <Option key={x}>{x}</Option>
             ))}
           </SelectField>

@@ -7,7 +7,8 @@ import {
   ClubError,
   apiError,
 } from "@/lib/server";
-import { branchIds, expenseCategories } from "@/lib/branches";
+import { csvDocument } from "@/lib/csv";
+import { branchName, branchIds, expenseCategories } from "@/lib/branches";
 import { isValidDay, localDay } from "@/lib/club";
 export const dynamic = "force-dynamic";
 const venue = z.enum(branchIds),
@@ -16,6 +17,44 @@ const venue = z.enum(branchIds),
 const method = z.enum(["Efectivo", "Transferencia", "Tarjeta"]),
   quantity = z.number().int().min(1).max(10000);
 const schema = z.discriminatedUnion("action", [
+  z
+    .object({
+      action: z.literal("transfer"),
+      venue,
+      destination: venue,
+      productId: z.string().uuid(),
+      quantity,
+      note: z.string().trim().min(3).max(300),
+      requestKey,
+    })
+    .strict(),
+  z
+    .object({
+      action: z.literal("adjust"),
+      venue,
+      productId: z.string().uuid(),
+      quantity: z
+        .number()
+        .int()
+        .min(-10000)
+        .max(10000)
+        .refine((n) => n !== 0),
+      note: z.string().trim().min(3).max(300),
+      requestKey,
+    })
+    .strict(),
+  z
+    .object({
+      action: z.literal("editProduct"),
+      productId: z.string().uuid(),
+      name: z.string().trim().min(1).max(120),
+      category: z.string().trim().min(1).max(60),
+      price: amount,
+      active: z.number().int().min(0).max(1),
+      expectedRevision: z.number().int().min(1),
+      requestKey,
+    })
+    .strict(),
   z
     .object({
       action: z.literal("product"),
@@ -77,7 +116,11 @@ export async function POST(req: Request) {
       throw new ClubError(
         "Revisá la sede, los importes y los datos del formulario.",
       );
-    if (input.data.action === "product" || input.data.action === "reverse")
+    if (
+      ["product", "reverse", "adjust", "editProduct"].includes(
+        input.data.action,
+      )
+    )
       permit(p, ["owner"]);
     if (input.data.action === "expense" && input.data.day > localDay())
       throw new ClubError("El gasto no puede tener fecha futura.");
@@ -153,6 +196,54 @@ export async function GET(req: Request) {
       ...(category ? [category] : []),
     ];
     const db = database();
+    if (q.get("format") === "csv") {
+      const rows = await db
+        .prepare(
+          union +
+            " SELECT * FROM filtered ORDER BY day DESC,created_at DESC,id DESC LIMIT 10001",
+        )
+        .bind(...args)
+        .all<Record<string, unknown>>();
+      if (rows.results.length > 10000)
+        throw new ClubError(
+          "El período supera 10.000 movimientos. Reducí las fechas para exportar.",
+        );
+      const csv = csvDocument([
+        [
+          "Fecha",
+          "Sede",
+          "Categoría",
+          "Concepto",
+          "Importe ARS",
+          "Medio",
+          "Operador",
+          "Estado",
+          "ID",
+        ],
+        ...rows.results.map((e) => [
+          e.day,
+          branchName(e.venue as string | null),
+          e.category,
+          e.concept,
+          e.amount,
+          e.method,
+          e.actor ?? "",
+          e.reversed
+            ? "Anulado"
+            : e.kind === "reversal"
+              ? "Anulación"
+              : "Registrado",
+          e.id,
+        ]),
+      ]);
+      return new Response(csv, {
+        headers: {
+          ...headers,
+          "Content-Type": "text/csv; charset=utf-8",
+          "Content-Disposition": `attachment; filename="caja-${from}-${to}.csv"`,
+        },
+      });
+    }
     const data = await db.batch([
       db
         .prepare(
@@ -168,7 +259,7 @@ export async function GET(req: Request) {
         .bind(...args),
       db
         .prepare(
-          "SELECT id,name,category,price FROM products WHERE owner=? ORDER BY name",
+          "SELECT id,name,category,price,active,revision FROM products WHERE owner=? ORDER BY name",
         )
         .bind(p.owner),
       db
@@ -178,7 +269,12 @@ export async function GET(req: Request) {
         .bind(p.owner),
       db
         .prepare(
-          "SELECT s.id,s.venue,s.kind,s.quantity,s.note,s.created_at,s.actor,p.name FROM stock_moves s JOIN products p ON p.id=s.product_id AND p.owner=s.owner WHERE s.owner=? ORDER BY s.created_at DESC,s.id DESC LIMIT 50",
+          "SELECT s.id,s.venue,s.kind,s.quantity,s.note,s.created_at,s.actor,s.transfer_id,p.name FROM stock_moves s JOIN products p ON p.id=s.product_id AND p.owner=s.owner WHERE s.owner=? ORDER BY s.created_at DESC,s.id DESC LIMIT 50",
+        )
+        .bind(p.owner),
+      db
+        .prepare(
+          "SELECT c.id,c.product_id,c.before_state,c.after_state,c.created_at,c.actor,p.name FROM product_changes c JOIN products p ON p.id=c.product_id AND p.owner=c.owner WHERE c.owner=? ORDER BY c.created_at DESC,c.id DESC LIMIT 50",
         )
         .bind(p.owner),
     ]);
@@ -192,6 +288,7 @@ export async function GET(req: Request) {
         products: data[2].results,
         stock: data[3].results,
         stockMoves: data[4].results,
+        productChanges: data[5].results,
       },
       { headers },
     );

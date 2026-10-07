@@ -17,13 +17,42 @@ const cashCommon = {
   created_at: stamp,
   actor: id,
 };
+const productState = z
+  .object({
+    name: z.string().min(1).max(120),
+    category: z.string().min(1).max(60),
+    price: money.refine((n) => n > 0),
+    active: z.number().int().min(0).max(1),
+    revision: z.number().int().min(1),
+  })
+  .strict();
+const stateText = z
+  .string()
+  .max(1500)
+  .refine((raw) => {
+    try {
+      return productState.safeParse(JSON.parse(raw)).success;
+    } catch {
+      return false;
+    }
+  });
 const row = {
+  product_changes: z
+    .object({
+      ...cashCommon,
+      product_id: id,
+      before_state: stateText,
+      after_state: stateText,
+    })
+    .strict(),
   products: z
     .object({
       ...cashCommon,
       name: z.string().min(1).max(120),
       category: z.string().min(1).max(60),
       price: money.refine((n) => n > 0),
+      active: z.number().int().min(0).max(1).default(1),
+      revision: z.number().int().min(1).default(1),
     })
     .strict(),
   cash_entries: z
@@ -57,7 +86,15 @@ const row = {
         .min(-10000)
         .max(10000)
         .refine((n) => n !== 0),
-      kind: z.enum(["receive", "sale", "reversal"]),
+      kind: z.enum([
+        "receive",
+        "sale",
+        "reversal",
+        "transfer_out",
+        "transfer_in",
+        "adjustment",
+      ]),
+      transfer_id: id.nullable().default(null),
       note: z.string().max(300),
       cash_entry_id: id.nullable(),
     })
@@ -164,10 +201,16 @@ export const backupTables = [
   "products",
   "cash_entries",
   "stock_moves",
+  "product_changes",
 ] as const;
 export const backupSchema = z
   .object({
-    schemaVersion: z.union([z.literal(1), z.literal(2), z.literal(3)]),
+    schemaVersion: z.union([
+      z.literal(1),
+      z.literal(2),
+      z.literal(3),
+      z.literal(4),
+    ]),
     configuration: z
       .object({
         padel_price: money,
@@ -190,6 +233,7 @@ export const backupSchema = z
         enrollments: z.array(row.enrollments),
         audit: z.array(row.audit),
         products: z.array(row.products).optional(),
+        product_changes: z.array(row.product_changes).optional(),
         cash_entries: z.array(row.cash_entries).optional(),
         stock_moves: z.array(row.stock_moves).optional(),
       })
@@ -205,18 +249,23 @@ export function validateBackup(value: unknown) {
   if (parsed.data.schemaVersion === 2 && !parsed.data.records.booking_payments)
     throw Error("El respaldo versión 2 debe incluir los cobros de pádel.");
   if (
-    parsed.data.schemaVersion === 3 &&
+    parsed.data.schemaVersion >= 3 &&
     (!parsed.data.records.products ||
       !parsed.data.records.cash_entries ||
       !parsed.data.records.stock_moves ||
       !parsed.data.records.booking_payments)
   )
     throw Error("El respaldo versión 3 debe incluir caja y stock.");
+  if (parsed.data.schemaVersion === 4 && !parsed.data.records.product_changes)
+    throw Error(
+      "El respaldo versión 4 debe incluir el historial de productos.",
+    );
   const b = {
       ...parsed.data,
       records: {
         ...parsed.data.records,
         products: parsed.data.records.products ?? [],
+        product_changes: parsed.data.records.product_changes ?? [],
         cash_entries: parsed.data.records.cash_entries ?? [],
         stock_moves: parsed.data.records.stock_moves ?? [],
         booking_payments: parsed.data.records.booking_payments ?? [],
@@ -306,12 +355,21 @@ export function validateBackup(value: unknown) {
         throw Error("Anulación inconsistente.");
     }
   }
+  const transfers = new Map<string, typeof b.records.stock_moves>();
   for (const m of b.records.stock_moves) {
     if (!products.has(m.product_id))
       throw Error("Producto de stock inexistente.");
     if (m.kind === "receive") {
       if (m.quantity <= 0 || m.cash_entry_id)
         throw Error("Ingreso de stock inválido.");
+    } else if (m.kind === "adjustment") {
+      if (m.cash_entry_id)
+        throw Error("Un ajuste no puede vincularse a un cobro.");
+    } else if (m.kind === "transfer_out" || m.kind === "transfer_in") {
+      if (!m.transfer_id || m.cash_entry_id) throw Error("Traslado inválido.");
+      const group = transfers.get(m.transfer_id) ?? [];
+      group.push(m);
+      transfers.set(m.transfer_id, group);
     } else {
       const c = cash.get(m.cash_entry_id ?? "");
       if (
@@ -323,9 +381,43 @@ export function validateBackup(value: unknown) {
       )
         throw Error("Movimiento de stock inconsistente.");
     }
+    if (!["transfer_out", "transfer_in"].includes(m.kind) && m.transfer_id)
+      throw Error("Referencia de traslado fuera de lugar.");
     const k = m.product_id + ":" + m.venue;
     balances.set(k, (balances.get(k) ?? 0) + m.quantity);
   }
+  for (const [id, rows] of transfers) {
+    const out = rows.find((m) => m.kind === "transfer_out"),
+      into = rows.find((m) => m.kind === "transfer_in");
+    if (
+      rows.length !== 2 ||
+      !out ||
+      !into ||
+      out.id !== id ||
+      out.quantity >= 0 ||
+      into.quantity !== -out.quantity ||
+      out.product_id !== into.product_id ||
+      out.venue === into.venue ||
+      out.actor !== into.actor ||
+      out.created_at !== into.created_at
+    )
+      throw Error(
+        "El traslado no tiene una salida y una entrada coincidentes.",
+      );
+  }
+  for (const c of b.records.product_changes) {
+    if (!products.has(c.product_id))
+      throw Error("Cambio de catálogo sin producto.");
+    const before = JSON.parse(c.before_state),
+      after = JSON.parse(c.after_state);
+    if (after.revision !== before.revision + 1)
+      throw Error("Revisión de producto inconsistente.");
+  }
+  unique(
+    b.records.product_changes.map(
+      (c) => c.product_id + ":" + JSON.parse(c.after_state).revision,
+    ),
+  );
   if ([...balances.values()].some((n) => n < 0))
     throw Error("El respaldo deja stock negativo.");
   for (const c of b.records.cash_entries.filter((c) => c.product_id))
@@ -340,6 +432,7 @@ export function validateBackup(value: unknown) {
     b.records.products,
     b.records.cash_entries,
     b.records.stock_moves,
+    b.records.product_changes,
   ])
     unique(rows.map((r) => r.request_key));
   return b;

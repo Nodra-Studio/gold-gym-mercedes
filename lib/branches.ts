@@ -1,7 +1,8 @@
+// The legacy key "velez" identifies Club Unión; retain it to preserve existing payments and backups.
 export const branches = [
   { id: "calle30", name: "Calle 30" },
   { id: "calle23", name: "Calle 23" },
-  { id: "velez", name: "Club Vélez · gimnasio y pádel" },
+  { id: "velez", name: "Club Unión · gimnasio y pádel" },
   { id: "pilates", name: "Pilates" },
 ] as const;
 export const branchIds = ["calle30", "calle23", "velez", "pilates"] as const;

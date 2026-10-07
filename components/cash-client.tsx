@@ -4,9 +4,15 @@ import { apiFetch } from "@/lib/api-fetch";
 import { branches, branchName, expenseCategories } from "@/lib/branches";
 import { localDay, money, requestId } from "@/lib/club";
 import { WorkspaceHeader, Field } from "@/components/club-client";
-import { csvDocument } from "@/lib/csv";
 import "./cash.css";
-type Product = { id: string; name: string; category: string; price: number };
+type Product = {
+  id: string;
+  name: string;
+  category: string;
+  price: number;
+  active: number;
+  revision: number;
+};
 type Entry = {
   id: string;
   venue: string | null;
@@ -21,7 +27,17 @@ type Entry = {
   reversed: boolean;
   reverses: string | null;
 };
+type ProductChange = {
+  id: string;
+  product_id: string;
+  before_state: string;
+  after_state: string;
+  created_at: string;
+  actor: string;
+  name: string;
+};
 type Data = {
+  productChanges: ProductChange[];
   role: string;
   products: Product[];
   stock: { product_id: string; venue: string; quantity: number }[];
@@ -36,6 +52,7 @@ type Data = {
     id: string;
     venue: string;
     kind: string;
+    transfer_id: string | null;
     quantity: number;
     note: string;
     created_at: string;
@@ -43,7 +60,23 @@ type Data = {
     name: string;
   }[];
 };
-type Action = "sale" | "expense" | "receive" | "product" | "reverse";
+type Action =
+  | "sale"
+  | "expense"
+  | "receive"
+  | "product"
+  | "reverse"
+  | "transfer"
+  | "adjust"
+  | "editProduct";
+const movementNames: Record<string, string> = {
+  receive: "Ingreso",
+  sale: "Venta",
+  reversal: "Devolución",
+  transfer_out: "Traslado · salida",
+  transfer_in: "Traslado · entrada",
+  adjustment: "Ajuste",
+};
 const methods = ["Efectivo", "Transferencia", "Tarjeta"];
 export function CashClient() {
   const [from, setFrom] = useState(() => localDay().slice(0, 7) + "-01"),
@@ -55,10 +88,19 @@ export function CashClient() {
     [error, setError] = useState(""),
     [notice, setNotice] = useState(""),
     [busy, setBusy] = useState(false),
-    [loading, setLoading] = useState(true);
+    [loading, setLoading] = useState(true),
+    [exporting, setExporting] = useState(false);
   const [action, setAction] = useState<Action | null>(null),
     [target, setTarget] = useState<Entry | null>(null),
-    [key, setKey] = useState("");
+    [key, setKey] = useState(""),
+    [editing, setEditing] = useState<Product | null>(null);
+  const formPanel = useRef<HTMLElement | null>(null);
+  useEffect(() => {
+    if (action) {
+      formPanel.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+      formPanel.current?.focus({ preventScroll: true });
+    }
+  }, [action, key]);
   const sequence = useRef(0),
     saving = useRef(false);
   const load = useCallback(async () => {
@@ -106,7 +148,12 @@ export function CashClient() {
       window.removeEventListener("focus", sync);
     };
   }, [load]);
-  function open(a: Action, e: Entry | null = null) {
+  function open(
+    a: Action,
+    e: Entry | null = null,
+    product: Product | null = null,
+  ) {
+    setEditing(product);
     setAction(a);
     setTarget(e);
     setKey(requestId());
@@ -144,38 +191,38 @@ export function CashClient() {
       setBusy(false);
     }
   }
-  function download() {
-    if (!data) return;
-    const csv = csvDocument([
-      [
-        "Fecha",
-        "Sede",
-        "Categoría",
-        "Concepto",
-        "Importe ARS",
-        "Medio",
-        "Operador",
-        "ID",
-      ],
-      ...data.entries.map((e) => [
-        e.day,
-        branchName(e.venue),
-        e.category,
-        e.concept,
-        e.amount,
-        e.method,
-        e.actor ?? "",
-        e.id,
-      ]),
-    ]);
-    const url = URL.createObjectURL(
-      new Blob([csv], { type: "text/csv;charset=utf-8;" }),
-    );
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = "caja-pagina.csv";
-    a.click();
-    URL.revokeObjectURL(url);
+  async function download() {
+    if (exporting) return;
+    setExporting(true);
+    setError("");
+    try {
+      const r = await apiFetch(
+        "/api/cash?" +
+          new URLSearchParams({ from, to, venue, category, format: "csv" }),
+        { cache: "no-store" },
+      );
+      if (!r.ok) {
+        const j = (await r.json()) as { error?: string };
+        throw Error(j.error);
+      }
+      const csv = await r.text(),
+        url = URL.createObjectURL(
+          new Blob(["\ufeff" + csv.replace(/^\ufeff/, "")], {
+            type: "text/csv;charset=utf-8;",
+          }),
+        );
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `caja-${from}-${to}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      setError(
+        e instanceof Error ? e.message : "No se pudo exportar el período.",
+      );
+    } finally {
+      setExporting(false);
+    }
   }
   return (
     <main className="workspace cash-workspace">
@@ -211,6 +258,18 @@ export function CashClient() {
             Nuevo producto
           </button>
         )}
+        <button
+          className="button outline"
+          disabled={!data}
+          onClick={() => open("transfer")}
+        >
+          Trasladar stock
+        </button>
+        {data?.role === "owner" && (
+          <button className="button outline" onClick={() => open("adjust")}>
+            Ajustar stock
+          </button>
+        )}
       </div>
       {error && (
         <p className="cash-error" role="alert">
@@ -223,7 +282,12 @@ export function CashClient() {
         </p>
       )}
       {action && data && (
-        <section className="cash-panel" aria-label="Registrar movimiento">
+        <section
+          className="cash-panel"
+          aria-label="Registrar movimiento"
+          ref={formPanel}
+          tabIndex={-1}
+        >
           <div className="cash-heading">
             <h2>
               {
@@ -233,6 +297,9 @@ export function CashClient() {
                   receive: "Ingreso de mercadería",
                   product: "Nuevo producto",
                   reverse: "Anular movimiento",
+                  transfer: "Trasladar entre sedes",
+                  adjust: "Ajustar existencias",
+                  editProduct: "Editar producto",
                 }[action]
               }
             </h2>
@@ -250,6 +317,7 @@ export function CashClient() {
             data={data}
             defaultVenue={venue === "unknown" ? "" : venue}
             target={target}
+            editing={editing}
             busy={busy}
             submit={submit}
           />
@@ -339,9 +407,9 @@ export function CashClient() {
               <button
                 className="button outline"
                 onClick={download}
-                disabled={!data.entries.length}
+                disabled={exporting || !data.entries.length}
               >
-                CSV de esta página
+                {exporting ? "Exportando…" : "Exportar período CSV"}
               </button>
             </div>
             <div className="cash-table">
@@ -450,7 +518,18 @@ export function CashClient() {
                       {p.name}
                       <small>{p.category}</small>
                     </td>
-                    <td>{money(p.price)}</td>
+                    <td>
+                      {money(p.price)}
+                      <small>{p.active === 1 ? "Activo" : "Inactivo"}</small>
+                      {data.role === "owner" && (
+                        <button
+                          className="text-link"
+                          onClick={() => open("editProduct", null, p)}
+                        >
+                          Editar
+                        </button>
+                      )}
+                    </td>
                     {branches.map((b) => (
                       <td key={b.id}>
                         {data.stock.find(
@@ -498,7 +577,11 @@ export function CashClient() {
                         {m.quantity}
                       </td>
                       <td>
-                        {m.note}
+                        <strong>{movementNames[m.kind] ?? m.kind}</strong>
+                        <small>{m.note}</small>
+                        {m.transfer_id && (
+                          <small>Traslado: {m.transfer_id}</small>
+                        )}
                         <small>{m.actor}</small>
                       </td>
                     </tr>
@@ -507,16 +590,60 @@ export function CashClient() {
               </table>
             </div>
           </details>
+          <details>
+            <summary>Últimos 50 cambios de productos y precios</summary>
+            <div className="cash-table">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Fecha / producto</th>
+                    <th>Antes</th>
+                    <th>Después</th>
+                    <th>Operador</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {data.productChanges.map((c) => (
+                    <tr key={c.id}>
+                      <td>
+                        {new Date(c.created_at).toLocaleString("es-AR", {
+                          timeZone: "America/Argentina/Buenos_Aires",
+                        })}
+                        <small>{c.name}</small>
+                      </td>
+                      <td>{describeProduct(c.before_state)}</td>
+                      <td>{describeProduct(c.after_state)}</td>
+                      <td>{c.actor}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              {!data.productChanges.length && (
+                <p className="cash-empty">
+                  No hay cambios de catálogo registrados.
+                </p>
+              )}
+            </div>
+          </details>
         </section>
       )}
     </main>
   );
+}
+function describeProduct(raw: string) {
+  try {
+    const p = JSON.parse(raw) as Product;
+    return `${p.name} · ${p.category} · ${money(p.price)} · ${p.active === 1 ? "Activo" : "Inactivo"}`;
+  } catch {
+    return "Detalle no disponible";
+  }
 }
 function CashForm({
   action,
   data,
   defaultVenue,
   target,
+  editing,
   busy,
   submit,
 }: {
@@ -524,13 +651,16 @@ function CashForm({
   data: Data;
   defaultVenue: string;
   target: Entry | null;
+  editing: Product | null;
   busy: boolean;
   submit: (p: Record<string, unknown>) => Promise<void>;
 }) {
   const [productId, setProduct] = useState(""),
+    [selectedProduct, setSelectedProduct] = useState<Product | null>(null),
+    [destination, setDestination] = useState(""),
     [units, setUnits] = useState(1),
     [branch, setBranch] = useState(defaultVenue);
-  const product = data.products.find((p) => p.id === productId),
+  const product = selectedProduct,
     stock =
       data.stock.find((s) => s.product_id === productId && s.venue === branch)
         ?.quantity ?? 0;
@@ -541,16 +671,30 @@ function CashForm({
         const f = new FormData(e.currentTarget),
           p: Record<string, unknown> = { action };
         for (const [k, v] of f.entries())
-          p[k] = ["quantity", "price", "amount"].includes(k) ? Number(v) : v;
+          p[k] = ["quantity", "price", "amount", "active"].includes(k)
+            ? Number(v)
+            : v;
         if (action === "sale") p.expectedPrice = product?.price;
         if (action === "reverse") p.id = target?.id;
+        if (action === "editProduct") {
+          p.productId = editing?.id;
+          p.expectedRevision = editing?.revision;
+        }
         void submit(p);
       }}
     >
       <fieldset disabled={busy}>
         <div className="cash-filters">
-          {["sale", "receive", "expense"].includes(action) && (
-            <Field label="Sede de la operación">
+          {["sale", "receive", "expense", "transfer", "adjust"].includes(
+            action,
+          ) && (
+            <Field
+              label={
+                action === "transfer"
+                  ? "Sede de origen"
+                  : "Sede de la operación"
+              }
+            >
               <select
                 name="venue"
                 value={branch}
@@ -566,28 +710,46 @@ function CashForm({
               </select>
             </Field>
           )}
-          {["sale", "receive"].includes(action) && (
+          {["sale", "receive", "transfer", "adjust"].includes(action) && (
             <>
               <Field label="Producto">
                 <select
                   name="productId"
                   value={productId}
-                  onChange={(e) => setProduct(e.target.value)}
+                  onChange={(e) => {
+                    setProduct(e.target.value);
+                    setSelectedProduct(
+                      data.products.find((p) => p.id === e.target.value) ??
+                        null,
+                    );
+                  }}
                   required
                 >
                   <option value="">Elegí un producto</option>
-                  {data.products.map((p) => (
-                    <option value={p.id} key={p.id}>
-                      {p.name}
-                    </option>
-                  ))}
+                  {data.products
+                    .filter(
+                      (p) =>
+                        ["transfer", "adjust"].includes(action) ||
+                        p.active === 1,
+                    )
+                    .map((p) => (
+                      <option value={p.id} key={p.id}>
+                        {p.name}
+                      </option>
+                    ))}
                 </select>
               </Field>
-              <Field label="Unidades">
+              <Field
+                label={
+                  action === "adjust"
+                    ? "Unidades a sumar (+) o restar (−)"
+                    : "Unidades"
+                }
+              >
                 <input
                   name="quantity"
                   type="number"
-                  min="1"
+                  min={action === "adjust" ? "-10000" : "1"}
                   max="10000"
                   step="1"
                   value={units}
@@ -597,10 +759,30 @@ function CashForm({
               </Field>
             </>
           )}
-          {action === "product" && (
+          {action === "transfer" && (
+            <Field label="Sede de destino">
+              <select
+                name="destination"
+                value={destination}
+                onChange={(e) => setDestination(e.target.value)}
+                required
+              >
+                <option value="">Elegí otra sede</option>
+                {branches
+                  .filter((b) => b.id !== branch)
+                  .map((b) => (
+                    <option key={b.id} value={b.id}>
+                      {b.name}
+                    </option>
+                  ))}
+              </select>
+            </Field>
+          )}
+          {["product", "editProduct"].includes(action) && (
             <>
               <Field label="Nombre">
                 <input
+                  defaultValue={editing?.name}
                   name="name"
                   maxLength={120}
                   required
@@ -609,6 +791,7 @@ function CashForm({
               </Field>
               <Field label="Categoría">
                 <input
+                  defaultValue={editing?.category}
                   name="category"
                   maxLength={60}
                   required
@@ -617,6 +800,7 @@ function CashForm({
               </Field>
               <Field label="Precio de venta (ARS)">
                 <input
+                  defaultValue={editing?.price}
                   name="price"
                   type="number"
                   min="1"
@@ -626,6 +810,14 @@ function CashForm({
                 />
               </Field>
             </>
+          )}
+          {action === "editProduct" && (
+            <Field label="Estado">
+              <select name="active" defaultValue={editing?.active ?? 1}>
+                <option value={1}>Activo</option>
+                <option value={0}>Inactivo · no permite nuevas ventas</option>
+              </select>
+            </Field>
           )}
           {action === "expense" && (
             <>
@@ -675,13 +867,21 @@ function CashForm({
               </select>
             </Field>
           )}
-          {action === "receive" && (
-            <Field label="Detalle / proveedor">
+          {["receive", "transfer", "adjust"].includes(action) && (
+            <Field
+              label={action === "receive" ? "Detalle / proveedor" : "Motivo"}
+            >
               <input
                 name="note"
                 minLength={3}
                 maxLength={300}
-                placeholder="Compra o carga inicial"
+                placeholder={
+                  action === "receive"
+                    ? "Compra o carga inicial"
+                    : action === "adjust"
+                      ? "Ej. Rotura, vencimiento o diferencia de conteo"
+                      : "Ej. Reposición para la otra sede"
+                }
                 required
               />
             </Field>
@@ -698,6 +898,20 @@ function CashForm({
             <strong>{money(product.price * units)}</strong>
           </p>
         )}
+        {["transfer", "adjust"].includes(action) && product && (
+          <p className="notice">
+            Disponible en origen: <strong>{stock}</strong> · Quedará:{" "}
+            <strong>{stock + (action === "adjust" ? units : -units)}</strong>.
+            Esta operación cambia existencias; no registra un cobro ni un gasto.
+          </p>
+        )}
+        {action === "editProduct" && (
+          <p className="notice">
+            El nuevo precio se usará en ventas futuras. Las ventas anteriores
+            conservan su importe. Desactivar conserva el historial y las
+            existencias.
+          </p>
+        )}
         {action === "reverse" && target && (
           <p className="notice">
             {target.concept} · {money(target.amount)}. Se registrará un
@@ -710,7 +924,15 @@ function CashForm({
         <button
           className="button gold"
           type="submit"
-          disabled={busy || (action === "sale" && (!product || stock < units))}
+          disabled={
+            busy ||
+            (["sale", "transfer"].includes(action) &&
+              (!product || stock < units || units < 1)) ||
+            (action === "transfer" &&
+              (!destination || destination === branch)) ||
+            (action === "adjust" &&
+              (!product || units === 0 || stock + units < 0))
+          }
         >
           {busy
             ? "Guardando…"

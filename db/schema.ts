@@ -206,6 +206,8 @@ export const products = sqliteTable(
     name: text("name").notNull(),
     category: text("category").notNull(),
     price: integer("price").notNull(),
+    active: integer("active").notNull().default(1),
+    revision: integer("revision").notNull().default(1),
   },
   (t) => [uniqueIndex("products_owner_request").on(t.owner, t.requestKey)],
 );
@@ -241,10 +243,31 @@ export const stockMoves = sqliteTable(
     quantity: integer("quantity").notNull(),
     kind: text("kind").notNull(),
     note: text("note").notNull(),
+    transferId: text("transfer_id"),
     cashEntryId: text("cash_entry_id").references(() => cashEntries.id),
   },
   (t) => [
     uniqueIndex("stock_moves_owner_request").on(t.owner, t.requestKey),
     index("stock_moves_owner_product").on(t.owner, t.productId, t.venue),
+  ],
+);
+
+export const productChanges = sqliteTable(
+  "product_changes",
+  {
+    ...cashCommon(),
+    productId: text("product_id")
+      .notNull()
+      .references(() => products.id),
+    beforeState: text("before_state").notNull(),
+    afterState: text("after_state").notNull(),
+  },
+  (t) => [
+    uniqueIndex("product_changes_owner_request").on(t.owner, t.requestKey),
+    index("product_changes_owner_product").on(
+      t.owner,
+      t.productId,
+      t.createdAt,
+    ),
   ],
 );

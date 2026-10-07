@@ -145,15 +145,68 @@ try {
       await pg.exec('DROP TRIGGER cash_test_failure ON club.audit; DROP FUNCTION club.test_audit_failure();');
       await post(team,{userId:'gate-cash',name:'Terminal',role:'gate',status:'active'});runtime.setUser('gate-cash');assert.equal((await get(cash)).status,403);runtime.setUser('owner-a');
     });
+    await t.test('Transfers conserve inventory, pair both sides and never duplicate cash',async()=>{
+      const before=await get(cash);
+      const input={action:'transfer',venue:'velez',destination:'pilates',productId:product,quantity:1,note:'Reposición Pilates',requestKey:key()};
+      const r=await post(cash,input);assert.equal(r.status,200,JSON.stringify(r));assert.equal((await post(cash,input)).replayed,true);
+      const after=await get(cash);assert.equal(after.summary.count,before.summary.count);assert.equal(after.stock.find(s=>s.venue==='velez').quantity,0);assert.equal(after.stock.find(s=>s.venue==='pilates').quantity,1);
+      const pair=after.stockMoves.filter(m=>m.transfer_id===r.id);assert.equal(pair.length,2);assert.equal(pair.reduce((n,m)=>n+m.quantity,0),0);
+      assert.equal((await post(cash,{...input,requestKey:key()})).status,409);
+      assert.equal((await post(cash,{...input,venue:'pilates',requestKey:key()})).status,400);
+      const concurrent=await Promise.all(['calle30','calle23'].map(destination=>post(cash,{...input,venue:'pilates',destination,requestKey:key()})));
+      assert.deepEqual(concurrent.map(r=>r.status).sort(),[200,409]);
+      const current=await get(cash);assert.equal(current.stock.reduce((n,r)=>n+r.quantity,0),1);
+    });
+    await t.test('Only owners adjust stock; negative and zero counts are rejected',async()=>{
+      const input={action:'adjust',venue:'velez',productId:product,quantity:2,note:'Diferencia de conteo',requestKey:key()};
+      runtime.setUser('reception');assert.equal((await post(cash,input)).status,403);runtime.setUser('owner-a');
+      assert.equal((await post(cash,input)).status,200);assert.equal((await post(cash,input)).replayed,true);
+      assert.equal((await post(cash,{...input,quantity:-3,requestKey:key()})).status,409);
+      assert.equal((await post(cash,{...input,quantity:0,requestKey:key()})).status,400);
+      assert.equal((await post(cash,{...input,quantity:-1,requestKey:key()})).status,200);
+      assert.equal((await get(cash)).stock.find(s=>s.venue==='velez').quantity,1);
+    });
+    await t.test('Catalog edits retain sale amounts, prevent stale writes and enforce inactivity',async()=>{
+      const input={action:'editProduct',productId:product,name:'Monster 473 ml',category:'Bebidas',price:3000,active:1,expectedRevision:1,requestKey:key()};
+      runtime.setUser('reception');assert.equal((await post(cash,input)).status,403);runtime.setUser('owner-a');
+      assert.equal((await post(cash,input)).status,200);assert.equal((await post(cash,input)).replayed,true);
+      assert.equal((await post(cash,{...input,price:4000,requestKey:key()})).status,409);
+      let current=await get(cash);assert.equal(current.products[0].revision,2);assert.equal(current.entries.find(e=>e.id===sale).amount,2500);assert.equal(current.productChanges.length,1);
+      const saleInput={action:'sale',venue:'velez',productId:product,quantity:1,expectedPrice:2500,method:'Efectivo',requestKey:key()};
+      assert.equal((await post(cash,saleInput)).status,409);
+      assert.equal((await post(cash,{...input,active:0,expectedRevision:2,requestKey:key()})).status,200);
+      assert.equal((await post(cash,{...saleInput,expectedPrice:3000,requestKey:key()})).status,409);
+      assert.equal((await post(cash,{action:'receive',venue:'velez',productId:product,quantity:1,note:'No debe ingresar',requestKey:key()})).status,409);
+      assert.equal((await post(cash,{...input,expectedRevision:3,requestKey:key()})).status,200);
+      current=await get(cash);assert.equal(current.products[0].revision,4);assert.equal(current.productChanges.length,3);
+    });
+    await t.test('A failed catalog audit rolls price and history back',async()=>{
+      await pg.exec("CREATE FUNCTION club.test_product_failure() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN IF NEW.action IN ('Caja: editProduct','Caja: transfer') THEN RAISE EXCEPTION 'test failure'; END IF; RETURN NEW; END $$; CREATE TRIGGER product_test_failure BEFORE INSERT ON club.audit FOR EACH ROW EXECUTE FUNCTION club.test_product_failure();");
+      const before=await get(cash);
+      assert.equal((await post(cash,{action:'editProduct',productId:product,name:'Changed',category:'Bebidas',price:9999,active:1,expectedRevision:4,requestKey:key()})).status,503);
+      assert.equal((await post(cash,{action:'transfer',venue:'velez',destination:'pilates',productId:product,quantity:1,note:'Fallará auditoría',requestKey:key()})).status,503);
+      const after=await get(cash);assert.deepEqual(after.stock,before.stock);assert.deepEqual(after.products,before.products);assert.deepEqual(after.productChanges,before.productChanges);
+      await pg.exec('DROP TRIGGER product_test_failure ON club.audit; DROP FUNCTION club.test_product_failure();');
+    });
+    await t.test('Cash CSV exports the filtered period with readable branch names',async()=>{
+      const response=await cash.GET(new Request('https://test.local/api/cash?format=csv&venue=velez&category=Productos'));
+      assert.equal(response.status,200);assert.match(response.headers.get('content-type'),/text\/csv/);
+      const csv=await response.text();assert.match(csv,/Club Unión/);assert.doesNotMatch(csv,/Club Vélez/);assert.match(csv,/Monster/);assert.doesNotMatch(csv,/Factura limpieza/);
+    });
     let snapshot;
     await t.test('JSON backup retains numeric fields and relations',async()=>{
-      const response=await exporter.GET();assert.equal(response.status,200);snapshot=await response.json();assert.equal(snapshot.schemaVersion,3);
+      const response=await exporter.GET();assert.equal(response.status,200);snapshot=await response.json();assert.equal(snapshot.schemaVersion,4);
       assert.equal(snapshot.records.booking_payments.length,2);
+    });
+    await t.test('Backup rejects incomplete transfers and invalid product history',async()=>{
+      let invalid=structuredClone(snapshot);invalid.records.stock_moves=invalid.records.stock_moves.filter(m=>m.kind!=='transfer_in');
+      assert.equal((await post(backup,{action:'check',requestKey:key(),backup:invalid})).status,400);
+      invalid=structuredClone(snapshot);invalid.records.product_changes[0].after_state='{}';assert.equal((await post(backup,{action:'check',requestKey:key(),backup:invalid})).status,400);
     });
     await t.test('Restore uses typed JSON recordsets and remaps references',async()=>{
       clubOwner='owner-b';runtime.setOwner(clubOwner);runtime.setUser(clubOwner);
       const r=await post(backup,{action:'restore',requestKey:key(),backup:snapshot});assert.equal(r.status,200,JSON.stringify(r));
-      const restored=await get();assert.equal(restored.members.length,6);assert.equal((await get(cash)).products.length,1);assert.equal((await get(cash)).stock[0].quantity,1);assert.notEqual(restored.members[0].id,member.id);
+      const restored=await get();assert.equal(restored.members.length,6);assert.equal((await get(cash)).products.length,1);assert.equal((await get(cash)).stock.reduce((n,s)=>n+s.quantity,0),2);assert.equal((await get(cash)).productChanges.length,3);assert.notEqual(restored.members[0].id,member.id);
       const book=restored.bookings.find(b=>b.name===booking.name);assert.equal((await get(ledger,'?bookingId='+book.id)).payments.length,2);
     });
     await t.test('Redirects reject external URLs and auth loops',()=>{

@@ -60,7 +60,7 @@ const schema = z.discriminatedUnion("action", [
   z.object({
     action: z.literal("access"),
     dni: z.string().regex(/^\d{7,8}$/, "Ingresá 7 u 8 números"),
-    venue: z.enum(["Calle 30", "Calle 23", "Club Vélez", "Pilates", "Unión Gold Club"]).optional(),
+    venue: z.enum(["Calle 30", "Calle 23", "Club Unión", "Pilates", "Unión Gold Club", "Club Vélez"]).transform(v => ["Club Vélez", "Unión Gold Club"].includes(v) ? "Club Unión" : v).optional(),
   }),
   z.object({
     action: z.literal("booking"),
@@ -83,7 +83,7 @@ const schema = z.discriminatedUnion("action", [
     day,
     time: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/),
     capacity: z.number().int().min(1).max(100),
-    venue: z.enum(["Calle 30", "Calle 23", "Club Vélez", "Pilates", "Unión Gold Club"]),
+    venue: z.enum(["Calle 30", "Calle 23", "Club Unión", "Pilates", "Unión Gold Club", "Club Vélez"]).transform(v => ["Club Vélez", "Unión Gold Club"].includes(v) ? "Club Unión" : v),
   }),
   z.object({ action: z.literal("enroll"), sessionId: id, memberId: id }),
   z.object({ action: z.literal("cancelEnrollment"), id }),
