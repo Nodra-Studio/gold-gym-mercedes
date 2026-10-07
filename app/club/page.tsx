@@ -1,6 +1,7 @@
 import { ArrowUpRight } from "lucide-react";
 import { SiteHeader } from "@/components/site-header";
 import { SiteFooter } from "@/components/site-footer";
+import { ScrollReveal } from "@/components/scroll-reveal";
 import { brand } from "@/lib/content";
 export const metadata = { title: "Cómo sumarte · Gold Gym" };
 export default function Club() {
@@ -41,7 +42,7 @@ export default function Club() {
           </div>
         </section>
         <section className="gg-club-band">
-          <div>
+          <div data-reveal>
             <p className="gg-kicker">TODO EMPIEZA EN RECEPCIÓN</p>
             <h2>
               TRES PASOS.
@@ -67,7 +68,7 @@ export default function Club() {
                 "Desde 7 días antes del vencimiento, la terminal te avisa que tenés que renovar. Si hay un problema, recepción te ayuda.",
               ],
             ].map(([n, t, p]) => (
-              <div key={n}>
+              <div key={n} data-reveal data-reveal-delay={Number(n) - 1}>
                 <span>{n}</span>
                 <div>
                   <h3>{t}</h3>
@@ -78,7 +79,7 @@ export default function Club() {
           </div>
         </section>
         <section className="gg-faq gg-section">
-          <div>
+          <div data-reveal>
             <p className="gg-kicker">TU ACTIVIDAD, ORGANIZADA</p>
             <h2>
               LO COORDINAMOS
@@ -87,7 +88,7 @@ export default function Club() {
             </h2>
           </div>
           <div>
-            <details open>
+            <details data-reveal data-reveal-delay="0" open>
               <summary>
                 Clases y reservas de pádel <ArrowUpRight size={20} />
               </summary>
@@ -96,7 +97,7 @@ export default function Club() {
                 personal registra tu reserva y te confirma los detalles.
               </p>
             </details>
-            <details>
+            <details data-reveal data-reveal-delay="1">
               <summary>
                 Qué pasa si mi cuota está vencida? <ArrowUpRight size={20} />
               </summary>
@@ -109,6 +110,7 @@ export default function Club() {
         </section>
       </main>
       <SiteFooter />
+      <ScrollReveal />
     </div>
   );
 }

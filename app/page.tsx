@@ -3,6 +3,7 @@ import { BenefitsCarousel } from "@/components/benefits-carousel";
 import { ArrowUpRight, ArrowRight, MapPin, Plus } from "lucide-react";
 import { SiteHeader } from "@/components/site-header";
 import { SiteFooter } from "@/components/site-footer";
+import { ScrollReveal } from "@/components/scroll-reveal";
 import { brand, venues } from "@/lib/content";
 export default function Home() {
   return (
@@ -84,7 +85,7 @@ export default function Home() {
           <b>PÁDEL</b>
         </div>
         <section className="gg-section gg-activities" id="actividades">
-          <div className="gg-section-head">
+          <div className="gg-section-head" data-reveal>
             <div>
               <p className="gg-kicker">01 / ENCONTRÁ LO TUYO</p>
               <h2>
@@ -100,7 +101,7 @@ export default function Home() {
             </p>
           </div>
           <div className="gg-activity-grid">
-            <article className="gg-activity">
+            <article data-reveal data-reveal-delay="0" className="gg-activity">
               <div className="gg-activity-image">
                 <img
                   src="/images/gym-detail.webp"
@@ -126,7 +127,7 @@ export default function Home() {
                 </a>
               </div>
             </article>
-            <article className="gg-activity gg-activity-pilates">
+            <article data-reveal data-reveal-delay="1" className="gg-activity gg-activity-pilates">
               <div className="gg-activity-image">
                 <img
                   src="/images/pilates/reformer-clase.webp"
@@ -148,7 +149,7 @@ export default function Home() {
                 </Link>
               </div>
             </article>
-            <article className="gg-activity">
+            <article data-reveal data-reveal-delay="2" className="gg-activity">
               <div className="gg-activity-image">
                 <img
                   src="/images/padel.webp"
@@ -173,7 +174,7 @@ export default function Home() {
           </div>
         </section>
         <section className="gg-club-band">
-          <div>
+          <div data-reveal>
             <p className="gg-kicker">ASÍ DE SIMPLE</p>
             <h2>
               VENÍ A ENTRENAR.
@@ -201,7 +202,7 @@ export default function Home() {
                 "La terminal te avisa cuando se acerca el vencimiento de tu cuota.",
               ],
             ].map(([n, t, d]) => (
-              <div key={n}>
+              <div key={n} data-reveal data-reveal-delay={Number(n) - 1}>
                 <span>{n}</span>
                 <div>
                   <h3>{t}</h3>
@@ -215,7 +216,7 @@ export default function Home() {
           </div>
         </section>
         <section className="gg-section" id="sedes">
-          <div className="gg-section-head">
+          <div className="gg-section-head" data-reveal>
             <div>
               <p className="gg-kicker">02 / CERCA TUYO</p>
               <h2>
@@ -232,7 +233,12 @@ export default function Home() {
           </div>
           <div className="gg-venues">
             {venues.map((v, i) => (
-              <article className="gg-venue" key={v.name}>
+              <article
+                className="gg-venue"
+                key={v.name}
+                data-reveal
+                data-reveal-delay={Math.min(i, 3)}
+              >
                 <span className="gg-venue-number">0{i + 1}</span>
                 <div>
                   <small>{v.category}</small>
@@ -260,7 +266,7 @@ export default function Home() {
           </p>
         </section>
         <section className="gg-section gg-benefits" id="beneficios">
-          <div className="gg-section-head">
+          <div className="gg-section-head" data-reveal>
             <div>
               <p className="gg-kicker">03 / SER PARTE TIENE SUS BENEFICIOS</p>
               <h2>
@@ -275,13 +281,15 @@ export default function Home() {
               en comercios de Mercedes.
             </p>
           </div>
-          <BenefitsCarousel />
+          <div data-reveal data-reveal-delay="1">
+            <BenefitsCarousel />
+          </div>
           <p className="gg-footnote">
             Consultá las condiciones y la vigencia en cada comercio.
           </p>
         </section>
         <section className="gg-faq gg-section">
-          <div>
+          <div data-reveal>
             <p className="gg-kicker">ANTES DE VENIR</p>
             <h2>
               MENOS DUDAS.
@@ -304,7 +312,7 @@ export default function Home() {
                 "Coordiná el día y el horario con recepción. Ellos registran tu turno y te confirman los detalles. No necesitás una cuenta.",
               ],
             ].map(([q, a]) => (
-              <details key={q}>
+              <details key={q} data-reveal>
                 <summary>
                   {q}
                   <Plus size={20} />
@@ -315,14 +323,16 @@ export default function Home() {
           </div>
         </section>
         <section className="gg-final">
-          <p className="gg-kicker">EL MOMENTO ES AHORA</p>
-          <h2>
+          <p className="gg-kicker" data-reveal>EL MOMENTO ES AHORA</p>
+          <h2 data-reveal data-reveal-delay="1">
             NOS VEMOS
             <br />
             EN <span>GOLD.</span>
           </h2>
           <a
             className="gg-button gg-button-dark"
+            data-reveal
+            data-reveal-delay="2"
             href={brand.contact}
             target="_blank"
             rel="noopener noreferrer"
@@ -333,6 +343,7 @@ export default function Home() {
         </section>
       </main>
       <SiteFooter />
+      <ScrollReveal />
     </div>
   );
 }

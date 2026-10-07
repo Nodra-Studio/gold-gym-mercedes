@@ -1813,3 +1813,26 @@ body:has(.admin-shell) [data-slot="dialog-content"] .muted {
     min-height: 0;
   }
 }
+
+/* Texto sobre fondo dorado: siempre negro puro (la regla global de <p> lo dejaba gris). */
+.gg-button:not(.gg-button-dark, .gg-nav-cta),
+.gg-nav .gg-nav-cta:hover,
+.gg-roundel,
+.gg-discipline-strip,
+.gg-discipline-strip *,
+.gg-final,
+.gg-final p,
+.gg-final .gg-kicker,
+.gg-final .muted,
+.gg-document-art,
+.gg-document-art p,
+.gg-document-art span,
+.admin-sidebar nav a[aria-current="page"],
+.admin-shell .button.gold,
+.auth-layout .button.gold,
+.account-home .button.gold {
+  color: #000;
+}
+.gg-final .gg-kicker > span {
+  background: #000;
+}

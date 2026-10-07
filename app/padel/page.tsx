@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { ArrowUpRight, MapPin, Utensils } from "lucide-react";
 import { SiteHeader } from "@/components/site-header";
 import { SiteFooter } from "@/components/site-footer";
+import { ScrollReveal } from "@/components/scroll-reveal";
 import { brand, venues } from "@/lib/content";
 export const metadata: Metadata = { title: "Pádel · Unión Gold Club" };
 export default function Padel() {
@@ -47,7 +48,7 @@ export default function Padel() {
           </figure>
         </section>
         <section className="gg-section">
-          <div className="gg-section-head">
+          <div className="gg-section-head" data-reveal>
             <div>
               <p className="gg-kicker">MÁS QUE UN TURNO</p>
               <h2>
@@ -85,14 +86,14 @@ export default function Padel() {
                 "Encontrá las novedades, torneos y encuentros en nuestro Instagram.",
               ],
             ].map(([n, t, p]) => (
-              <article key={n}>
+              <article key={n} data-reveal data-reveal-delay={Number(n) - 1}>
                 <small>{n}</small>
                 <h3>{t}</h3>
                 <p>{p}</p>
               </article>
             ))}
           </div>
-          <div className="gg-link-row">
+          <div className="gg-link-row" data-reveal>
             <a
               className="gg-text-link"
               href={brand.buffet}
@@ -123,8 +124,8 @@ export default function Padel() {
           </div>
         </section>
         <section className="gg-final">
-          <p className="gg-kicker">HACETE EL ESPACIO</p>
-          <h2>
+          <p className="gg-kicker" data-reveal>HACETE EL ESPACIO</p>
+          <h2 data-reveal data-reveal-delay="1">
             UN TURNO FIJO.
             <br />
             <span>UN BUEN PLAN.</span>
@@ -132,6 +133,8 @@ export default function Padel() {
           <a
             href={brand.contact}
             className="gg-button gg-button-dark"
+            data-reveal
+            data-reveal-delay="2"
             target="_blank"
             rel="noopener noreferrer"
           >
@@ -144,6 +147,7 @@ export default function Padel() {
         </section>
       </main>
       <SiteFooter />
+      <ScrollReveal />
     </div>
   );
 }
