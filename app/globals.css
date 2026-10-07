@@ -1660,8 +1660,11 @@ button[aria-busy="true"] { cursor: progress; }
 }
 .wave-marquee > svg {
   display: block;
-  width: max(100%, 860px); /* en celulares la curva se recorta para que el texto no quede diminuto */
-  height: auto;
+  /* En celulares la curva se recorta (860px mínimo) para que el texto no quede diminuto.
+     El alto va explícito (proporción 1440 × 260) en vez de "auto": Safari no siempre
+     lo recalcula al girar el celular y la banda se encimaba con la portada. */
+  width: max(100%, 860px);
+  height: max(calc(100vw * 260 / 1440), 156px);
   margin-left: 50%;
   transform: translateX(-50%);
 }
