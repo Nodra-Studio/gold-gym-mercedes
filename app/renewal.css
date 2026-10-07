@@ -122,6 +122,7 @@ summary {
   color: #d3b36b;
 }
 .gg-nav .gg-nav-cta {
+  background: transparent;
   border: 1px solid #d3b36b;
   color: #d3b36b;
   padding: 11px 18px;
@@ -1723,5 +1724,92 @@ body:has(.admin-shell) [data-slot="dialog-description"] {
   }
   .admin-shell .cash-workspace {
     padding: 26px 18px;
+  }
+}
+/* Reading sizes stay comfortable in the daily workflow. */
+.admin-sidebar nav a {
+  font-size: 13px;
+}
+.admin-shell .work-header p {
+  font-size: 14px;
+}
+.admin-shell .field,
+.auth-layout .field {
+  font-size: 13px;
+}
+.admin-shell .data-table,
+.admin-shell .cash-table table {
+  font-size: 13px;
+}
+.admin-shell .data-table th {
+  font-size: 11px;
+}
+.admin-shell .button,
+.auth-layout .button,
+.account-home .button {
+  font-size: 13px;
+}
+.admin-shell .stat span {
+  font-size: 12px;
+}
+.admin-shell [data-slot="tabs-trigger"] {
+  font-size: 12px;
+}
+.auth-form-wrap .work-header p {
+  font-size: 14px;
+}
+.auth-form-wrap .text-link {
+  font-size: 13px;
+}
+.gg-activity-body p,
+.gg-steps p,
+.gg-feature-grid p,
+.gg-faq details p {
+  font-size: 14px;
+}
+.gg-activity-body a,
+.gg-venue p,
+.gg-venue a {
+  font-size: 13px;
+}
+.gg-faq summary {
+  font-size: 15px;
+}
+.gg-activity-body p {
+  min-height: 84px;
+}
+body:has(.admin-shell) [data-slot="dialog-content"] .button.gold {
+  background: #d3b36b;
+  color: #22281b;
+  border-color: #d3b36b;
+  min-height: 44px;
+}
+body:has(.admin-shell) [data-slot="dialog-content"] .field {
+  font-size: 13px;
+  color: #49583e;
+}
+body:has(.admin-shell) [data-slot="dialog-content"] .error-box {
+  background: #fae7e1;
+  color: #873e2c;
+  border-color: #e5bfae;
+}
+body:has(.admin-shell) [data-slot="dialog-content"] .muted {
+  color: #66745b;
+}
+.account-home .error-box {
+  background: #fae7e1;
+  color: #873e2c;
+}
+.account-home .notice {
+  background: #fff5db;
+  color: #745b26;
+}
+.account-home .status {
+  background: #e7efdf;
+  color: #38582c;
+}
+@media (max-width: 760px) {
+  .gg-activity-body p {
+    min-height: 0;
   }
 }
