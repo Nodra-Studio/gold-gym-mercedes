@@ -14,6 +14,7 @@ import { SiteHeader } from "@/components/site-header";
 import { SiteFooter } from "@/components/site-footer";
 import { ScrollReveal } from "@/components/scroll-reveal";
 import { WaveMarquee } from "@/components/wave-marquee";
+import { BenefitsCarousel } from "@/components/benefits-carousel";
 import { brand, venues } from "@/lib/content";
 
 export default function Home() {
@@ -254,6 +255,26 @@ export default function Home() {
             Los horarios pueden variar por sede y actividad. Consultanos antes
             de tu primera visita.
           </p>
+        </section>
+        <section id="beneficios" className="section benefits-section">
+          <div className="section-heading" data-reveal>
+            <div>
+              <p className="eyebrow">03 / SUMATE A GOLD</p>
+              <h2>
+                Beneficios de ser parte
+                <br />
+                <em>de Gold Gym.</em>
+              </h2>
+            </div>
+            <p>
+              Descuentos exclusivos para socios
+              <br />
+              en comercios de Mercedes.
+            </p>
+          </div>
+          <div data-reveal data-reveal-delay="1">
+            <BenefitsCarousel />
+          </div>
         </section>
         <section className="closing-cta">
           <p className="eyebrow" data-reveal>EMPEZÁ POR UNA CHARLA</p>
