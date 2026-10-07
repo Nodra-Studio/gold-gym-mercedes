@@ -242,7 +242,7 @@ export default function DataClient() {
         </div>
         <p>
           Incluye planes, socios, cobros, ingresos, reservas, clases,
-          inscripciones y auditoría.
+          inscripciones, caja, productos, stock y auditoría.
         </p>
         <p className="muted" style={{ marginTop: 16 }}>
           Guardá la copia en un lugar privado. Puede contener DNI y teléfonos.
@@ -308,6 +308,10 @@ export default function DataClient() {
                       sessions: "Clases",
                       enrollments: "Inscripciones",
                       audit: "Auditoría",
+                      booking_payments: "Cobros de pádel",
+                      products: "Productos",
+                      cash_entries: "Caja",
+                      stock_moves: "Movimientos de stock",
                     }[name] ?? name}
                   </span>
                   <strong>{count}</strong>
@@ -362,3 +366,4 @@ export default function DataClient() {
     </main>
   );
 }
+

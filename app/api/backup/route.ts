@@ -86,7 +86,7 @@ export async function POST(req: Request) {
           id: ids.get(record.id),
           owner: p.owner,
         };
-        for (const key of ["plan_id", "member_id", "session_id", "booking_id"])
+        for (const key of ["plan_id", "member_id", "session_id", "booking_id", "product_id", "cash_entry_id", "reverses"])
           if (typeof r[key] === "string") r[key] = ids.get(r[key] as string);
         if ("created_by" in r) r.created_by = null;
         if ("request_key" in r)

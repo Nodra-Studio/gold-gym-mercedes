@@ -229,7 +229,7 @@ try {
       "Un cobro repetido no duplica pago ni extiende dos veces",
       async () => {
         const p = {
-          action: "payment",
+          action: "payment", venue:"calle30",
           memberId: ana.id,
           method: "Efectivo",
           expectedPrice: 30000,
@@ -249,7 +249,7 @@ try {
       assert.equal(
         (
           await post({
-            action: "payment",
+            action: "payment", venue:"calle30",
             memberId: bruno.id,
             method: "Transferencia",
             expectedPrice: 42000,
@@ -407,7 +407,7 @@ try {
         assert.equal(
           (
             await post({
-              action: "payment",
+              action: "payment", venue:"calle30",
               memberId: ana.id,
               method: "Efectivo",
               expectedPrice: 30000,
@@ -485,7 +485,7 @@ try {
         assert.equal(
           (
             await post({
-              action: "payment",
+              action: "payment", venue:"calle30",
               memberId: ana.id,
               method: "Efectivo",
               expectedPrice: 30000,
@@ -497,7 +497,7 @@ try {
         assert.equal(
           (
             await post({
-              action: "payment",
+              action: "payment", venue:"calle30",
               memberId: ana.id,
               method: "Efectivo",
               expectedPrice: 35000,
@@ -1098,7 +1098,7 @@ try {
           "2020-01-01",
           "2026-09-24T00:00:00.000Z",
         );
-        const ins = db.prepare("INSERT INTO payments VALUES (?,?,?,?,?,?,?)");
+        const ins = db.prepare("INSERT INTO payments (id,owner,member_id,amount,method,created_at,request_key) VALUES (?,?,?,?,?,?,?)");
         for (let i = 0; i < 510; i++)
           ins.run(
             "report-pay-" + i,
@@ -1279,7 +1279,7 @@ try {
       runtime.setUser("player-a");assert.equal((await bookingPaymentsApi.GET(new Request("https://test.local/api/booking-payments?bookingId="+booking.id))).status,403);
     });
     await t.test("Respaldo v2 conserva cobros de pádel; v1 no inventa historial",async()=>{
-      runtime.setUser("ledger-owner");const snapshot=await(await exporter.GET()).json();assert.equal(snapshot.schemaVersion,2);assert.equal(snapshot.records.booking_payments.length,2);
+      runtime.setUser("ledger-owner");const snapshot=await(await exporter.GET()).json();assert.equal(snapshot.schemaVersion,3);assert.equal(snapshot.records.booking_payments.length,2);
       runtime.setUser("ledger-restored");assert.equal((await call(backupApi,{action:"restore",requestKey:key(),backup:snapshot})).status,200);
       const restored=await(await exporter.GET()).json();assert.equal(restored.records.booking_payments.length,2);assert.ok(restored.records.booking_payments.every(p=>restored.records.bookings.some(b=>b.id===p.booking_id)));
       const missing=structuredClone(snapshot);delete missing.records.booking_payments;assert.equal((await call(backupApi,{action:"check",requestKey:key(),backup:missing})).status,400);
@@ -1344,7 +1344,7 @@ try {
       const changed = (await get()).members.find(m=>m.id===original.id);
       assert.equal(changed.phone,"11111111");
       const plan = (await get()).plans.find(p=>p.id===changed.plan_id);
-      assert.equal((await post({action:"payment",memberId:changed.id,expectedPrice:plan.price,method:"Efectivo",requestKey:key()})).status,200);
+      assert.equal((await post({action:"payment",venue:"calle30",memberId:changed.id,expectedPrice:plan.price,method:"Efectivo",requestKey:key()})).status,200);
       assert.equal((await post({...payload,original:changed,phone:"33333333"})).status,409);
       assert.notEqual((await get()).members.find(m=>m.id===changed.id).expires,changed.expires);
       assert.equal((await post({...payload,original:undefined})).status,409);

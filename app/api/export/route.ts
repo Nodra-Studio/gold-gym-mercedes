@@ -18,6 +18,9 @@ export async function GET() {
       "sessions",
       "enrollments",
       "audit",
+      "products",
+      "cash_entries",
+      "stock_moves",
     ] as const;
     const results = await db.batch<Record<string, unknown>>([
       ...tables.map((table) =>
@@ -42,7 +45,7 @@ export async function GET() {
     return new Response(
       JSON.stringify(
         {
-          schemaVersion: 2,
+          schemaVersion: 3,
           configuration: results[tables.length].results[0] ?? {
             padel_price: 24000,
             booking_days: 30,
@@ -81,3 +84,4 @@ export async function GET() {
     );
   }
 }
+

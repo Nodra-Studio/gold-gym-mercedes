@@ -10,19 +10,20 @@ import { createRequire } from 'node:module';
 const folder = mkdtempSync(join(tmpdir(), 'gold-postgres-')), require = createRequire(import.meta.url);
 function compile(file, name, replacements = []) {
   let source = readFileSync(file, 'utf8');
-  const pairs = [...replacements, ['@club/runtime', './runtime.mjs'], ['@/app/chatgpt-auth', './runtime.mjs'], ['@/lib/server', './server.mjs'], ['@/lib/club', './club.mjs'], ['@/lib/backup', './backup.mjs'], ['@/lib/padel-settings', './padel-settings.mjs'], ['@/lib/csv', './csv.mjs']];
+  const pairs = [...replacements, ['@club/runtime', './runtime.mjs'], ['@/app/chatgpt-auth', './runtime.mjs'], ['@/lib/server', './server.mjs'], ['@/lib/club', './club.mjs'], ['@/lib/backup', './backup.mjs'], ['@/lib/padel-settings', './padel-settings.mjs'], ['@/lib/csv', './csv.mjs'], ['@/lib/branches','./branches.mjs']];
   for (const [from, to] of pairs) source = source.replaceAll(from, to);
-  source = source.replaceAll('"zod"', JSON.stringify(pathToFileURL(require.resolve('zod')).href));
+  source = source.replaceAll("'zod'", '"zod"').replaceAll('"zod"', JSON.stringify(pathToFileURL(require.resolve('zod')).href));
   writeFileSync(join(folder, name + '.mjs'), ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.ES2022, target: ts.ScriptTarget.ES2022 } }).outputText);
 }
 writeFileSync(join(folder, 'runtime.mjs'), `export const env={}; export const supportsSitesIdentity=false; export let user=null; export let owner='owner-a'; export const setUser=x=>user=x; export const setOwner=x=>owner=x; export async function independentUserId(){return user}; export function ownerAccount(id){return id===owner}; export async function getChatGPTUser(){throw Error('Untrusted Sites identity used')}`);
 for (const [file, name, replacements] of [
-  ['lib/server.ts','server'], ['lib/club.ts','club'], ['lib/backup.ts','backup',[['./club','./club.mjs']]], ['lib/padel-settings.ts','padel-settings'], ['lib/csv.ts','csv'], ['lib/postgres/adapter.ts','adapter'], ['lib/auth/config.ts','auth-config'],
-  ...['club','team','player','settings','booking-payments','reports','export','backup'].map(x=>[`app/api/${x}/route.ts`, x+'-api']),
+  ['lib/branches.ts','branches'], ['lib/server.ts','server'], ['lib/club.ts','club'], ['lib/backup.ts','backup',[['./club','./club.mjs']]], ['lib/padel-settings.ts','padel-settings'], ['lib/csv.ts','csv'], ['lib/postgres/adapter.ts','adapter'], ['lib/auth/config.ts','auth-config'],
+  ...['club','team','player','settings','booking-payments','reports','export','backup','cash'].map(x=>[`app/api/${x}/route.ts`, x+'-api']),
 ]) compile(file, name, replacements);
 const load = name => import(pathToFileURL(join(folder, name+'.mjs')));
 const runtime = await load('runtime'), { createDatabase, postgresQuery } = await load('adapter');
 const api = await load('club-api'), team = await load('team-api'), player = await load('player-api'), ledger = await load('booking-payments-api'), reports = await load('reports-api'), exporter = await load('export-api'), backup = await load('backup-api'), config = await load('auth-config');
+const cash=await load('cash-api');
 const pg = new PGlite();
 let clubOwner = 'owner-a';
 await pg.exec('CREATE ROLE anon; CREATE ROLE authenticated;');
@@ -31,11 +32,12 @@ const query = connection => async (sql, values) => {
   const result = await connection.query(sql, values);
   return { rows: result.rows, count: result.affectedRows ?? result.rows.length };
 };
-async function transaction(work) {
+async function transaction(work, readOnly=false) {
   return pg.transaction(async tx => {
+    if(readOnly)await tx.exec('SET TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY');
     await tx.exec('SET LOCAL ROLE gold_gym_app; SET LOCAL search_path TO club, pg_catalog;');
     await tx.query("SELECT set_config('app.club_owner', $1, true)", [clubOwner]);
-    await tx.query('SELECT pg_advisory_xact_lock(71946201)');
+    if(!readOnly)await tx.query('SELECT pg_advisory_xact_lock(71946201)');
     return work(query(tx));
   });
 }
@@ -69,7 +71,7 @@ try {
     });
     const data=await get(), member=data.members.find(m=>m.dni==='99000001');
     await t.test('Payments renew dates atomically and retries do not duplicate',async()=>{
-      const payload={action:'payment',memberId:member.id,expectedPrice:30000,method:'Efectivo',requestKey:key()};
+      const payload={action:'payment',venue:'calle30',memberId:member.id,expectedPrice:30000,method:'Efectivo',requestKey:key()};
       const r=await post(api,payload);assert.equal(r.status,200,JSON.stringify(r));assert.equal((await post(api,payload)).replayed,true);
       const updated=await get();assert.equal(updated.payments.length,1);assert.ok(updated.members.find(x=>x.id===member.id).expires>member.expires);
     });
@@ -99,15 +101,59 @@ try {
     await t.test('Reports aggregate PostgreSQL payments',async()=>{
       const r=await get(reports);assert.equal(r.status,200,JSON.stringify(r));
     });
+    let product, sale;
+    await t.test('Cash roles, validation and idempotent catalog creation',async()=>{
+      runtime.setUser('unknown'); assert.equal((await get(cash)).status,403); runtime.setUser('owner-a');
+      const input={action:'product',name:'Monster',category:'Bebidas',price:2500,requestKey:key()};
+      const r=await post(cash,input);assert.equal(r.status,200,JSON.stringify(r));product=r.id;
+      assert.equal((await post(cash,input)).replayed,true);
+      assert.equal((await post(cash,{...input,price:3000})).status,409);
+      assert.equal((await post(cash,{action:'expense',venue:'bad',category:'Otros',concept:'Gasto',amount:50,method:'Efectivo',day:new Date().toISOString().slice(0,10),requestKey:key()})).status,400);
+    });
+    await t.test('Stock is branch-specific; concurrent last-unit sales allow one winner',async()=>{
+      const input={action:'receive',venue:'velez',productId:product,quantity:1,note:'Carga inicial',requestKey:key()};
+      assert.equal((await post(cash,input)).status,200);assert.equal((await post(cash,input)).replayed,true);
+      const payload={action:'sale',venue:'velez',productId:product,quantity:1,expectedPrice:2500,method:'Efectivo',requestKey:key()};
+      assert.equal((await post(cash,{...payload,venue:'pilates'})).status,409);
+      const results=await Promise.all([post(cash,payload),post(cash,{...payload,requestKey:key()})]);
+      assert.deepEqual(results.map(r=>r.status).sort(),[200,409]);sale=results.find(r=>r.status===200).id;
+      const retry=await post(cash,payload);assert.equal(retry.status,200);assert.equal(retry.replayed,true);
+      const data=await get(cash);assert.equal(data.status,200,JSON.stringify(data));assert.equal(data.stock.find(s=>s.venue==='velez').quantity,0);
+      assert.equal((await get(cash,'?venue=pilates')).summary.incoming,0);
+    });
+    await t.test('Expense and reversal retain originals, restore stock once and enforce owner role',async()=>{
+      const today=(await get()).today;
+      assert.equal((await post(cash,{action:'expense',venue:'pilates',category:'Limpieza',concept:'Factura limpieza',amount:500,method:'Transferencia',day:today,requestKey:key()})).status,200);
+      await post(team,{userId:'reception',name:'Recepción',role:'reception',status:'active'});runtime.setUser('reception');
+      assert.equal((await post(cash,{action:'reverse',id:sale,reason:'Devolución',requestKey:key()})).status,403);
+      assert.equal((await post(cash,{action:'product',name:'Otro',category:'Bebidas',price:100,requestKey:key()})).status,403);
+      runtime.setUser('owner-a');
+      const payload={action:'reverse',id:sale,reason:'Producto devuelto',requestKey:key()};
+      assert.equal((await post(cash,payload)).status,200);assert.equal((await post(cash,payload)).replayed,true);
+      assert.equal((await post(cash,{...payload,requestKey:key()})).status,409);
+      const data=await get(cash,'?category=Productos');assert.equal(data.summary.balance,0);assert.equal(data.entries.length,2);assert.equal(data.stock.find(s=>s.venue==='velez').quantity,1);
+      assert.equal((await get(cash,'?venue=pilates&category=Limpieza')).summary.balance,-500);
+      await assert.rejects(pg.transaction(async tx=>{await tx.exec('SET LOCAL ROLE anon');await tx.query("SELECT club.record_cash('owner-a','attacker','{}')")}));
+      await assert.rejects(runtime.env.DB.prepare('SELECT record_cash(?,?,?::jsonb)').bind('other-owner','owner-a',JSON.stringify(payload)).first());
+    });
+    await t.test('Failed audit rolls the cash operation and stock back together',async()=>{
+      await pg.exec("CREATE FUNCTION club.test_audit_failure() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN IF NEW.action='Caja: sale' THEN RAISE EXCEPTION 'test failure'; END IF; RETURN NEW; END $$; CREATE TRIGGER cash_test_failure BEFORE INSERT ON club.audit FOR EACH ROW EXECUTE FUNCTION club.test_audit_failure();");
+      const before=await get(cash);
+      const failed=await post(cash,{action:'sale',venue:'velez',productId:product,quantity:1,expectedPrice:2500,method:'Efectivo',requestKey:key()});
+      assert.equal(failed.status,503);
+      const after=await get(cash);assert.deepEqual(after.stock,before.stock);assert.equal(after.summary.count,before.summary.count);
+      await pg.exec('DROP TRIGGER cash_test_failure ON club.audit; DROP FUNCTION club.test_audit_failure();');
+      await post(team,{userId:'gate-cash',name:'Terminal',role:'gate',status:'active'});runtime.setUser('gate-cash');assert.equal((await get(cash)).status,403);runtime.setUser('owner-a');
+    });
     let snapshot;
     await t.test('JSON backup retains numeric fields and relations',async()=>{
-      const response=await exporter.GET();assert.equal(response.status,200);snapshot=await response.json();assert.equal(snapshot.schemaVersion,2);
+      const response=await exporter.GET();assert.equal(response.status,200);snapshot=await response.json();assert.equal(snapshot.schemaVersion,3);
       assert.equal(snapshot.records.booking_payments.length,2);
     });
     await t.test('Restore uses typed JSON recordsets and remaps references',async()=>{
       clubOwner='owner-b';runtime.setOwner(clubOwner);runtime.setUser(clubOwner);
       const r=await post(backup,{action:'restore',requestKey:key(),backup:snapshot});assert.equal(r.status,200,JSON.stringify(r));
-      const restored=await get();assert.equal(restored.members.length,6);assert.notEqual(restored.members[0].id,member.id);
+      const restored=await get();assert.equal(restored.members.length,6);assert.equal((await get(cash)).products.length,1);assert.equal((await get(cash)).stock[0].quantity,1);assert.notEqual(restored.members[0].id,member.id);
       const book=restored.bookings.find(b=>b.name===booking.name);assert.equal((await get(ledger,'?bookingId='+book.id)).payments.length,2);
     });
     await t.test('Redirects reject external URLs and auth loops',()=>{

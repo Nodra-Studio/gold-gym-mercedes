@@ -12,7 +12,8 @@ export default function Kiosk() {
   useEffect(() => {
     // Restore the terminal setting after hydration.
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    setVenue(localStorage.getItem('gold-terminal-venue') ?? '');
+    const saved = localStorage.getItem('gold-terminal-venue') ?? '';
+    setVenue(saved === 'Unión Gold Club' ? 'Club Vélez' : saved);
   }, []);
 
   const [dni, setDni] = useState(""),
@@ -82,7 +83,7 @@ export default function Kiosk() {
         <Field label="Sede de esta terminal">
           <SelectField value={venue} required onChange={(v) => { setVenue(v); localStorage.setItem('gold-terminal-venue', v); }}>
             <option value="">Seleccioná la sede</option>
-            {['Calle 30', 'Calle 23', 'Unión Gold Club'].map(v => <option key={v} value={v}>{v}</option>)}
+            {['Calle 30', 'Calle 23', 'Club Vélez', 'Pilates'].map(v => <option key={v} value={v}>{v}</option>)}
           </SelectField>
         </Field>
         <form onSubmit={check} style={{ marginTop: 30 }}>

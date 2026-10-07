@@ -1,4 +1,5 @@
 "use client";
+import { branches } from "@/lib/branches";
 import { apiFetch } from "@/lib/api-fetch";
 import { csvDocument } from "@/lib/csv";
 import { requestId } from "@/lib/club";
@@ -115,7 +116,7 @@ export function WorkspaceHeader({
   title,
   subtitle,
 }: {
-  active: "gestion" | "reservas";
+  active: "gestion" | "reservas" | "caja";
   title: string;
   subtitle: string;
 }) {
@@ -151,6 +152,7 @@ export function WorkspaceHeader({
           >
             Pádel
           </Link>
+          <Link href="/caja" className={active === "caja" ? "active" : ""}>Caja y stock</Link>
           <Link href="/ingreso">Terminal de ingreso ↗</Link>
         </nav>
       </div>
@@ -1084,6 +1086,7 @@ function PaymentForm({
 }) {
   const [memberId, setMember] = useState(member?.id ?? ""),
     [method, setMethod] = useState("Efectivo"),
+    [venue, setVenue] = useState(""),
     [requestKey] = useState(() => requestId());
   const m = data.members.find((m) => m.id === memberId);
   return (
@@ -1092,6 +1095,7 @@ function PaymentForm({
         e.preventDefault();
         submit({
           action: "payment",
+          venue,
           memberId,
           method,
           expectedPrice: m?.price,
@@ -1108,6 +1112,12 @@ function PaymentForm({
                 {m.name} · {m.dni}
               </Option>
             ))}
+          </SelectField>
+        </Field>
+        <Field label="Sede donde se cobra" full>
+          <SelectField value={venue} onChange={setVenue} required>
+            <Option value="">Elegí una sede</Option>
+            {branches.map(b => <Option key={b.id} value={b.id}>{b.name}</Option>)}
           </SelectField>
         </Field>
         <Field label="Medio de pago" full>
@@ -1268,7 +1278,7 @@ function SessionForm({
         </Field>
         <Field label="Sede">
           <SelectField value={venue} onChange={setVenue}>
-            {["Calle 30", "Calle 23", "Unión Gold Club"].map((x) => (
+            {["Calle 30", "Calle 23", "Club Vélez", "Pilates"].map((x) => (
               <Option key={x}>{x}</Option>
             ))}
           </SelectField>

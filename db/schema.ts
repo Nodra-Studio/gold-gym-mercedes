@@ -43,6 +43,7 @@ export const payments = sqliteTable(
       .references(() => members.id),
     amount: integer("amount").notNull(),
     method: text("method").notNull(),
+    venue: text("venue"),
     createdAt: text("created_at").notNull(),
     requestKey: text("request_key").notNull(),
   },
@@ -180,10 +181,70 @@ export const bookingPayments = sqliteTable(
     kind: text("kind").notNull(),
     amount: integer("amount").notNull(),
     method: text("method").notNull(),
+    venue: text("venue"),
     createdAt: text("created_at").notNull(),
   },
   (t) => [
     uniqueIndex("booking_payments_kind").on(t.owner, t.bookingId, t.kind),
     index("booking_payments_owner_date").on(t.owner, t.createdAt),
+  ],
+);
+
+// Production constraints and atomic stock operations live in supabase/migrations.
+const cashCommon = () => ({
+  id: text("id").primaryKey(),
+  owner: text("owner").notNull(),
+  createdAt: text("created_at").notNull(),
+  actor: text("actor").notNull(),
+  requestKey: text("request_key").notNull(),
+  payload: text("payload").notNull(),
+});
+export const products = sqliteTable(
+  "products",
+  {
+    ...cashCommon(),
+    name: text("name").notNull(),
+    category: text("category").notNull(),
+    price: integer("price").notNull(),
+  },
+  (t) => [uniqueIndex("products_owner_request").on(t.owner, t.requestKey)],
+);
+export const cashEntries = sqliteTable(
+  "cash_entries",
+  {
+    ...cashCommon(),
+    venue: text("venue").notNull(),
+    kind: text("kind").notNull(),
+    category: text("category").notNull(),
+    concept: text("concept").notNull(),
+    amount: integer("amount").notNull(),
+    method: text("method").notNull(),
+    day: text("day").notNull(),
+    productId: text("product_id").references(() => products.id),
+    quantity: integer("quantity"),
+    reverses: text("reverses"),
+  },
+  (t) => [
+    uniqueIndex("cash_entries_owner_request").on(t.owner, t.requestKey),
+    uniqueIndex("cash_entries_owner_reversal").on(t.owner, t.reverses),
+    index("cash_entries_owner_day").on(t.owner, t.day, t.venue),
+  ],
+);
+export const stockMoves = sqliteTable(
+  "stock_moves",
+  {
+    ...cashCommon(),
+    venue: text("venue").notNull(),
+    productId: text("product_id")
+      .notNull()
+      .references(() => products.id),
+    quantity: integer("quantity").notNull(),
+    kind: text("kind").notNull(),
+    note: text("note").notNull(),
+    cashEntryId: text("cash_entry_id").references(() => cashEntries.id),
+  },
+  (t) => [
+    uniqueIndex("stock_moves_owner_request").on(t.owner, t.requestKey),
+    index("stock_moves_owner_product").on(t.owner, t.productId, t.venue),
   ],
 );

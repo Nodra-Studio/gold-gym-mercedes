@@ -51,6 +51,7 @@ const schema = z.discriminatedUnion("action", [
   }),
   z.object({
     action: z.literal("payment"),
+    venue: z.enum(["calle30", "calle23", "velez", "pilates"]),
     memberId: id,
     method: z.enum(["Efectivo", "Transferencia", "Tarjeta"]),
     expectedPrice: z.number().int().min(0),
@@ -59,7 +60,7 @@ const schema = z.discriminatedUnion("action", [
   z.object({
     action: z.literal("access"),
     dni: z.string().regex(/^\d{7,8}$/, "Ingresá 7 u 8 números"),
-    venue: z.enum(["Calle 30", "Calle 23", "Unión Gold Club"]).optional(),
+    venue: z.enum(["Calle 30", "Calle 23", "Club Vélez", "Pilates", "Unión Gold Club"]).optional(),
   }),
   z.object({
     action: z.literal("booking"),
@@ -82,7 +83,7 @@ const schema = z.discriminatedUnion("action", [
     day,
     time: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/),
     capacity: z.number().int().min(1).max(100),
-    venue: z.enum(["Calle 30", "Calle 23", "Unión Gold Club"]),
+    venue: z.enum(["Calle 30", "Calle 23", "Club Vélez", "Pilates", "Unión Gold Club"]),
   }),
   z.object({ action: z.literal("enroll"), sessionId: id, memberId: id }),
   z.object({ action: z.literal("cancelEnrollment"), id }),
@@ -351,7 +352,7 @@ export async function POST(req: Request) {
         const result = await db.batch([
           db
             .prepare(
-              "INSERT INTO booking_payments(id,owner,booking_id,kind,amount,method,created_at) SELECT ?,owner,id,'settlement',amount-deposit,?,? FROM bookings WHERE id=? AND owner=? AND status='confirmed' AND kind='booking' AND deposit=? AND amount>deposit",
+              "INSERT INTO booking_payments(id,owner,booking_id,kind,amount,method,created_at,venue) SELECT ?,owner,id,'settlement',amount-deposit,?,?,'velez' FROM bookings WHERE id=? AND owner=? AND status='confirmed' AND kind='booking' AND deposit=? AND amount>deposit",
             )
             .bind(
               crypto.randomUUID(),
@@ -443,7 +444,7 @@ export async function POST(req: Request) {
         const result = await db.batch([
           db
             .prepare(
-              "INSERT INTO payments (id,owner,member_id,amount,method,created_at,request_key) SELECT ?,?,?,?,?,?,? WHERE EXISTS(SELECT 1 FROM plans p JOIN members m ON m.plan_id=p.id WHERE m.id=? AND m.owner=? AND p.owner=? AND p.id=? AND p.price=? AND p.days=?)",
+              "INSERT INTO payments (id,owner,member_id,amount,method,created_at,request_key,venue) SELECT ?,?,?,?,?,?,?,? WHERE EXISTS(SELECT 1 FROM plans p JOIN members m ON m.plan_id=p.id WHERE m.id=? AND m.owner=? AND p.owner=? AND p.id=? AND p.price=? AND p.days=?)",
             )
             .bind(
               paymentId,
@@ -453,6 +454,7 @@ export async function POST(req: Request) {
               input.method,
               now,
               input.requestKey,
+              input.venue,
               input.memberId,
               owner,
               owner,
@@ -581,7 +583,7 @@ export async function POST(req: Request) {
             ? [
                 db
                   .prepare(
-                    "INSERT INTO booking_payments(id,owner,booking_id,kind,amount,method,created_at) SELECT ?,owner,id,'deposit',deposit,?,? FROM bookings WHERE owner=? AND request_key=?",
+                    "INSERT INTO booking_payments(id,owner,booking_id,kind,amount,method,created_at,venue) SELECT ?,owner,id,'deposit',deposit,?,?,'velez' FROM bookings WHERE owner=? AND request_key=?",
                   )
                   .bind(
                     crypto.randomUUID(),
