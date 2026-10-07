@@ -155,3 +155,25 @@
     flex: 1 1 140px;
   }
 }
+
+.cash-breakdowns {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 24px;
+  margin: 24px 0;
+}
+.cash-breakdowns h3 {
+  font-size: 1rem;
+  margin-bottom: 12px;
+}
+.cash-breakdowns section {
+  min-width: 0;
+}
+.cash-breakdowns td {
+  font-size: 0.8rem;
+}
+@media (max-width: 1050px) {
+  .cash-breakdowns {
+    grid-template-columns: 1fr;
+  }
+}

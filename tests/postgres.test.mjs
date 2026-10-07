@@ -193,6 +193,12 @@ try {
       assert.equal(response.status,200);assert.match(response.headers.get('content-type'),/text\/csv/);
       const csv=await response.text();assert.match(csv,/Club Unión/);assert.doesNotMatch(csv,/Club Vélez/);assert.match(csv,/Monster/);assert.doesNotMatch(csv,/Factura limpieza/);
     });
+    await t.test('Cash branch and payment-method totals reconcile with all filtered movements',async()=>{
+      const data=await get(cash);
+      for(const group of [data.byVenue,data.byMethod])for(const field of ['count','incoming','outgoing','balance'])assert.equal(group.reduce((n,r)=>n+r[field],0),data.summary[field]);
+      const filtered=await get(cash,'?venue=pilates&category=Limpieza');assert.equal(filtered.byVenue.length,1);assert.equal(filtered.byVenue[0].venue,'pilates');assert.equal(filtered.byMethod[0].method,'Transferencia');assert.equal(filtered.byMethod[0].balance,-500);
+      const empty=await get(cash,'?venue=calle23&category=Electricidad');assert.equal(empty.summary.count,0);assert.equal(empty.byVenue.length,0);assert.equal(empty.byMethod.length,0);
+    });
     let snapshot;
     await t.test('JSON backup retains numeric fields and relations',async()=>{
       const response=await exporter.GET();assert.equal(response.status,200);snapshot=await response.json();assert.equal(snapshot.schemaVersion,4);

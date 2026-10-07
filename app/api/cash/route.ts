@@ -244,7 +244,7 @@ export async function GET(req: Request) {
         },
       });
     }
-    const data = await db.batch([
+    const data = await db.batch<Record<string,unknown>>([
       db
         .prepare(
           union +
@@ -254,7 +254,7 @@ export async function GET(req: Request) {
       db
         .prepare(
           union +
-            ` SELECT count(*)::integer AS count,coalesce(sum(amount) FILTER(WHERE amount>0),0)::float8 AS incoming,coalesce(-sum(amount) FILTER(WHERE amount<0),0)::float8 AS outgoing,coalesce(sum(amount),0)::float8 AS balance FROM filtered`,
+            ` SELECT CASE WHEN GROUPING(venue)=0 THEN 'venue' WHEN GROUPING(method)=0 THEN 'method' ELSE 'total' END AS scope,venue,method,count(*)::integer AS count,coalesce(sum(amount) FILTER(WHERE amount>0),0)::float8 AS incoming,coalesce(-sum(amount) FILTER(WHERE amount<0),0)::float8 AS outgoing,coalesce(sum(amount),0)::float8 AS balance FROM filtered GROUP BY GROUPING SETS ((),(venue),(method))`,
         )
         .bind(...args),
       db
@@ -284,7 +284,9 @@ export async function GET(req: Request) {
         from,
         to,
         entries: data[0].results,
-        summary: data[1].results[0],
+        summary: data[1].results.find((r) => r.scope === "total"),
+        byVenue: data[1].results.filter((r) => r.scope === "venue"),
+        byMethod: data[1].results.filter((r) => r.scope === "method"),
         products: data[2].results,
         stock: data[3].results,
         stockMoves: data[4].results,

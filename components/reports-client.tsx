@@ -180,9 +180,10 @@ export default function ReportsClient() {
           <p className="eyebrow">GOLD GYM / ADMINISTRACIÓN</p>
           <h1>Los números del club.</h1>
           <p className="muted">
-            Cobros registrados, saldos de pádel y estado de las membresías.
+            Cobros de cuotas y pádel, saldos de reservas y estado de las membresías.
           </p>
         </div>
+        <Link className="button" href="/caja">Caja completa · ventas y gastos</Link>
       </header>
       <form
         className="panel report-filters"
@@ -433,3 +434,4 @@ export default function ReportsClient() {
     </main>
   );
 }
+

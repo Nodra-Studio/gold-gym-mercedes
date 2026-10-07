@@ -36,7 +36,17 @@ type ProductChange = {
   actor: string;
   name: string;
 };
+type Breakdown = {
+  venue: string | null;
+  method: string | null;
+  count: number;
+  incoming: number;
+  outgoing: number;
+  balance: number;
+};
 type Data = {
+  byVenue: Breakdown[];
+  byMethod: Breakdown[];
   productChanges: ProductChange[];
   role: string;
   products: Product[];
@@ -400,6 +410,22 @@ export function CashClient() {
               no es un arqueo de efectivo. Las anulaciones se registran en la
               fecha actual.
             </p>
+            <div className="cash-breakdowns">
+              <CashBreakdown
+                title="Por sede"
+                rows={data.byVenue.map((r) => ({
+                  ...r,
+                  label: branchName(r.venue),
+                }))}
+              />
+              <CashBreakdown
+                title="Por medio de pago"
+                rows={data.byMethod.map((r) => ({
+                  ...r,
+                  label: r.method ?? "No informado",
+                }))}
+              />
+            </div>
             <div className="cash-heading">
               <h2>
                 Movimientos <small>({data.summary.count})</small>
@@ -628,6 +654,49 @@ export function CashClient() {
         </section>
       )}
     </main>
+  );
+}
+function CashBreakdown({
+  title,
+  rows,
+}: {
+  title: string;
+  rows: (Breakdown & { label: string })[];
+}) {
+  return (
+    <section>
+      <h3>{title}</h3>
+      <div className="cash-table">
+        <table>
+          <thead>
+            <tr>
+              <th>Detalle</th>
+              <th>Entradas</th>
+              <th>Salidas</th>
+              <th>Neto</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows
+              .sort((a, b) => a.label.localeCompare(b.label, "es"))
+              .map((r) => (
+                <tr key={r.label}>
+                  <td>
+                    {r.label}
+                    <small>{r.count} movimientos</small>
+                  </td>
+                  <td>{money(r.incoming)}</td>
+                  <td>{money(r.outgoing)}</td>
+                  <td>{money(r.balance)}</td>
+                </tr>
+              ))}
+          </tbody>
+        </table>
+        {!rows.length && (
+          <p className="cash-empty">Sin movimientos en el filtro actual.</p>
+        )}
+      </div>
+    </section>
   );
 }
 function describeProduct(raw: string) {

@@ -47,3 +47,5 @@ Verificación: 74 pruebas de dominio/auth/PostgreSQL y revisión TypeScript sin 
 - Las ventas conservan el precio seleccionado en pantalla; si el dueño lo cambió, el servidor rechaza el precio obsoleto. Las ventas pasadas nunca cambian su importe.
 - Respaldo v4 verifica que cada traslado tenga ambas partes y remapea sus referencias al restaurar. Conserva el historial de catálogo. Exportación CSV del período preserva importes negativos como números y neutraliza fórmulas en texto.
 - 80 pruebas de dominio, autenticación y PostgreSQL, incluyendo stock concurrente, rollback de auditoría, precios obsoletos y restauración; TypeScript sin errores. Migración remota 20261007135008. Advisors sin nuevos problemas de seguridad; aviso de contraseñas e índices informativos preexistentes/documentados arriba.
+
+- Resumen de caja por sede y medio de pago bajo los mismos filtros del detalle; totaliza el período completo, no solo la página. Los tres niveles se calculan en una agregación SQL sin agregar viajes de red. Verificación ampliada a 81 pruebas.
