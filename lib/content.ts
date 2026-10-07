@@ -28,7 +28,7 @@ export const venues = [
   },
   {
     name: "Gold Pilates",
-    address: "Calle 20 ENTE 15 Y 17",
+    address: "Calle 20 entre15 Y 17",
     category: "Pilates",
     map: "https://maps.app.goo.gl/a53JSYgwVaYpBqiN8",
     image: "pilates",
