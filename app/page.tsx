@@ -1,6 +1,16 @@
 import Link from "next/link";
+import { WaveMarquee } from "@/components/wave-marquee";
+import { BrandIcon } from "@/components/brand-icon";
 import { BenefitsCarousel } from "@/components/benefits-carousel";
-import { ArrowUpRight, ArrowRight, MapPin, Plus } from "lucide-react";
+import {
+  ArrowUpRight,
+  ArrowRight,
+  MapPin,
+  Plus,
+  Dumbbell,
+  Activity,
+  Trophy,
+} from "lucide-react";
 import { SiteHeader } from "@/components/site-header";
 import { SiteFooter } from "@/components/site-footer";
 import { ScrollReveal } from "@/components/scroll-reveal";
@@ -76,14 +86,13 @@ export default function Home() {
             <div className="gg-art-caption">MUSCULACIÓN / PILATES / PÁDEL</div>
           </div>
         </section>
-        <div className="gg-discipline-strip">
-          <span>UN CLUB. MUCHAS FORMAS DE MOVERTE.</span>
-          <b>MUSCULACIÓN</b>
-          <i>✳</i>
-          <b>PILATES</b>
-          <i>✳</i>
-          <b>PÁDEL</b>
-        </div>
+        <WaveMarquee
+          items={[
+            { text: "ENTRENÁ", icon: <Dumbbell size={24} /> },
+            { text: "CONECTÁ", icon: <Activity size={24} /> },
+            { text: "JUGÁ", icon: <Trophy size={24} /> },
+          ]}
+        />
         <section className="gg-section gg-activities" id="actividades">
           <div className="gg-section-head" data-reveal>
             <div>
@@ -127,7 +136,11 @@ export default function Home() {
                 </a>
               </div>
             </article>
-            <article data-reveal data-reveal-delay="1" className="gg-activity gg-activity-pilates">
+            <article
+              data-reveal
+              data-reveal-delay="1"
+              className="gg-activity gg-activity-pilates"
+            >
               <div className="gg-activity-image">
                 <img
                   src="/images/pilates/reformer-clase.webp"
@@ -323,7 +336,9 @@ export default function Home() {
           </div>
         </section>
         <section className="gg-final">
-          <p className="gg-kicker" data-reveal>EL MOMENTO ES AHORA</p>
+          <p className="gg-kicker" data-reveal>
+            EL MOMENTO ES AHORA
+          </p>
           <h2 data-reveal data-reveal-delay="1">
             NOS VEMOS
             <br />
@@ -337,7 +352,7 @@ export default function Home() {
             target="_blank"
             rel="noopener noreferrer"
           >
-            Hablemos por WhatsApp <ArrowUpRight />
+            <BrandIcon name="whatsapp" /> Hablemos por WhatsApp <ArrowUpRight />
           </a>
           <p>Contanos qué te gustaría hacer. Te ayudamos a empezar.</p>
         </section>

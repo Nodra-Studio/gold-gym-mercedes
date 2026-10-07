@@ -1813,7 +1813,6 @@ body:has(.admin-shell) [data-slot="dialog-content"] .muted {
     min-height: 0;
   }
 }
-
 /* Texto sobre fondo dorado: siempre negro puro (la regla global de <p> lo dejaba gris). */
 .gg-button:not(.gg-button-dark, .gg-nav-cta),
 .gg-nav .gg-nav-cta:hover,
@@ -1846,4 +1845,316 @@ body:has(.admin-shell) [data-slot="dialog-content"] .muted {
   background-color: #d3b36b;
   -webkit-mask: url("/icons/instagram.svg") center / contain no-repeat;
   mask: url("/icons/instagram.svg") center / contain no-repeat;
+}
+
+/* Public landing: contrast, icon rhythm and progressive motion. */
+.marketing .gg-kicker {
+  color: #c4c9bc;
+  font-size: 12px;
+}
+.marketing .gg-club-band .gg-kicker {
+  color: #4b553f;
+}
+.marketing .gg-final .gg-kicker,
+.marketing .gg-final > p:last-child {
+  color: #303627;
+}
+.marketing .gg-final h2 span {
+  color: #22281c;
+}
+.marketing .gg-final > p:last-child {
+  font-size: 14px;
+  line-height: 1.7;
+  max-width: 540px;
+  margin: 22px auto 0;
+}
+.marketing .gg-club-band h2 span {
+  color: #705924;
+}
+.marketing .gg-club-band .gg-steps > div > span {
+  color: #58624c;
+}
+.marketing .gg-footer-bottom {
+  color: #b9c1ac;
+  font-size: 12px;
+  align-items: center;
+}
+.marketing .gg-footer-social a {
+  font-size: 13px;
+  gap: 10px;
+  min-height: 48px;
+  color: #e7eadd;
+}
+.gg-brand-icon {
+  display: inline-block;
+  width: 20px;
+  height: 20px;
+  flex: 0 0 20px;
+  background: currentColor;
+  mask-repeat: no-repeat;
+  mask-position: center;
+  mask-size: contain;
+  -webkit-mask-repeat: no-repeat;
+  -webkit-mask-position: center;
+  -webkit-mask-size: contain;
+  vertical-align: middle;
+}
+.marketing a > svg,
+.marketing button > svg {
+  flex-shrink: 0;
+}
+.marketing .gg-footer-social a > svg {
+  width: 16px;
+  height: 16px;
+  opacity: 0.8;
+}
+.marketing .gg-footer-social .gg-brand-icon {
+  width: 23px;
+  height: 23px;
+  flex-basis: 23px;
+  color: #d3b36b;
+}
+.marketing .gg-nav .gg-nav-cta {
+  gap: 10px;
+  min-height: 48px;
+}
+.marketing .gg-nav .gg-nav-cta .gg-brand-icon {
+  width: 18px;
+  height: 18px;
+  flex-basis: 18px;
+}
+.marketing .gg-header {
+  position: sticky;
+  top: 0;
+  z-index: 60;
+  background: #151614f5;
+  backdrop-filter: blur(14px);
+}
+.marketing .gg-section,
+.marketing .gg-club-band {
+  scroll-margin-top: 116px;
+}
+.marketing .gg-header .gg-nav a {
+  font-size: 14px;
+}
+.marketing .gg-hero-note,
+.marketing .gg-art-caption {
+  font-size: 10px;
+  color: #b4bcaa;
+}
+.marketing .gg-photo-tag {
+  font-size: 10px;
+  color: #edf0e6;
+}
+.marketing .gg-photo-small span {
+  font-size: 9px;
+  color: #242a1c;
+}
+.marketing .gg-venue small {
+  font-size: 11px;
+  color: #bec6b2;
+}
+.marketing .gg-footnote {
+  font-size: 13px;
+  line-height: 1.7;
+  color: #b7c0aa;
+}
+.marketing .gg-section-head > p {
+  font-size: 14px;
+  line-height: 1.8;
+  color: #c5ccbb;
+}
+.marketing .gg-footer-main > p {
+  font-size: 14px;
+  color: #c5ccbb;
+}
+.marketing .gg-footer-social a,
+.marketing .gg-text-link,
+.marketing .gg-activity-body a,
+.marketing .gg-venue a {
+  transition: color 0.2s;
+}
+.marketing .gg-text-link > svg,
+.marketing .gg-activity-body a > svg,
+.marketing .gg-venue a > svg,
+.marketing .gg-footer-social a > svg,
+.marketing .gg-button > svg {
+  transition: transform 0.22s ease;
+}
+.marketing .gg-button:hover > svg,
+.marketing .gg-activity-body a:hover > svg,
+.marketing .gg-venue a:hover > svg,
+.marketing .gg-footer-social a:hover > svg {
+  transform: translate(2px, -2px);
+}
+.marketing .gg-text-link:hover > svg {
+  transform: translateX(4px);
+}
+.marketing .gg-text-link:hover,
+.marketing .gg-footer-social a:hover,
+.marketing .gg-activity-body a:hover,
+.marketing .gg-venue a:hover {
+  color: #f0d598;
+}
+.marketing .gg-club-band .gg-text-link:hover {
+  color: #705924;
+}
+.marketing .gg-activity {
+  transition:
+    box-shadow 0.25s,
+    background 0.25s;
+}
+.marketing .gg-activity:hover {
+  background: #272b22;
+  box-shadow: 0 0 0 1px #d3b36b60;
+}
+.marketing .gg-venue {
+  transition: background 0.25s;
+}
+.marketing .gg-venue:hover {
+  background: #ffffff03;
+}
+.marketing .gg-roundel {
+  transition: transform 0.5s cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+@media (hover: hover) {
+  .gg-hero-art:hover .gg-roundel {
+    transform: rotate(-3deg);
+  }
+}
+.marketing .wave-marquee {
+  position: relative;
+  margin: 4px 0 0;
+  padding-bottom: 18px;
+}
+.marketing .wave-marquee-text {
+  font-family: Barlow, Impact, sans-serif;
+  font-weight: 700;
+  font-size: 40px;
+  letter-spacing: 0.035em;
+}
+.marketing .wave-marquee-icon {
+  color: #161910;
+  opacity: 1;
+}
+.wave-motion-toggle {
+  position: absolute;
+  right: 5%;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  background: #20251b;
+  border: 1px solid #8f997f;
+  border-radius: 50%;
+  color: #e5e9dc;
+  cursor: pointer;
+  z-index: 2;
+}
+.wave-motion-toggle svg {
+  width: 18px;
+  height: 18px;
+}
+.wave-motion-toggle:hover {
+  background: #343d2a;
+}
+.marketing .gg-home .gg-hero-art {
+  will-change: auto;
+}
+@media (max-width: 1100px) {
+  .marketing .gg-nav {
+    gap: 16px;
+  }
+  .marketing .gg-header .gg-nav a {
+    font-size: 12px;
+  }
+  .marketing .gg-footer-main {
+    flex-wrap: wrap;
+  }
+}
+@media (max-width: 760px) {
+  .marketing .gg-header {
+    max-height: 100svh;
+    overflow-y: auto;
+  }
+  .marketing .gg-header .gg-nav a {
+    font-size: 14px;
+  }
+  .marketing .gg-section,
+  .marketing .gg-club-band {
+    scroll-margin-top: 90px;
+  }
+  .marketing .gg-hero-note {
+    font-size: 9px;
+  }
+  .marketing .gg-footer-main {
+    gap: 24px;
+  }
+  .marketing .gg-footer-social {
+    display: grid;
+    gap: 4px;
+    width: 100%;
+  }
+  .marketing .gg-footer-social a {
+    justify-content: flex-start;
+    border-bottom: 1px solid #ffffff18;
+    padding: 10px 0;
+    min-height: 52px;
+    font-size: 14px;
+  }
+  .marketing .gg-footer-social a > svg {
+    margin-left: auto;
+  }
+  .marketing .gg-footer-bottom {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+    font-size: 11px;
+  }
+  .marketing .gg-photo-small {
+    width: 43%;
+  }
+  .marketing .gg-photo-small span {
+    font-size: 8px;
+  }
+  .marketing .gg-final h2 {
+    font-size: clamp(76px, 18vw, 130px);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .wave-motion-toggle {
+    display: none;
+  }
+  .marketing .gg-activity:hover img,
+  .marketing .gg-button:hover,
+  .marketing .gg-roundel,
+  .marketing a:hover > svg {
+    transform: none;
+  }
+  .marketing .gg-photo-main {
+    transform: rotate(3deg);
+  }
+  .marketing .gg-photo-small {
+    transform: rotate(-6deg);
+  }
+}
+.marketing :focus-visible {
+  outline: 3px solid #f3efdf;
+  outline-offset: 5px;
+}
+.marketing .gg-final :focus-visible,
+.marketing .gg-club-band :focus-visible {
+  outline-color: #28311f;
+}
+.marketing .gg-faq summary {
+  transition: color 0.2s;
+}
+.marketing .gg-faq summary:hover {
+  color: #e5c681;
+}
+.marketing .gg-faq summary svg {
+  transition: transform 0.2s;
 }

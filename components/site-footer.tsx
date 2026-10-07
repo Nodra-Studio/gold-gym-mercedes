@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { BrandIcon } from "@/components/brand-icon";
 import { ArrowUpRight } from "lucide-react";
 import { brand } from "@/lib/content";
 export function SiteFooter() {
@@ -17,16 +18,29 @@ export function SiteFooter() {
           Tu club para encontrarte.
         </p>
         <nav className="gg-footer-social" aria-label="Redes y contacto">
-          <a href={brand.instagram} target="_blank" rel="noopener noreferrer">
-            <span className="gg-instagram-icon" aria-hidden="true" />{" "}
-            Gold Gym <ArrowUpRight size={15} />
+          <a
+            aria-label="Instagram de Gold Gym"
+            href={brand.instagram}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            <BrandIcon name="instagram" /> Gold Gym <ArrowUpRight size={15} />
           </a>
-          <a href={brand.padel} target="_blank" rel="noopener noreferrer">
-            <span className="gg-instagram-icon" aria-hidden="true" />{" "}
-            Gold Pádel <ArrowUpRight size={15} />
+          <a
+            aria-label="Instagram de Gold Pádel"
+            href={brand.padel}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            <BrandIcon name="instagram" /> Gold Pádel <ArrowUpRight size={15} />
           </a>
-          <a href={brand.contact} target="_blank" rel="noopener noreferrer">
-            WhatsApp <ArrowUpRight size={15} />
+          <a
+            aria-label="Contactar a Gold Gym por WhatsApp"
+            href={brand.contact}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            <BrandIcon name="whatsapp" /> WhatsApp <ArrowUpRight size={15} />
           </a>
         </nav>
       </div>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useId, useRef, type ReactNode } from "react";
+import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 
 // One "S" across the band: a hump up, then a hump down (viewBox 1440 × 260).
 const WAVE = "M-120 130 C 160 10 440 10 720 130 S 1280 250 1560 130";
@@ -16,6 +16,9 @@ type Item = { text: string; icon: ReactNode };
 // measures text slightly differently (Safari) can't make them run into each other.
 export function WaveMarquee({ items }: { items: Item[] }) {
   const pathId = useId();
+  const [paused, setPaused] = useState(false);
+  const offsetRef = useRef(0);
+  const containerRef = useRef<HTMLDivElement>(null);
   const pathRef = useRef<SVGPathElement>(null);
   const measureRefs = useRef<(SVGTextElement | null)[]>([]);
   const wordRefs = useRef<(SVGTextPathElement | null)[]>([]);
@@ -44,7 +47,7 @@ export function WaveMarquee({ items }: { items: Item[] }) {
       unitLength = position;
     };
 
-    let offset = 0;
+    let offset = offsetRef.current;
     const draw = () => {
       for (let n = 0; n < REPEATS * items.length; n++) {
         const copyStart = offset + Math.floor(n / items.length) * unitLength;
@@ -73,37 +76,70 @@ export function WaveMarquee({ items }: { items: Item[] }) {
       }
     };
 
+    let disposed = false;
     measure();
     draw();
     document.fonts?.ready.then(() => {
-      measure();
-      draw();
+      if (!disposed) {
+        measure();
+        draw();
+      }
     });
-
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-
-    let last = performance.now();
-    let frame = requestAnimationFrame(function tick(now) {
-      const elapsed = Math.min(now - last, 100) / 1000;
+    const preference = window.matchMedia("(prefers-reduced-motion: reduce)");
+    let visible = true;
+    let last = 0;
+    let frame = 0;
+    const tick = (now: number) => {
+      const elapsed = Math.min(now - last, 64) / 1000;
       last = now;
       if (unitLength > 0) {
         offset = (offset - SPEED * elapsed) % unitLength;
+        offsetRef.current = offset;
         draw();
       }
       frame = requestAnimationFrame(tick);
-    });
-
-    return () => cancelAnimationFrame(frame);
-  }, [items]);
+    };
+    const sync = () => {
+      cancelAnimationFrame(frame);
+      if (!paused && !preference.matches && visible && !document.hidden) {
+        last = performance.now();
+        frame = requestAnimationFrame(tick);
+      }
+    };
+    const observer =
+      "IntersectionObserver" in window
+        ? new IntersectionObserver((entries) => {
+            visible = entries[0]?.isIntersecting ?? false;
+            sync();
+          })
+        : null;
+    if (containerRef.current) observer?.observe(containerRef.current);
+    preference.addEventListener("change", sync);
+    document.addEventListener("visibilitychange", sync);
+    sync();
+    return () => {
+      disposed = true;
+      cancelAnimationFrame(frame);
+      observer?.disconnect();
+      preference.removeEventListener("change", sync);
+      document.removeEventListener("visibilitychange", sync);
+    };
+  }, [items, paused]);
 
   return (
-    <div
-      className="wave-marquee"
-      role="img"
-      aria-label={items.map((item) => item.text).join(", ")}
-    >
-      <svg viewBox="0 0 1440 260" aria-hidden="true" focusable="false">
-        <path ref={pathRef} id={pathId} d={WAVE} className="wave-marquee-band" />
+    <div className="wave-marquee" ref={containerRef}>
+      <svg
+        viewBox="0 0 1440 260"
+        role="img"
+        aria-label={items.map((item) => item.text).join(", ")}
+        focusable="false"
+      >
+        <path
+          ref={pathRef}
+          id={pathId}
+          d={WAVE}
+          className="wave-marquee-band"
+        />
         {Array.from({ length: REPEATS }, (_, copy) =>
           items.map((item, i) => {
             const n = copy * items.length + i;
@@ -154,6 +190,27 @@ export function WaveMarquee({ items }: { items: Item[] }) {
           </text>
         ))}
       </svg>
+      <button
+        type="button"
+        className="wave-motion-toggle"
+        aria-pressed={paused}
+        onClick={() => setPaused(!paused)}
+        aria-label={
+          paused
+            ? "Reanudar animación de la franja"
+            : "Pausar animación de la franja"
+        }
+      >
+        {paused ? (
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="m9 5 11 7-11 7Z" fill="currentColor" />
+          </svg>
+        ) : (
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M8 5v14M16 5v14" stroke="currentColor" strokeWidth="3" />
+          </svg>
+        )}
+      </button>
     </div>
   );
 }

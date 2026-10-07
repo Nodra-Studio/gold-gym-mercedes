@@ -1,7 +1,8 @@
 "use client";
 import Link from "next/link";
+import { BrandIcon } from "@/components/brand-icon";
 import { useEffect, useRef, useState } from "react";
-import { Menu, X, ArrowUpRight } from "lucide-react";
+import { Menu, X } from "lucide-react";
 import { brand } from "@/lib/content";
 export function SiteHeader() {
   const [open, setOpen] = useState(false);
@@ -69,7 +70,7 @@ export function SiteHeader() {
             target="_blank"
             rel="noopener noreferrer"
           >
-            Empezá hoy <ArrowUpRight size={17} />
+            <BrandIcon name="whatsapp" /> Empezá hoy
           </a>
         </nav>
       </header>
