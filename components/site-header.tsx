@@ -1,10 +1,12 @@
 "use client";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { BrandIcon } from "@/components/brand-icon";
 import { useEffect, useRef, useState } from "react";
 import { Menu, X } from "lucide-react";
 import { brand } from "@/lib/content";
 export function SiteHeader() {
+  const path = usePathname();
   const [open, setOpen] = useState(false);
   const toggle = useRef<HTMLButtonElement>(null);
   useEffect(() => {
@@ -55,13 +57,13 @@ export function SiteHeader() {
           <Link href="/#sedes" onClick={() => setOpen(false)}>
             Sedes
           </Link>
-          <Link href="/pilates" onClick={() => setOpen(false)}>
+          <Link href="/pilates" aria-current={path === "/pilates" ? "page" : undefined} onClick={() => setOpen(false)}>
             Pilates
           </Link>
-          <Link href="/padel" onClick={() => setOpen(false)}>
+          <Link href="/padel" aria-current={path === "/padel" ? "page" : undefined} onClick={() => setOpen(false)}>
             Pádel
           </Link>
-          <Link href="/club" onClick={() => setOpen(false)}>
+          <Link href="/club" aria-current={path === "/club" ? "page" : undefined} onClick={() => setOpen(false)}>
             Cómo sumarte
           </Link>
           <a

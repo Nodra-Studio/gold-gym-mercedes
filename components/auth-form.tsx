@@ -2,6 +2,7 @@
 import { apiFetch } from "@/lib/api-fetch";
 import { useState, type FormEvent } from "react";
 import Link from "next/link";
+import { Eye, EyeOff } from "lucide-react";
 type Mode = "login" | "signup" | "recover" | "password";
 const content: Record<Mode, { title: string; intro: string; button: string }> =
   {
@@ -40,6 +41,7 @@ export default function AuthForm({
   initialError?: string;
   initialMessage?: string;
 }) {
+  const [showPassword, setShowPassword] = useState(false);
   const [busy, setBusy] = useState(false),
     [error, setError] = useState(initialError),
     [message, setMessage] = useState(initialMessage);
@@ -58,7 +60,7 @@ export default function AuthForm({
           email: data.get("email") ?? undefined,
           password: data.get("password") ?? undefined,
           returnTo:
-            new URLSearchParams(location.search).get("returnTo") ?? "/cuenta",
+            new URLSearchParams(location.search).get("returnTo") ?? "/portal",
         }),
       });
       const result = (await response.json()) as {
@@ -133,9 +135,10 @@ export default function AuthForm({
           {mode !== "recover" && (
             <label className="field">
               Contraseña
+              <span className="password-field">
               <input
                 name="password"
-                type="password"
+                type={showPassword ? "text" : "password"}
                 autoComplete={
                   mode === "login" ? "current-password" : "new-password"
                 }
@@ -144,6 +147,10 @@ export default function AuthForm({
                 required
                 disabled={!configured || busy}
               />
+              <button type="button" className="password-toggle" aria-label={showPassword ? "Ocultar contraseña" : "Mostrar contraseña"} aria-pressed={showPassword} disabled={busy} onClick={() => setShowPassword(value => !value)}>
+                {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+              </button>
+              </span>
             </label>
           )}
           {(mode === "signup" || mode === "password") && (

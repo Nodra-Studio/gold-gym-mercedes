@@ -16,7 +16,7 @@
     "build:vercel": "next build --webpack",
     "start:vercel": "next start",
     "typecheck": "tsc --noEmit",
-    "test": "node --test tests/club-loading.test.mjs tests/club.test.mjs tests/postgres.test.mjs tests/auth.test.mjs tests/health.test.mjs tests/tls.test.mjs",
+    "test": "node --test tests/session-proxy.test.mjs tests/club-loading.test.mjs tests/club.test.mjs tests/postgres.test.mjs tests/auth.test.mjs tests/health.test.mjs tests/tls.test.mjs",
     "test:vercel": "node tests/vercel-smoke.mjs",
     "backend:check": "node --env-file-if-exists=.env.local scripts/check-backend.mjs"
   },

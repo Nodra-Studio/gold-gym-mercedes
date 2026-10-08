@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { authClient } from '@/lib/auth/client';
-import { authConfigured, safeReturnTo } from '@/lib/auth/config';
+import { authConfigured } from '@/lib/auth/config';
+import { afterLogin } from '@/lib/auth/navigation';
 import { allowAuthAttempt } from '@/lib/auth/rate-limit';
 import { body, ClubError, apiError } from '@/lib/server';
 export const dynamic = 'force-dynamic';
@@ -27,10 +28,10 @@ export async function POST(request: Request) {
     if (input.action === 'login') {
       const { error } = await client.auth.signInWithPassword({ email: input.email, password: input.password });
       if (error) throw new ClubError('No pudimos iniciar sesión. Revisá tus datos y la confirmación del correo.', 401);
-      return reply({ next: safeReturnTo(input.returnTo ?? '/cuenta') });
+      return reply({ next: afterLogin(input.returnTo) });
     }
     if (input.action === 'signup') {
-      callback.searchParams.set('next', '/cuenta');
+      callback.searchParams.set('next', '/portal');
       const { error } = await client.auth.signUp({ email: input.email, password: input.password, options: { emailRedirectTo: callback.href } });
       if (error) throw new ClubError('No pudimos procesar el registro. Intentá nuevamente más tarde.', 400);
       return reply({ message: 'Revisá tu correo para confirmar la cuenta. El acceso al club debe habilitarlo la administración.' });

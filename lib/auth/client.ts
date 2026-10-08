@@ -9,8 +9,12 @@ export async function authClient() {
     cookies: {
       getAll: () => store.getAll(),
       setAll: values => {
-        // Called by route handlers where refreshed cookies can be persisted.
-        for (const { name, value, options } of values) store.set(name, value, options);
+        try {
+          for (const { name, value, options } of values) store.set(name, value, options);
+        } catch (error) {
+          // Server Components are read-only; the proxy has already persisted the refresh.
+          if (!(error instanceof Error) || !error.message.includes('Cookies can only be modified')) throw error;
+        }
       },
     },
   });

@@ -40,7 +40,7 @@ export default function SettingsClient() {
       <header className="work-header">
         <div>
           <p className="eyebrow">GOLD GYM / CONFIGURACIÓN</p>
-          <h1>Reglas claras para reservar.</h1>
+          <h1>Configuración del club.</h1>
         </div>
       </header>
       <ErrorNotice error={error || loadError} />
@@ -49,6 +49,14 @@ export default function SettingsClient() {
           {notice}
         </p>
       )}
+      <section className="panel settings-access">
+        <h2>Cuenta y pantallas</h2>
+        <p className="muted">Consultá tu identificador y tus permisos, o prepará la pantalla de ingreso con tu sesión actual.</p>
+        <div className="form-actions">
+          <Link href="/cuenta" className="button">Mi cuenta e identificador</Link>
+          <Link href="/ingreso" className="button gold" target="_blank" rel="noopener noreferrer">Abrir terminal de ingreso ↗</Link>
+        </div>
+      </section>
       {data?.role === "owner" && (
         <form
           className="panel"

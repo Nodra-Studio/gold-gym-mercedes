@@ -88,7 +88,7 @@ export function AdminShell({
             ))}
         </nav>
         <div className="admin-sidebar-bottom">
-          <Link href="/ingreso">
+          <Link href="/ingreso" target="_blank" rel="noopener noreferrer">
             <ScanLine size={19} /> Terminal de ingreso{" "}
             <ArrowUpRight size={15} />
           </Link>

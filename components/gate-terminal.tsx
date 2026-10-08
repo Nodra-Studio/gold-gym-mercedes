@@ -1,13 +1,19 @@
 "use client";
 import { apiFetch } from "@/lib/api-fetch";
 import { useState, useRef, useEffect } from "react";
-import { ScanLine, CheckCircle2, TriangleAlert } from "lucide-react";
+import { ScanLine, CheckCircle2, TriangleAlert, Maximize, Minimize } from "lucide-react";
 import {
   Field,
   ErrorNotice,
   SelectField,
 } from "@/components/club-client";
 export default function Kiosk() {
+  const [fullscreen, setFullscreen] = useState(false);
+  useEffect(() => {
+    const sync = () => setFullscreen(!!document.fullscreenElement);
+    document.addEventListener("fullscreenchange", sync);
+    return () => document.removeEventListener("fullscreenchange", sync);
+  }, []);
   const [venue, setVenue] = useState('');
   useEffect(() => {
     // Restore the terminal setting after hydration.
@@ -71,7 +77,16 @@ export default function Kiosk() {
     <main className="kiosk">
       <header className="kiosk-header">
         <span className="eyebrow">GOLD GYM / INGRESO</span>
-        <span className="status warn">Molinete simulado</span>
+        <div className="terminal-tools">
+          <span className="status warn">Molinete simulado</span>
+          <button type="button" className="terminal-fullscreen" aria-label={fullscreen ? "Salir de pantalla completa" : "Usar pantalla completa"} onClick={async () => {
+            try {
+              if (document.fullscreenElement) await document.exitFullscreen();
+              else if (document.documentElement.requestFullscreen) await document.documentElement.requestFullscreen();
+              else setError("Este navegador no permite activar pantalla completa desde el sitio.");
+            } catch { setError("No se pudo activar pantalla completa. Podés usar el menú de tu navegador."); }
+          }}>{fullscreen ? <Minimize size={20} /> : <Maximize size={20} />}<span>{fullscreen ? "Salir" : "Pantalla completa"}</span></button>
+        </div>
       </header>
       <section className="kiosk-body">
         <img

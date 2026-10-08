@@ -90,8 +90,8 @@ export default function TeamClient() {
           {notice}
         </p>
       )}
-      <section className="panel">
-        <h2>Tu cuenta</h2>
+      <details className="panel team-account">
+        <summary>Mi cuenta y permisos</summary>
         {data?.authProvider === "supabase" && <Link href="/cuenta" className="text-link">Mi cuenta y cierre de sesión</Link>}
         <p style={{ marginTop: 18 }}>
           Identificador de esta cuenta en el sitio:
@@ -140,7 +140,7 @@ export default function TeamClient() {
             Abrir terminal de ingreso
           </Link>
         )}
-      </section>
+      </details>
       {data?.role === "owner" && (
         <>
           <section className="panel">
@@ -159,9 +159,9 @@ export default function TeamClient() {
             </div>
             <p className="muted">
               Creá una cuenta del personal en /crear-cuenta, confirmá su correo y copiá el identificador de /cuenta.
-              Agregala aquí como Recepción o Terminal. Los socios se cargan en Gimnasio, sin cuenta.
+              Agregala aquí como Recepción. Los socios se cargan en Gimnasio, sin cuenta.
               Una cuenta de recepción puede abrirse en varias computadoras a la vez.
-              Para el molinete usá una cuenta distinta con rol Terminal, sin acceso a la gestión.
+              Para el molinete, abrí Terminal de ingreso con tu sesión actual: no necesita otro correo ni otra cuenta.
             </p>
             {data.members.map((m) => (
               <div className="list-row" key={m.user_id}>
@@ -211,7 +211,7 @@ export default function TeamClient() {
               <strong>Terminal</strong>
               <p>
                 Validar un DNI y registrar el resultado. Sin consultar listados
-                del club. Usá esta cuenta exclusiva en la pantalla del molinete; el cliente solo ingresa su DNI.
+                del club. Rol opcional para cuentas existentes dedicadas al molinete. Administración y recepción también pueden abrir la terminal con su propia sesión.
               </p>
             </div>
           </section>

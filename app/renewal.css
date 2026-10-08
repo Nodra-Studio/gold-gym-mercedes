@@ -2132,3 +2132,73 @@ body:has(.admin-shell) [data-slot="dialog-content"] .muted {
 .marketing .gg-faq summary svg {
   transition: transform 0.2s;
 }
+
+/* Account and staff workflows: readable controls and consistent spacing. */
+.account-page { min-height: 100svh; background: #f4f4ef; }
+.account-home { max-width: 860px; margin: 0 auto; }
+.account-home .work-header h1 { font-size: clamp(28px, 4vw, 42px); line-height: 1.15; letter-spacing: -.035em; }
+.account-home .panel { border-radius: 12px; padding: 26px; }
+.account-home .panel h2 { font-size: 19px; margin-bottom: 12px; }
+.account-home p { color: #53604a; }
+.account-home .panel > .button { margin-top: 20px; }
+.account-status, .account-session { display: flex; align-items: flex-start; gap: 20px; }
+.account-status-icon { display: grid; place-items: center; flex-shrink: 0; width: 52px; height: 52px; border-radius: 12px; background: #e8eddd; color: #456034; }
+.account-session { justify-content: space-between; }
+.account-session .button { flex-shrink: 0; }
+.account-details summary { cursor: pointer; font-weight: 600; min-height: 32px; }
+.account-details[open] summary { margin-bottom: 14px; }
+.account-identifier { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; margin: 18px 0; padding: 16px; border: 1px solid #d6ddce; border-radius: 8px; background: #f5f7f0; }
+.account-identifier code { flex: 1; min-width: 0; overflow-wrap: anywhere; color: #34452b; font-size: 14px; user-select: all; }
+.account-identifier .button { flex-shrink: 0; }
+.settings-access .form-actions { justify-content: flex-start; }
+.password-field { position: relative; display: block; }
+.auth-layout .password-field input { width: 100%; padding-right: 54px; }
+.auth-layout .password-toggle { position: absolute; right: 3px; top: 50%; transform: translateY(-50%); width: 44px; min-height: 44px; display: grid; place-items: center; border: 0; border-radius: 5px; background: transparent; color: #53604a; cursor: pointer; }
+.auth-layout .password-toggle:hover { background: #e9edde; }
+.auth-form-wrap input { font-size: 16px; }
+.auth-form-wrap form > p { color: #53604a; font-size: 13px; }
+.auth-form-wrap form > .error-box { color: #873e2c; }
+.auth-form-wrap form > .success-box { color: #3f642e; }
+.marketing .gg-nav a[aria-current="page"] { color: #e6c579; text-decoration: underline; text-underline-offset: 7px; text-decoration-thickness: 2px; }
+.admin-shell .list-row { gap: 18px; }
+.admin-shell .list-row > div { min-width: 0; overflow-wrap: anywhere; }
+.admin-shell .list-row > .button { flex-shrink: 0; }
+.admin-shell .form-actions, .admin-shell .panel-heading { flex-wrap: wrap; }
+.admin-shell .data-table th { font-size: 12px; }
+.admin-sidebar-bottom a { font-size: 12px; min-height: 44px; }
+.admin-shell .empty { color: #59664d; }
+.admin-shell .field input::placeholder, .auth-layout input::placeholder { color: #66735b; }
+.admin-shell input[type="file"] { height: auto; padding: 10px; max-width: 100%; }
+.admin-shell input[type="file"]::file-selector-button { border: 0; border-radius: 5px; background: #e9edde; color: #34452b; padding: 8px 12px; margin-right: 12px; font: inherit; cursor: pointer; }
+body:has(.admin-shell) [data-slot="dialog-content"] { overscroll-behavior: contain; }
+body:has(.admin-shell) [data-slot="dialog-content"] .button:not(.gold) { color: #35442c; border-color: #b9c5ae; min-height: 44px; }
+body:has(.admin-shell) [data-slot="dialog-content"] [data-slot="dialog-close"] { min-width: 44px; min-height: 44px; }
+.account-home :focus-visible, .auth-layout :focus-visible, .admin-shell :focus-visible { outline: 2px solid #756020; outline-offset: 3px; }
+.terminal-tools { display: flex; align-items: center; flex-wrap: wrap; gap: 14px; }
+.terminal-fullscreen { display: inline-flex; align-items: center; gap: 8px; padding: 8px 14px; border: 1px solid #738266; background: #242d1e; color: #f6f6ed; border-radius: 8px; cursor: pointer; }
+.kiosk .terminal-fullscreen { min-height: 44px; font-size: 13px; }
+.kiosk .field { text-align: left; }
+.kiosk [data-slot="native-select-wrapper"] { width: 100%; }
+.kiosk .field select { min-height: 48px; width: 100%; }
+.kiosk .field input { min-height: 76px; }
+.kiosk .kiosk-body > .muted { font-size: 14px; line-height: 1.8; margin-top: 28px; }
+@media (max-width: 760px) {
+  .account-status, .account-session { flex-direction: column; gap: 14px; }
+  .account-home .panel { padding: 20px; }
+  .account-session .button { width: 100%; }
+  .admin-shell .list-row { flex-wrap: wrap; }
+  .admin-shell .list-row > .button { max-width: 100%; white-space: normal; text-align: left; }
+  .admin-shell .form-actions .button { flex: 1 1 180px; }
+  .kiosk-header { align-items: flex-start; gap: 16px; flex-wrap: wrap; }
+  .terminal-tools { width: 100%; justify-content: space-between; }
+  .kiosk-body { margin: 28px auto; }
+}
+
+/* Keep long secondary headlines within their column. */
+.marketing.gg-pilates-page .gg-hero h1 { font-size: clamp(52px, 6.8vw, 100px); }
+.marketing.gg-pilates-page .pilates-details p { font-size: 14px; }
+
+.team-account summary { cursor: pointer; font-weight: 600; min-height: 32px; }
+.team-account[open] summary { margin-bottom: 18px; }
+body:has(.admin-shell) [data-slot="dialog-content"] [data-slot="dialog-title"] { padding-right: 48px; }
+body:has(.admin-shell) [data-slot="dialog-content"] [data-slot="dialog-close"] { display: grid; place-items: center; top: 12px; right: 12px; }

@@ -22,9 +22,10 @@ export const authClient=async()=>({auth:{
  signOut:async input=>{calls.push(['logout',input]);return {error:null}}
 }});`);
 compile('lib/auth/config.ts','config',[]);
+compile('lib/auth/navigation.ts','navigation',[["'./config'","'./config.mjs'"]]);
 compile('lib/api-fetch.ts','api-fetch',[]);
 compile('lib/server.ts','server',[['@club/runtime','./mock.mjs'],['@/app/chatgpt-auth','./mock.mjs']]);
-compile('app/api/auth/route.ts','route',[["'zod'",JSON.stringify(pathToFileURL(require.resolve('zod')).href)],["import { authConfigured, safeReturnTo } from '@/lib/auth/config';","import { authConfigured } from './mock.mjs'; import { safeReturnTo } from './config.mjs';"],['@/lib/auth/client','./mock.mjs'],['@/lib/auth/rate-limit','./mock.mjs'],['@/lib/server','./server.mjs']]);
+compile('app/api/auth/route.ts','route',[["'zod'",JSON.stringify(pathToFileURL(require.resolve('zod')).href)],["import { authConfigured } from '@/lib/auth/config';","import { authConfigured } from './mock.mjs';"],['@/lib/auth/navigation','./navigation.mjs'],['@/lib/auth/client','./mock.mjs'],['@/lib/auth/rate-limit','./mock.mjs'],['@/lib/server','./server.mjs']]);
 const mock=await import(pathToFileURL(join(folder,'mock.mjs'))), api=await import(pathToFileURL(join(folder,'route.mjs')));
 const previous=process.env.APP_URL;process.env.APP_URL='https://club.example';
 async function call(payload,origin='https://club.example') {const r=await api.POST(new Request('https://club.example/api/auth',{method:'POST',headers:{'content-type':'application/json',...(origin?{origin}:{})},body:JSON.stringify(payload)}));return {status:r.status,...await r.json(),cache:r.headers.get('cache-control')};}
@@ -35,7 +36,17 @@ try{
   await t.test('Cross-origin and missing-origin auth requests are rejected',async()=>{mock.state();for(const origin of [null,'https://other.example'])assert.equal((await call(login,origin)).status,403)});
   await t.test('Invalid credentials and rate limits do not leak account details',async()=>{mock.state({failed:true});assert.equal((await call(login)).status,401);mock.state({allowed:false});assert.equal((await call(login)).status,429)});
   await t.test('Login rejects external return destinations and disables cache',async()=>{mock.state();const r=await call({...login,returnTo:'//other.example'});assert.equal(r.next,'/gestion');assert.match(r.cache,/no-store/)});
-  await t.test('Registration sends no role metadata',async()=>{mock.state();assert.equal((await call({...login,action:'signup',role:'owner'})).status,200);const input=mock.calls[0][1];assert.equal(input.options.data,undefined);assert.equal(input.options.emailRedirectTo,'https://club.example/auth/callback?next=%2Fcuenta')});
+  await t.test('Login goes straight to the portal and preserves terminal deep links',async()=>{
+    mock.state();
+    assert.equal((await call(login)).next,'/portal');
+    assert.equal((await call({...login,returnTo:'/cuenta'})).next,'/portal');
+    assert.equal((await call({...login,returnTo:'/ingreso'})).next,'/ingreso');
+  });
+  await t.test('Portal destinations respect each role',async()=>{
+    const {portalForRole}=await import(pathToFileURL(join(folder,'navigation.mjs')));
+    for(const [role,path] of Object.entries({owner:'/gestion',reception:'/gestion',gate:'/ingreso',player:'/padel',pending:'/cuenta',revoked:'/cuenta'})) assert.equal(portalForRole(role),path);
+  });
+  await t.test('Registration sends no role metadata',async()=>{mock.state();assert.equal((await call({...login,action:'signup',role:'owner'})).status,200);const input=mock.calls[0][1];assert.equal(input.options.data,undefined);assert.equal(input.options.emailRedirectTo,'https://club.example/auth/callback?next=%2Fportal')});
   await t.test('New passwords require eight characters for signup and updates',async()=>{
     for(const action of ['signup','password']) {
       mock.state();
