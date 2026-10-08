@@ -2037,29 +2037,6 @@ body:has(.admin-shell) [data-slot="dialog-content"] .muted {
   color: #161910;
   opacity: 1;
 }
-.wave-motion-toggle {
-  position: absolute;
-  right: 5%;
-  bottom: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 44px;
-  height: 44px;
-  background: #20251b;
-  border: 1px solid #8f997f;
-  border-radius: 50%;
-  color: #e5e9dc;
-  cursor: pointer;
-  z-index: 2;
-}
-.wave-motion-toggle svg {
-  width: 18px;
-  height: 18px;
-}
-.wave-motion-toggle:hover {
-  background: #343d2a;
-}
 .marketing .gg-home .gg-hero-art {
   will-change: auto;
 }
@@ -2125,9 +2102,6 @@ body:has(.admin-shell) [data-slot="dialog-content"] .muted {
   }
 }
 @media (prefers-reduced-motion: reduce) {
-  .wave-motion-toggle {
-    display: none;
-  }
   .marketing .gg-activity:hover img,
   .marketing .gg-button:hover,
   .marketing .gg-roundel,

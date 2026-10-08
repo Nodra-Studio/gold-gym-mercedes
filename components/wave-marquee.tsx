@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useId, useRef, useState, type ReactNode } from "react";
+import { useEffect, useId, useRef, type ReactNode } from "react";
 
 // One "S" across the band: a hump up, then a hump down (viewBox 1440 × 260).
 const WAVE = "M-120 130 C 160 10 440 10 720 130 S 1280 250 1560 130";
@@ -16,7 +16,6 @@ type Item = { text: string; icon: ReactNode };
 // measures text slightly differently (Safari) can't make them run into each other.
 export function WaveMarquee({ items }: { items: Item[] }) {
   const pathId = useId();
-  const [paused, setPaused] = useState(false);
   const offsetRef = useRef(0);
   const containerRef = useRef<HTMLDivElement>(null);
   const pathRef = useRef<SVGPathElement>(null);
@@ -101,7 +100,7 @@ export function WaveMarquee({ items }: { items: Item[] }) {
     };
     const sync = () => {
       cancelAnimationFrame(frame);
-      if (!paused && !preference.matches && visible && !document.hidden) {
+      if (!preference.matches && visible && !document.hidden) {
         last = performance.now();
         frame = requestAnimationFrame(tick);
       }
@@ -124,7 +123,7 @@ export function WaveMarquee({ items }: { items: Item[] }) {
       preference.removeEventListener("change", sync);
       document.removeEventListener("visibilitychange", sync);
     };
-  }, [items, paused]);
+  }, [items]);
 
   return (
     <div className="wave-marquee" ref={containerRef}>
@@ -190,27 +189,6 @@ export function WaveMarquee({ items }: { items: Item[] }) {
           </text>
         ))}
       </svg>
-      <button
-        type="button"
-        className="wave-motion-toggle"
-        aria-pressed={paused}
-        onClick={() => setPaused(!paused)}
-        aria-label={
-          paused
-            ? "Reanudar animación de la franja"
-            : "Pausar animación de la franja"
-        }
-      >
-        {paused ? (
-          <svg viewBox="0 0 24 24" aria-hidden="true">
-            <path d="m9 5 11 7-11 7Z" fill="currentColor" />
-          </svg>
-        ) : (
-          <svg viewBox="0 0 24 24" aria-hidden="true">
-            <path d="M8 5v14M16 5v14" stroke="currentColor" strokeWidth="3" />
-          </svg>
-        )}
-      </button>
     </div>
   );
 }

@@ -12,8 +12,13 @@ export default function Kiosk() {
   useEffect(() => {
     // Restore the terminal setting after hydration.
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    const saved = localStorage.getItem('gold-terminal-venue') ?? '';
-    setVenue(['Unión Gold Club','Club Vélez'].includes(saved) ? 'Club Unión' : saved);
+    try {
+      const saved = localStorage.getItem('gold-terminal-venue') ?? '';
+      const restored = ['Unión Gold Club','Club Vélez'].includes(saved) ? 'Club Unión' : saved;
+      setVenue(['Calle 30', 'Calle 23', 'Club Unión', 'Pilates'].includes(restored) ? restored : '');
+    } catch {
+      // The terminal can still work when browser storage is unavailable.
+    }
   }, []);
 
   const [dni, setDni] = useState(""),
@@ -81,7 +86,12 @@ export default function Kiosk() {
         </h1>
         <p>Un solo club. Todas las sedes. Ingresá tu DNI.</p>
         <Field label="Sede de esta terminal">
-          <SelectField value={venue} required onChange={(v) => { setVenue(v); localStorage.setItem('gold-terminal-venue', v); }}>
+          <SelectField value={venue} required disabled={busy} onChange={(v) => {
+            setVenue(v);
+            setResult(null);
+            setError('');
+            try { localStorage.setItem('gold-terminal-venue', v); } catch { /* Keep the selection for this session. */ }
+          }}>
             <option value="">Seleccioná la sede</option>
             {['Calle 30', 'Calle 23', 'Club Unión', 'Pilates'].map(v => <option key={v} value={v}>{v}</option>)}
           </SelectField>
@@ -96,9 +106,14 @@ export default function Kiosk() {
                 pattern="[0-9]{7,8}"
                 maxLength={8}
                 required
+                disabled={busy}
                 autoComplete="off"
                 value={dni}
-                onChange={(e) => setDni(e.target.value.replace(/\D/g, ""))}
+                onChange={(e) => {
+                  setDni(e.target.value.replace(/\D/g, ""));
+                  setResult(null);
+                  setError('');
+                }}
                 placeholder="Tu DNI"
               />
             </Field>

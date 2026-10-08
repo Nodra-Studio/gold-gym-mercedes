@@ -3,7 +3,7 @@ import { branches } from "@/lib/branches";
 import { apiFetch } from "@/lib/api-fetch";
 import { csvDocument } from "@/lib/csv";
 import { requestId } from "@/lib/club";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import {
   ArrowLeft,
@@ -53,21 +53,32 @@ export function useClub() {
     [error, setError] = useState(""),
     [loading, setLoading] = useState(true),
     [busy, setBusy] = useState(false);
+  const sequence = useRef(0);
+  const pendingRead = useRef<AbortController | null>(null);
+  const saving = useRef(false);
   const load = useCallback(async (silent = false) => {
+    const ticket = ++sequence.current;
+    pendingRead.current?.abort();
+    const controller = new AbortController();
+    pendingRead.current = controller;
     if (!silent) setLoading(true);
     try {
-      const r = await apiFetch("/api/club", { cache: "no-store" }),
+      const r = await apiFetch("/api/club", { cache: "no-store", signal: controller.signal }),
         j = (await r.json()) as ClubData & {
           error?: string;
         };
       if (!r.ok) throw Error(j.error);
+      if (ticket !== sequence.current) return;
       setData(j);
-      if (!silent) setError("");
+      setError("");
     } catch (e) {
-      if (!silent) setData(null);
+      if (controller.signal.aborted || ticket !== sequence.current) return;
       setError(e instanceof Error ? e.message : "No pudimos cargar los datos.");
     } finally {
-      setLoading(false);
+      if (ticket === sequence.current) {
+        pendingRead.current = null;
+        setLoading(false);
+      }
     }
   }, []);
   const refresh = useCallback(() => load(), [load]);
@@ -76,11 +87,15 @@ export function useClub() {
     // Loading belongs to this remote request lifecycle.
     // eslint-disable-next-line react-hooks/set-state-in-effect
     void refresh();
+    return () => {
+      sequence.current++;
+      pendingRead.current?.abort();
+    };
   }, [refresh]);
   useEffect(() => {
     if (busy) return;
     const sync = () => {
-      if (document.visibilityState === "visible") void load(true);
+      if (document.visibilityState === "visible" && !saving.current && !pendingRead.current) void load(true);
     };
     const timer = setInterval(sync, 30000);
     window.addEventListener("focus", sync);
@@ -90,6 +105,12 @@ export function useClub() {
     };
   }, [busy, load]);
   async function mutate(payload: Record<string, unknown>) {
+    if (saving.current) throw new Error("Esperá a que termine la operación en curso.");
+    saving.current = true;
+    sequence.current++;
+    pendingRead.current?.abort();
+    pendingRead.current = null;
+    setLoading(false);
     setBusy(true);
     setError("");
     try {
@@ -111,6 +132,7 @@ export function useClub() {
       );
       throw e;
     } finally {
+      saving.current = false;
       setBusy(false);
     }
   }
@@ -163,17 +185,20 @@ export function SelectField({
   onChange,
   children,
   required = false,
+  disabled = false,
 }: {
   value: string;
   onChange: (v: string) => void;
   children: React.ReactNode;
   required?: boolean;
+  disabled?: boolean;
 }) {
   return (
     <NativeSelect
       value={value}
       onChange={(e) => onChange(e.target.value)}
       required={required}
+      disabled={disabled}
     >
       {children}
     </NativeSelect>

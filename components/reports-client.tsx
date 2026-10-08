@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
+import { apiFetch } from "@/lib/api-fetch";
 import Link from "next/link";
 import { Field, ErrorNotice } from "@/components/club-client";
 import { money, localDay, timeLabel, dateLabel } from "@/lib/club";
@@ -111,11 +112,11 @@ export default function ReportsClient() {
     const params = new URLSearchParams(
       Object.entries(selection).map(([k, v]) => [k, String(v)]),
     );
-    void fetch("/api/reports?" + params, { signal: controller.signal })
+    void apiFetch("/api/reports?" + params, { signal: controller.signal })
       .then(async (r) => {
         const j = (await r.json()) as Report & { error?: string };
         if (!r.ok) throw Error(j.error || "No se pudo cargar el informe.");
-        setData(j);
+        if (!controller.signal.aborted) setData(j);
       })
       .catch((e) => {
         if (!controller.signal.aborted) {
@@ -146,10 +147,13 @@ export default function ReportsClient() {
     downloadLock.current = true;
     setExporting(true);
     setError("");
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 20000);
     try {
       const r = await fetch(
         "/api/reports?" +
           new URLSearchParams({ from: data.from, to: data.to, format: "csv" }),
+        { signal: controller.signal },
       );
       if (!r.ok) {
         const j = (await r.json()) as { error?: string };
@@ -164,8 +168,11 @@ export default function ReportsClient() {
       a.remove();
       setExportFile({ url: u, name: a.download });
     } catch (e) {
-      setError(e instanceof Error ? e.message : "No se pudo exportar.");
+      setError(controller.signal.aborted
+        ? "La exportación tardó demasiado. Volvé a intentar."
+        : e instanceof Error ? e.message : "No se pudo exportar.");
     } finally {
+      clearTimeout(timeout);
       downloadLock.current = false;
       setExporting(false);
     }
