@@ -1,10 +1,10 @@
+import { BrandIcon } from "@/components/brand-icon";
 import type { Metadata } from "next";
 import {
   ArrowRight,
   ArrowUpRight,
   BicepsFlexed,
   HeartPulse,
-  MessageCircle,
   PersonStanding,
   Wind,
 } from "lucide-react";
@@ -91,7 +91,7 @@ export default function Pilates() {
                 target="_blank"
                 rel="noopener noreferrer"
               >
-                Consultá horarios <ArrowUpRight size={19} />
+                <BrandIcon name="whatsapp" /> Consultá horarios <ArrowUpRight size={19} />
               </a>
               <a className="gg-text-link" href="#estudio">
                 Conocé el estudio <ArrowRight size={18} />
@@ -258,8 +258,8 @@ export default function Pilates() {
             data-reveal
             data-reveal-delay="2"
           >
-            Escribinos por WhatsApp{" "}
-            <MessageCircle size={20} aria-hidden="true" />
+            <BrandIcon name="whatsapp" /> Escribinos por WhatsApp{" "}
+            
           </a>
           <p className="muted">Te contamos horarios y planes disponibles.</p>
         </section>

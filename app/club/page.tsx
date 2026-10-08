@@ -1,3 +1,4 @@
+import { BrandIcon } from "@/components/brand-icon";
 import { ArrowUpRight } from "lucide-react";
 import { SiteHeader } from "@/components/site-header";
 import { SiteFooter } from "@/components/site-footer";
@@ -28,7 +29,7 @@ export default function Club() {
               target="_blank"
               rel="noopener noreferrer"
             >
-              Consultar en recepción <ArrowUpRight size={20} />
+              <BrandIcon name="whatsapp" /> Consultar en recepción <ArrowUpRight size={20} />
             </a>
           </div>
           <div className="gg-document-art">

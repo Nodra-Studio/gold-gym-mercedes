@@ -2202,3 +2202,11 @@ body:has(.admin-shell) [data-slot="dialog-content"] [data-slot="dialog-close"] {
 .team-account[open] summary { margin-bottom: 18px; }
 body:has(.admin-shell) [data-slot="dialog-content"] [data-slot="dialog-title"] { padding-right: 48px; }
 body:has(.admin-shell) [data-slot="dialog-content"] [data-slot="dialog-close"] { display: grid; place-items: center; top: 12px; right: 12px; }
+
+/* Quick actions need their own light-surface text colors. */
+.admin-shell .quick-action { padding: 18px; gap: 20px; align-items: center; }
+.admin-shell .quick-action h3 { color: #33452a; font-size: 16px; line-height: 1.4; }
+.admin-shell .quick-action p { color: #58664e; font-size: 14px; line-height: 1.65; margin-top: 5px; }
+.admin-shell .quick-action > div { min-width: 0; }
+.admin-shell .quick-action > svg { flex: 0 0 22px; color: #455d37; }
+.admin-shell .quick-action:hover { background: #edf2e6; }

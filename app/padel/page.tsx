@@ -1,3 +1,4 @@
+import { BrandIcon } from "@/components/brand-icon";
 import type { Metadata } from "next";
 import { ArrowUpRight, MapPin, Utensils } from "lucide-react";
 import { SiteHeader } from "@/components/site-header";
@@ -29,7 +30,7 @@ export default function Padel() {
               rel="noopener noreferrer"
               className="gg-button"
             >
-              Coordinar un turno <ArrowUpRight size={20} />
+              <BrandIcon name="whatsapp" /> Coordinar un turno <ArrowUpRight size={20} />
             </a>
             <div className="gg-hero-note">
               <span>4 CANCHAS / SINTÉTICO + BLINDEX</span>
@@ -138,7 +139,7 @@ export default function Padel() {
             target="_blank"
             rel="noopener noreferrer"
           >
-            Consultar disponibilidad <ArrowUpRight />
+            <BrandIcon name="whatsapp" /> Consultar disponibilidad <ArrowUpRight />
           </a>
           <p>
             Recepción registra y confirma tu turno. No necesitás crear una

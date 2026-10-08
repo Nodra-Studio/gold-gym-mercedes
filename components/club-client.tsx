@@ -18,6 +18,8 @@ import {
   CreditCard,
   Pencil,
   Search,
+  BarChart3,
+  Settings,
 } from "lucide-react";
 import {
   Dialog,
@@ -538,26 +540,22 @@ export default function ClubDashboard() {
                           Cobros por período, vencimientos y saldos de pádel.
                         </p>
                       </div>
+                      <BarChart3 size={22} />
                     </Link>
                   )}
-                  <Link href="/jugar" className="quick-action">
-                    <div>
-                      <h3>Portal de jugadores</h3>
-                      <p>Disponibilidad y reservas propias.</p>
-                    </div>
-                  </Link>
                   {data.role === "owner" && (
                     <Link href="/configuracion" className="quick-action">
                       <div>
-                        <h3>Reglas de pádel</h3>
-                        <p>Precio, anticipación y cancelaciones.</p>
+                        <h3>Configuración del club</h3>
+                        <p>Reglas de pádel, cuenta y terminal de ingreso.</p>
                       </div>
+                      <Settings size={22} />
                     </Link>
                   )}
-                  <Link href="/ingreso" className="quick-action">
+                  <Link href="/ingreso" className="quick-action" target="_blank" rel="noopener noreferrer">
                     <div>
-                      <h3>Probar el ingreso por DNI</h3>
-                      <p>Validación y registro. Molinete simulado.</p>
+                      <h3>Abrir terminal de ingreso</h3>
+                      <p>Validación por DNI en otra pestaña, con tu sesión.</p>
                     </div>
                     <ScanLine size={22} />
                   </Link>

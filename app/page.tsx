@@ -44,7 +44,7 @@ export default function Home() {
                 target="_blank"
                 rel="noopener noreferrer"
               >
-                Quiero empezar <ArrowUpRight size={20} />
+                <BrandIcon name="whatsapp" /> Quiero empezar <ArrowUpRight size={20} />
               </a>
               <a className="gg-text-link" href="#actividades">
                 Encontrá tu actividad <ArrowRight size={18} />
@@ -132,7 +132,7 @@ export default function Home() {
                   target="_blank"
                   rel="noopener noreferrer"
                 >
-                  Consultar planes <ArrowUpRight />
+                  <BrandIcon name="whatsapp" /> Consultar planes <ArrowUpRight />
                 </a>
               </div>
             </article>
