@@ -20,6 +20,8 @@ import {
   Search,
   BarChart3,
   Settings,
+  ShieldCheck,
+  Database,
 } from "lucide-react";
 import {
   Dialog,
@@ -496,20 +498,7 @@ export default function ClubDashboard() {
               <div className="dashboard-grid">
                 <div className="panel">
                   <h2>El día a día</h2>
-                  <Link href="/equipo" className="quick-action">
-                    <div>
-                      <h3>Equipo y permisos</h3>
-                      <p>Cuentas propias para el personal.</p>
-                    </div>
-                  </Link>
-                  {data.role === "owner" && (
-                    <Link href="/datos" className="quick-action">
-                      <div>
-                        <h3>Importación y respaldos</h3>
-                        <p>Traé socios y conservá una copia de los datos.</p>
-                      </div>
-                    </Link>
-                  )}
+                  <div className="quick-actions">
                   <button
                     className="quick-action"
                     style={{ width: "100%", textAlign: "left" }}
@@ -566,6 +555,23 @@ export default function ClubDashboard() {
                     </div>
                     <CalendarDays size={22} />
                   </Link>
+                  <Link href="/equipo" className="quick-action">
+                    <div>
+                      <h3>Equipo y permisos</h3>
+                      <p>Cuentas y permisos del personal.</p>
+                    </div>
+                    <ShieldCheck size={22} />
+                  </Link>
+                  {data.role === "owner" && (
+                    <Link href="/datos" className="quick-action">
+                      <div>
+                        <h3>Importación y respaldos</h3>
+                        <p>Importá socios y guardá copias de los datos.</p>
+                      </div>
+                      <Database size={22} />
+                    </Link>
+                  )}
+                  </div>
                 </div>
                 <div className="panel">
                   <h2>Vencimientos para revisar</h2>
