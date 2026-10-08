@@ -569,7 +569,7 @@ summary {
   margin: 30px 0;
 }
 .gg-final h2 span {
-  color: #f8f4e8;
+  color: #fff;
 }
 .gg-button-dark {
   background: #191c16;
@@ -1857,10 +1857,10 @@ body:has(.admin-shell) [data-slot="dialog-content"] .muted {
 }
 .marketing .gg-final .gg-kicker,
 .marketing .gg-final > p:last-child {
-  color: #303627;
+  color: #000;
 }
 .marketing .gg-final h2 span {
-  color: #22281c;
+  color: #fff;
 }
 .marketing .gg-final > p:last-child {
   font-size: 14px;
