@@ -61,6 +61,8 @@ export default function Proposal() {
             Alta y edición de socios, planes, pausa de membresías y exportación.
           </li>
           <li>Registro manual de cobros y renovación del período.</li>
+          <li>Ingresos y gastos por sede, categoría y medio de pago.</li>
+          <li>Precios administrables y publicación de tarifas en la web.</li>
           <li>Clases con cupo y registro de ingresos.</li>
           <li>
             Roles para recepción y terminal; importación de socios y
@@ -91,16 +93,17 @@ export default function Proposal() {
           <li>Series de 4, 8 o 12 semanas.</li>
           <li>Cancelación individual, historial y saldo pendiente.</li>
           <li>
-            Portal para cuentas habilitadas: disponibilidad y reservas propias.
-            Pagos online, notificaciones y apertura pública pendientes de
-            configuración.
+            Solicitudes públicas sin crear una cuenta, con comprobante de seña
+            opcional y confirmación por recepción.
           </li>
+          <li>Pronóstico orientativo para la franja del turno, cuando esté disponible.</li>
+          <li>Los cobros online y mensajes automáticos requieren una integración adicional.</li>
         </ul>
         <div className="links">
           <Link href="/reservas" className="button gold">
             Probar la agenda <ArrowUpRight size={18} />
           </Link>
-          <Link href="/jugar" className="button">
+          <Link href="/turnos" className="button">
             Probar como jugador <ArrowUpRight size={18} />
           </Link>
         </div>
