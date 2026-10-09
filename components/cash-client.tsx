@@ -2,6 +2,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { apiFetch } from "@/lib/api-fetch";
 import { branches, branchName, expenseCategories } from "@/lib/branches";
+import CashReconciliation from "@/components/cash-reconciliation";
 import { localDay, money, requestId } from "@/lib/club";
 import { WorkspaceHeader, Field } from "@/components/club-client";
 import "./cash.css";
@@ -111,10 +112,14 @@ export function CashClient() {
       formPanel.current?.focus({ preventScroll: true });
     }
   }, [action, key]);
+  const pending = useRef<AbortController | null>(null);
   const sequence = useRef(0),
     saving = useRef(false);
   const load = useCallback(async () => {
     const ticket = ++sequence.current;
+    pending.current?.abort();
+    const controller = new AbortController();
+    pending.current = controller;
     try {
       const r = await apiFetch(
           "/api/cash?" +
@@ -125,7 +130,7 @@ export function CashClient() {
               category,
               offset: String(offset),
             }),
-          { cache: "no-store" },
+          { cache: "no-store", signal: controller.signal },
         ),
         j = (await r.json()) as Data & { error?: string };
       if (!r.ok) throw Error(j.error);
@@ -134,12 +139,15 @@ export function CashClient() {
         setError("");
       }
     } catch (e) {
-      if (ticket === sequence.current)
+      if (ticket === sequence.current && !controller.signal.aborted)
         setError(
           e instanceof Error ? e.message : "No se pudieron cargar los datos.",
         );
     } finally {
-      if (ticket === sequence.current) setLoading(false);
+      if (ticket === sequence.current) {
+        setLoading(false);
+        pending.current = null;
+      }
     }
   }, [from, to, venue, category, offset]);
   useEffect(() => {
@@ -147,13 +155,18 @@ export function CashClient() {
     setData(null);
     void load();
     const sync = () => {
-      if (document.visibilityState === "visible" && !saving.current)
+      if (
+        document.visibilityState === "visible" &&
+        !saving.current &&
+        !pending.current
+      )
         void load();
     };
     const timer = setInterval(sync, 30000);
     window.addEventListener("focus", sync);
     return () => {
       sequence.current++;
+      pending.current?.abort();
       clearInterval(timer);
       window.removeEventListener("focus", sync);
     };
@@ -173,6 +186,9 @@ export function CashClient() {
   async function submit(payload: Record<string, unknown>) {
     if (saving.current) return;
     saving.current = true;
+    sequence.current++;
+    pending.current?.abort();
+    pending.current = null;
     setBusy(true);
     setError("");
     try {
@@ -209,7 +225,7 @@ export function CashClient() {
       const r = await apiFetch(
         "/api/cash?" +
           new URLSearchParams({ from, to, venue, category, format: "csv" }),
-        { cache: "no-store" },
+        { cache: "no-store", responseType: "csv" },
       );
       if (!r.ok) {
         const j = (await r.json()) as { error?: string };
@@ -338,6 +354,7 @@ export function CashClient() {
           <Field label="Desde">
             <input
               type="date"
+              disabled={busy}
               value={from}
               onChange={(e) => {
                 setFrom(e.target.value);
@@ -348,6 +365,7 @@ export function CashClient() {
           <Field label="Hasta">
             <input
               type="date"
+              disabled={busy}
               value={to}
               onChange={(e) => {
                 setTo(e.target.value);
@@ -357,6 +375,7 @@ export function CashClient() {
           </Field>
           <Field label="Sede">
             <select
+              disabled={busy}
               value={venue}
               onChange={(e) => {
                 setVenue(e.target.value);
@@ -374,6 +393,7 @@ export function CashClient() {
           </Field>
           <Field label="Categoría">
             <select
+              disabled={busy}
               value={category}
               onChange={(e) => {
                 setCategory(e.target.value);
@@ -410,6 +430,15 @@ export function CashClient() {
               no es un arqueo de efectivo. Las anulaciones se registran en la
               fecha actual.
             </p>
+            <CashReconciliation
+              key={`${from}:${to}:${venue}:${category}`}
+              enabled={
+                from === to && branches.some((b) => b.id === venue) && !category
+              }
+              rows={data.byMethod}
+              day={from}
+              venue={branchName(venue)}
+            />
             <div className="cash-breakdowns">
               <CashBreakdown
                 title="Por sede"

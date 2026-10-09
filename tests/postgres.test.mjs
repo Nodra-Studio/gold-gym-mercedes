@@ -70,6 +70,14 @@ try {
       assert.equal((await post(api,{action:'seed'})).status,409);
     });
     const data=await get(), member=data.members.find(m=>m.dni==='99000001');
+    await t.test('Padel agenda reads bookings without unrelated member or payment payloads',async()=>{
+      const scoped=await get(api,'?view=padel');
+      assert.equal(scoped.status,200);
+      assert.deepEqual(scoped.bookings,data.bookings);
+      for(const key of ['members','plans','payments','accesses','sessions','enrollments','audit','memberships'])assert.deepEqual(scoped[key],[]);
+      runtime.setUser(null);assert.equal((await get(api,'?view=padel')).status,401);runtime.setUser('owner-a');
+    });
+
     await t.test('Pilates and gym access are enforced by the server',async()=>{
       const m=data.members.find(m=>m.dni==='99000003');
       await runtime.env.DB.prepare("UPDATE members SET status='active' WHERE id=?").bind(m.id).run();

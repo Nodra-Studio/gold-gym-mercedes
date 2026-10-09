@@ -177,3 +177,14 @@
     grid-template-columns: 1fr;
   }
 }
+
+.cash-reconciliation { margin: 24px 0; padding: 24px; border: 1px solid #bdc8b0; border-radius: 10px; background: #f3f5ec; color: #25341d; }
+.cash-reconciliation h2 { margin: 0 0 12px; }
+.cash-reconciliation p { line-height: 1.6; }
+.cash-count-grid { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 18px; margin: 20px 0; }
+.cash-count-grid label { display: grid; gap: 9px; font-size: 14px; font-weight: 600; }
+.cash-count-grid input { width: 100%; min-width: 0; min-height: 46px; padding: 10px; border: 1px solid #819273; border-radius: 6px; background: #fff; color: #25341d; }
+.cash-count-results { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.cash-count-results p { padding: 16px; background: #e1e8d5; border-radius: 6px; margin: 0 0 12px; }
+.cash-count-results span { display: block; margin-top: 8px; font-weight: 600; }
+@media(max-width:800px) { .cash-count-grid,.cash-count-results { grid-template-columns: 1fr; } .cash-reconciliation { padding: 18px; } }

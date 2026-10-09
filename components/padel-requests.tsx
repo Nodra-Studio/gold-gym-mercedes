@@ -1,5 +1,6 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import { apiFetch } from "@/lib/api-fetch";
 import { money, dateLabel, timeLabel } from "@/lib/club";
 type RequestRow = {
@@ -10,33 +11,79 @@ type RequestRow = {
   name: string;
   phone: string;
   amount: number;
-  deposit_expected:number;payment_method:string;
+  deposit_expected: number;
+  payment_method: string;
   has_receipt: number;
 };
-export default function PadelRequests({ onChange }: { onChange: () => void }) {
+export default function PadelRequests({
+  onChange,
+  limit,
+}: {
+  onChange: () => void;
+  limit?: number;
+}) {
   const [rows, setRows] = useState<RequestRow[]>([]),
     [error, setError] = useState(""),
     [busy, setBusy] = useState(""),
     [deposits, setDeposits] = useState<Record<string, string>>({}),
     [prices, setPrices] = useState<Record<string, string>>({});
-  async function load() {
+  const saving = useRef(false),
+    pending = useRef<AbortController | null>(null),
+    sequence = useRef(0);
+  const [loading, setLoading] = useState(true);
+  const load = useCallback(async () => {
+    const ticket = ++sequence.current;
+    pending.current?.abort();
+    const controller = new AbortController();
+    pending.current = controller;
+
     try {
-      const r = await apiFetch("/api/padel-requests"),
+      const r = await apiFetch("/api/padel-requests", {
+          cache: "no-store",
+          signal: controller.signal,
+        }),
         j = (await r.json()) as { error?: string; requests: RequestRow[] };
       if (!r.ok) throw Error(j.error);
+      if (ticket !== sequence.current || controller.signal.aborted) return;
       setRows(j.requests);
       setError("");
     } catch (e) {
+      if (controller.signal.aborted || ticket !== sequence.current) return;
       setError(
         e instanceof Error ? e.message : "No pudimos cargar las solicitudes.",
       );
+    } finally {
+      if (ticket === sequence.current) {
+        pending.current = null;
+        setLoading(false);
+      }
     }
-  }
+  }, []);
   useEffect(() => {
     void load();
-  }, []);
+    const sync = () => {
+      if (
+        document.visibilityState === "visible" &&
+        !saving.current &&
+        !pending.current
+      )
+        void load();
+    };
+    const timer = setInterval(sync, 30000);
+    window.addEventListener("focus", sync);
+    return () => {
+      clearInterval(timer);
+      window.removeEventListener("focus", sync);
+      sequence.current++;
+      pending.current?.abort();
+    };
+  }, [load]);
   async function act(id: string, action: "confirm" | "reject") {
-    if (busy) return;
+    if (saving.current) return;
+    saving.current = true;
+    sequence.current++;
+    pending.current?.abort();
+    pending.current = null;
     setBusy(id);
     setError("");
     try {
@@ -47,17 +94,20 @@ export default function PadelRequests({ onChange }: { onChange: () => void }) {
             id,
             action,
             deposit: Number(deposits[id] || 0),
-            method:rows.find(r=>r.id===id)?.payment_method??"Transferencia",
+            method:
+              rows.find((r) => r.id === id)?.payment_method ?? "Transferencia",
             ...(prices[id] ? { amount: Number(prices[id]) } : {}),
           }),
         }),
         j = (await r.json()) as { error?: string; requests: RequestRow[] };
       if (!r.ok) throw Error(j.error);
-      await load();
+      setRows((current) => current.filter((row) => row.id !== id));
+      void load();
       onChange();
     } catch (e) {
       setError(e instanceof Error ? e.message : "No pudimos guardar.");
     } finally {
+      saving.current = false;
       setBusy("");
     }
   }
@@ -82,13 +132,19 @@ export default function PadelRequests({ onChange }: { onChange: () => void }) {
           {error}
         </p>
       )}
-      {!rows.length && !error && (
+      {loading && (
+        <p role="status" className="muted">
+          Buscando solicitudes…
+        </p>
+      )}
+      {!loading && !rows.length && !error && (
         <p className="muted">No hay solicitudes pendientes.</p>
       )}
-      {rows.map((r) => (
+      {rows.slice(0, limit ?? rows.length).map((r) => (
         <article className="request-row" key={r.id}>
           <div>
-            <strong>{r.name}</strong> <small>#{r.id.slice(0,8).toUpperCase()}</small>
+            <strong>{r.name}</strong>{" "}
+            <small>#{r.id.slice(0, 8).toUpperCase()}</small>
             <p>
               Cancha {r.court} · {dateLabel(r.day)} · {timeLabel(r.start)} ·{" "}
               {r.amount ? money(r.amount) : "Tarifa a confirmar"}
@@ -113,9 +169,11 @@ export default function PadelRequests({ onChange }: { onChange: () => void }) {
                 </a>
               </>
             )}
-          <p>Seña solicitada: {money(r.deposit_expected)} · {r.payment_method}</p>
+            <p>
+              Seña solicitada: {money(r.deposit_expected)} · {r.payment_method}
+            </p>
           </div>
-            <form
+          <form
             onSubmit={(e) => {
               e.preventDefault();
               void act(r.id, "confirm");
@@ -163,6 +221,11 @@ export default function PadelRequests({ onChange }: { onChange: () => void }) {
           </form>
         </article>
       ))}
+      {limit && rows.length > limit && (
+        <Link className="button small" href="/reservas">
+          Ver las {rows.length} solicitudes en la agenda
+        </Link>
+      )}
     </section>
   );
 }

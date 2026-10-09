@@ -42,3 +42,17 @@ await test('Client requests reject unavailable services and preserve credential 
     assert.equal((await response.json()).error, 'Credenciales incorrectas');
   } finally { globalThis.fetch = originalFetch; }
 });
+
+await test('CSV downloads require explicit format and never accept an HTML login page', async () => {
+  const {apiFetch} = await import(moduleUrl(readFileSync('lib/api-fetch.ts','utf8')));
+  const originalFetch = globalThis.fetch;
+  try {
+    globalThis.fetch = async (_url,init) => { assert.equal('responseType' in init,false); return new Response('Fecha,Importe\n2026-10-09,100',{headers:{'content-type':'text/csv; charset=utf-8'}}); };
+    assert.match(await (await apiFetch('/api/cash?format=csv',{responseType:'csv'})).text(),/Fecha,Importe/);
+    await assert.rejects(apiFetch('/api/club'),/datos esperados/);
+    globalThis.fetch = async () => new Response('<html>Login</html>',{headers:{'content-type':'text/html'}});
+    await assert.rejects(apiFetch('/api/cash?format=csv',{responseType:'csv'}),/datos esperados/);
+    globalThis.fetch = async () => {throw new TypeError('network')};
+    await assert.rejects(apiFetch('/api/cash',{method:'POST'}),/quedó registrada/);
+  } finally {globalThis.fetch = originalFetch;}
+});

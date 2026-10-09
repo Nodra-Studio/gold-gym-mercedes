@@ -166,7 +166,7 @@ function failure(e: unknown) {
     503,
   );
 }
-export async function GET() {
+export async function GET(req: Request) {
   try {
     const context = await principal();
     permit(context, ["owner", "reception"]);
@@ -183,7 +183,16 @@ export async function GET() {
       "SELECT * FROM audit WHERE owner=? ORDER BY created_at DESC LIMIT 100",
       "SELECT mm.*,p.name AS plan_name,p.price,p.days,p.access_scope FROM member_memberships mm JOIN plans p ON p.id=mm.plan_id AND p.owner=mm.owner WHERE mm.owner=? ORDER BY p.name",
     ];
-    const r = await db.batch(queries.map((q) => db.prepare(q).bind(owner)));
+    const padelOnly =
+      req && new URL(req.url).searchParams.get("view") === "padel";
+    // The agenda only consumes bookings. Avoid eight unrelated reads and payloads.
+    const indexes = padelOnly ? [4] : queries.map((_, i) => i);
+    const rows = await db.batch(
+      indexes.map((i) => db.prepare(queries[i]).bind(owner)),
+    );
+    const r = queries.map((_, i) => ({
+      results: rows[indexes.indexOf(i)]?.results ?? [],
+    }));
     return reply(
       Object.fromEntries([
         ...[

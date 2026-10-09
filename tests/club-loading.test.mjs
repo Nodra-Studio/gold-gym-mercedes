@@ -5,7 +5,7 @@ import ts from 'typescript';
 
 // Exercise the hook's request lifecycle with controlled, out-of-order replies.
 const source = readFileSync('components/club-client.tsx', 'utf8');
-const hook = source.slice(source.indexOf('export function useClub()'), source.indexOf('export function WorkspaceHeader'));
+const hook = source.slice(source.indexOf('export function useClub('), source.indexOf('export function WorkspaceHeader'));
 const compiled = ts.transpileModule(hook.replace('export function', 'function'), {
   compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.ES2022 },
 }).outputText;
@@ -66,6 +66,7 @@ test('Saving invalidates older reads and rejects a duplicate concurrent submissi
   await new Promise(resolve => setImmediate(resolve));
   requests[2].resolve(reply({ version: 2 }));
   await save;
+  await new Promise(resolve => setImmediate(resolve));
   assert.deepEqual(state[0], { version: 2 });
   assert.equal(state[3], false);
 });
@@ -79,3 +80,20 @@ test('Unmount cancels reads and prevents a late response from updating data', as
   await new Promise(resolve => setImmediate(resolve));
   assert.equal(state[0], null);
 });
+
+ test('A confirmed save resolves before its refresh and keeps duplicate writes locked', async () => {
+  const { club, state, requests } = setup();
+  const save = club.mutate({action:'payment'});
+  requests[0].resolve(reply({ok:true}));
+  await save;
+  assert.equal(requests.length,2);
+  assert.equal(state[2],false);
+  assert.equal(state[3],true);
+  await club.refresh();
+  assert.equal(requests.length,2);
+  await assert.rejects(club.mutate({action:'payment'}), /operación en curso/);
+  requests[1].reject(new Error('Sin conexión'));
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(state[3],false);
+  assert.match(state[1],/quedó guardado.*No repitas/);
+ });

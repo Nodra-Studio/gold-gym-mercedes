@@ -1,10 +1,11 @@
 "use client";
 import { branches } from "@/lib/branches";
+import PadelRequests from "@/components/padel-requests";
 import MemberMemberships from "@/components/member-memberships";
 import { apiFetch } from "@/lib/api-fetch";
 import { csvDocument } from "@/lib/csv";
 import { requestId } from "@/lib/club";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import {
   ArrowLeft,
@@ -53,7 +54,7 @@ import {
   money,
   dateLabel,
 } from "@/lib/club";
-export function useClub() {
+export function useClub(view: "all" | "padel" = "all") {
   const [data, setData] = useState<ClubData | null>(null),
     [error, setError] = useState(""),
     [loading, setLoading] = useState(true),
@@ -61,35 +62,48 @@ export function useClub() {
   const sequence = useRef(0);
   const pendingRead = useRef<AbortController | null>(null);
   const saving = useRef(false);
-  const load = useCallback(async (silent = false) => {
-    const ticket = ++sequence.current;
-    pendingRead.current?.abort();
-    const controller = new AbortController();
-    pendingRead.current = controller;
-    if (!silent) setLoading(true);
-    try {
-      const r = await apiFetch("/api/club", {
-          cache: "no-store",
-          signal: controller.signal,
-        }),
-        j = (await r.json()) as ClubData & {
-          error?: string;
-        };
-      if (!r.ok) throw Error(j.error);
-      if (ticket !== sequence.current) return;
-      setData(j);
-      setError("");
-    } catch (e) {
-      if (controller.signal.aborted || ticket !== sequence.current) return;
-      setError(e instanceof Error ? e.message : "No pudimos cargar los datos.");
-    } finally {
-      if (ticket === sequence.current) {
-        pendingRead.current = null;
-        setLoading(false);
+  const load = useCallback(
+    async (silent = false, saved = false) => {
+      const ticket = ++sequence.current;
+      pendingRead.current?.abort();
+      const controller = new AbortController();
+      pendingRead.current = controller;
+      if (!silent) setLoading(true);
+      try {
+        const r = await apiFetch(
+            view === "padel" ? "/api/club?view=padel" : "/api/club",
+            {
+              cache: "no-store",
+              signal: controller.signal,
+            },
+          ),
+          j = (await r.json()) as ClubData & {
+            error?: string;
+          };
+        if (!r.ok) throw Error(j.error);
+        if (ticket !== sequence.current) return;
+        setData(j);
+        setError("");
+      } catch (e) {
+        if (controller.signal.aborted || ticket !== sequence.current) return;
+        setError(
+          (saved
+            ? "El cambio quedó guardado, pero no pudimos actualizar la vista. No repitas la operación. "
+            : "") +
+            (e instanceof Error ? e.message : "No pudimos cargar los datos."),
+        );
+      } finally {
+        if (ticket === sequence.current) {
+          pendingRead.current = null;
+          setLoading(false);
+        }
       }
-    }
-  }, []);
-  const refresh = useCallback(() => load(), [load]);
+    },
+    [view],
+  );
+  const refresh = useCallback(async () => {
+    if (!saving.current) await load(true);
+  }, [load]);
   // Initial remote load; state changes only after the asynchronous request resolves.
   useEffect(() => {
     // Loading belongs to this remote request lifecycle.
@@ -138,16 +152,20 @@ export function useClub() {
           ok?: boolean;
         };
       if (!r.ok) throw Error(j.error);
-      await refresh();
+      // A confirmed write is complete. Keep the write lock until the view catches up,
+      // but let the caller close its form immediately without another network wait.
+      void load(true, true).finally(() => {
+        saving.current = false;
+        setBusy(false);
+      });
       return j;
     } catch (e) {
       setError(
         e instanceof Error ? e.message : "No pudimos guardar los cambios.",
       );
-      throw e;
-    } finally {
       saving.current = false;
       setBusy(false);
+      throw e;
     }
   }
   return { data, error, loading, busy, refresh, mutate, setError };
@@ -391,9 +409,18 @@ export default function ClubDashboard() {
     } catch {}
     return () => controller.abort();
   }, [refresh]);
+  const membershipsByMember = useMemo(() => {
+    const index = new Map<string, ClubData["memberships"]>();
+    for (const membership of data?.memberships ?? []) {
+      const list = index.get(membership.member_id) ?? [];
+      list.push(membership);
+      index.set(membership.member_id, list);
+    }
+    return index;
+  }, [data?.memberships]);
   const memberPlans = (m: Member) => [
     { plan_name: m.plan_name, expires: m.expires, status: m.status },
-    ...(data?.memberships ?? []).filter((x) => x.member_id === m.id),
+    ...(membershipsByMember.get(m.id) ?? []),
   ];
   const today = data?.today ?? localDay(),
     valid =
@@ -401,14 +428,6 @@ export default function ClubDashboard() {
         (m) =>
           m.status === "active" &&
           memberPlans(m).some(
-            (x) => x.status === "active" && x.expires >= today,
-          ),
-      ) ?? [],
-    expired =
-      data?.members.filter(
-        (m) =>
-          m.status === "active" &&
-          !memberPlans(m).some(
             (x) => x.status === "active" && x.expires >= today,
           ),
       ) ?? [],
@@ -421,6 +440,14 @@ export default function ClubDashboard() {
               x.status === "active" &&
               x.expires >= today &&
               x.expires <= addDays(today, 7),
+          ),
+      ) ?? [],
+    attention =
+      data?.members.filter(
+        (m) =>
+          m.status === "active" &&
+          memberPlans(m).some(
+            (p) => p.status === "active" && p.expires <= addDays(today, 7),
           ),
       ) ?? [],
     members =
@@ -442,6 +469,11 @@ export default function ClubDashboard() {
         <Link className="button small" href="/equipo">
           Ver mi rol y acceso
         </Link>
+      )}
+      {busy && (
+        <p role="status" className="muted">
+          Guardando o actualizando los últimos cambios…
+        </p>
       )}
       {success && (
         <div className="success-box" role="status">
@@ -513,6 +545,7 @@ export default function ClubDashboard() {
               ))}
             </TabsList>
             <TabsContent value="resumen">
+              <PadelRequests onChange={refresh} limit={3} />
               {!data.plans.length && (
                 <div className="panel empty">
                   <h3>Prepará tu primera demostración</h3>
@@ -618,14 +651,18 @@ export default function ClubDashboard() {
                 </div>
                 <div className="panel">
                   <h2>Vencimientos para revisar</h2>
-                  {[...expired, ...due].slice(0, 8).map((m) => (
+                  {attention.slice(0, 8).map((m) => (
                     <div className="list-row" key={m.id}>
                       <div>
                         <strong>{m.name}</strong>
                         <br />
                         <small>
                           {memberPlans(m)
-                            .filter((x) => x.expires <= addDays(today, 7))
+                            .filter(
+                              (x) =>
+                                x.status === "active" &&
+                                x.expires <= addDays(today, 7),
+                            )
                             .map(
                               (x) => `${x.plan_name} · ${dateLabel(x.expires)}`,
                             )
@@ -640,7 +677,7 @@ export default function ClubDashboard() {
                       </button>
                     </div>
                   ))}
-                  {!expired.length && !due.length && (
+                  {!attention.length && (
                     <div className="empty">
                       No hay vencimientos pendientes esta semana.
                     </div>
@@ -1204,7 +1241,18 @@ function PaymentForm({
 }) {
   const [memberId, setMember] = useState(member?.id ?? ""),
     [method, setMethod] = useState("Efectivo"),
-    [membershipId, setMembership] = useState(""),
+    [membershipId, setMembership] = useState(() => {
+      if (!member) return "";
+      const options = [
+        { id: "", expires: member.expires, status: member.status },
+        ...(data.memberships ?? []).filter((x) => x.member_id === member.id),
+      ];
+      return (
+        options
+          .filter((x) => x.status === "active")
+          .sort((a, b) => a.expires.localeCompare(b.expires))[0]?.id ?? ""
+      );
+    }),
     [venue, setVenue] = useState(""),
     [requestKey] = useState(() => requestId());
   const m = data.members.find((m) => m.id === memberId);

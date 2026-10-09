@@ -34,7 +34,7 @@ import {
   type Booking,
 } from "@/lib/club";
 export default function PadelAgenda() {
-  const { data, error, busy, loading, refresh, mutate, setError } = useClub();
+  const { data, error, busy, loading, refresh, mutate, setError } = useClub("padel");
   const [day, setDay] = useState(localDay()),
     [slot, setSlot] = useState<{
       court: number;
