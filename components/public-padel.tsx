@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
+import { apiFetch } from "@/lib/api-fetch";
 import {
   ArrowRight,
   CalendarDays,
@@ -64,7 +65,7 @@ export default function PublicPadel() {
     setData(null);
     setSlot(null);
     setError("");
-    fetch("/api/public-padel?day=" + day, {
+    apiFetch("/api/public-padel?day=" + day, {
       signal: c.signal,
       cache: "no-store",
     })
@@ -83,10 +84,11 @@ export default function PublicPadel() {
   }, [day, refresh]);
   useEffect(() => {
     const c = new AbortController();
-    fetch("/api/padel-weather", { signal: c.signal })
-      .then((r) => r.json())
+    apiFetch("/api/padel-weather", { signal: c.signal })
+      .then((r) => r.json() as Promise<Partial<Weather>>)
       .then((j) => {
-        if (!c.signal.aborted) setWeather(j as Weather);
+        if (!c.signal.aborted && Array.isArray(j.periods))
+          setWeather(j as Weather);
       })
       .catch(() => {});
     return () => c.abort();
@@ -129,7 +131,7 @@ export default function PublicPadel() {
         });
       }
       if (!key.current) key.current = requestId();
-      const r = await fetch("/api/public-padel", {
+      const r = await apiFetch("/api/public-padel", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -435,7 +437,7 @@ export default function PublicPadel() {
                 name="phone"
                 type="tel"
                 required
-                pattern="\+?[0-9 ()-]{8,22}"
+                pattern="\+?[0-9 \(\)\-]{8,22}"
                 placeholder="5492324123456"
                 autoComplete="tel"
               />

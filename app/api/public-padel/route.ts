@@ -2,30 +2,23 @@ import { z } from "zod";
 import { createHash } from "node:crypto";
 import { database, body, ClubError, apiError } from "@/lib/server";
 import { publicOwner, validateReceipt } from "@/lib/public-padel";
+const settingsQuery =
+  "SELECT CASE WHEN price_published=1 THEN padel_price ELSE 0 END AS padel_price,booking_days,cancel_hours,deposit_percent,payment_alias,whatsapp,revision FROM settings WHERE owner=?";
+const defaultSettings = {
+  padel_price: 0,
+  booking_days: 30,
+  cancel_hours: 24,
+  deposit_percent: 0,
+  payment_alias: "",
+  whatsapp: "",
+  revision: 0,
+};
 async function padelSettings(owner: string) {
   return (
     (await database()
-      .prepare(
-        "SELECT CASE WHEN price_published=1 THEN padel_price ELSE 0 END AS padel_price,booking_days,cancel_hours,deposit_percent,payment_alias,whatsapp,revision FROM settings WHERE owner=?",
-      )
+      .prepare(settingsQuery)
       .bind(owner)
-      .first<{
-        padel_price: number;
-        booking_days: number;
-        cancel_hours: number;
-        deposit_percent: number;
-        payment_alias: string;
-        whatsapp: string;
-        revision: number;
-      }>()) ?? {
-      padel_price: 0,
-      booking_days: 30,
-      cancel_hours: 24,
-      deposit_percent: 0,
-      payment_alias: "",
-      whatsapp: "",
-      revision: 0,
-    }
+      .first<typeof defaultSettings>()) ?? defaultSettings
   );
 }
 import { localDay, addDays, isValidDay, slots, slotPassed } from "@/lib/club";
@@ -53,23 +46,27 @@ const schema = z
 export async function GET(req: Request) {
   try {
     const owner = publicOwner(),
-      settings = await padelSettings(owner),
       today = localDay(),
-      day = new URL(req.url).searchParams.get("day") ?? today;
-    if (
-      !isValidDay(day) ||
-      day < today ||
-      day > addDays(today, settings.booking_days)
-    )
+      day = new URL(req.url).searchParams.get("day") ?? today,
+      db = database();
+    if (!isValidDay(day) || day < today)
       throw new ClubError("Elegí una fecha dentro del período disponible.");
-    const occupied = await database()
-      .prepare(
-        "SELECT court,start FROM bookings WHERE owner=? AND day=? AND status='confirmed'",
-      )
-      .bind(owner, day)
-      .all();
+    // Settings and occupancy share one snapshot and one database transaction.
+    const rows = await db.batch([
+      db.prepare(settingsQuery).bind(owner),
+      db
+        .prepare(
+          "SELECT court,start FROM bookings WHERE owner=? AND day=? AND status='confirmed'",
+        )
+        .bind(owner, day),
+    ]);
+    const settings =
+      (rows[0].results[0] as typeof defaultSettings | undefined) ??
+      defaultSettings;
+    if (day > addDays(today, settings.booking_days))
+      throw new ClubError("Elegí una fecha dentro del período disponible.");
     return Response.json(
-      { today, day, settings, occupied: occupied.results },
+      { today, day, settings, occupied: rows[1].results },
       { headers: { "Cache-Control": "no-store" } },
     );
   } catch (e) {

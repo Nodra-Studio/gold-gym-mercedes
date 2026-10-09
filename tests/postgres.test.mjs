@@ -64,6 +64,34 @@ try {
       await assert.rejects(runtime.env.DB.prepare('INSERT INTO plans(id,owner,name,price,days) VALUES(?,?,?,?,?)').bind(key(),'other-owner','Blocked',1,30).run());
       assert.equal((await runtime.env.DB.prepare('SELECT * FROM plans WHERE owner=?').bind('other-owner').all()).results.length,0);
     });
+    await t.test('Read batches use one query while preserving values, order, empty results and RLS', async()=>{
+      let calls=0, mode;
+      const optimized=createDatabase(
+        (sql,values)=>transaction(q=>q(sql,values)),
+        (work,readOnly)=>{mode=readOnly;return transaction(q=>work(async(sql,values)=>{calls++;return q(sql,values)}),readOnly)},
+      );
+      const rows=await optimized.batch([
+        optimized.prepare("SELECT ?::text AS label, '?'::text AS literal, n FROM generate_series(1,3) n ORDER BY n DESC").bind("O'Connor ?"),
+        optimized.prepare('SELECT ?::integer AS amount, NULL::text AS optional').bind(42000),
+        optimized.prepare('SELECT id FROM members WHERE owner=?').bind('other-owner'),
+      ]);
+      assert.equal(calls,1);assert.equal(mode,true);
+      assert.deepEqual(rows[0].results.map(x=>x.n),[3,2,1]);
+      assert.equal(rows[0].results[0].label,"O'Connor ?");assert.equal(rows[0].results[0].literal,'?');
+      assert.deepEqual(rows[1].results,[{amount:42000,optional:null}]);
+      assert.deepEqual(rows[2].results,[]);assert.equal(rows[2].meta.changes,0);
+      assert.deepEqual(await optimized.batch([]),[]);assert.equal(calls,1);
+    });
+    await t.test('Transaction configuration resets role and owner after commit',async()=>{
+      await pg.transaction(async tx=>{
+        await tx.query("SELECT set_config('role','gold_gym_app',true), set_config('search_path','club, pg_catalog',true), set_config('statement_timeout','15s',true), set_config('app.club_owner',$1,true)",['other-owner']);
+        const r=await tx.query("SELECT current_user AS role,current_setting('app.club_owner') AS owner");
+        assert.equal(r.rows[0].role,'gold_gym_app');assert.equal(r.rows[0].owner,'other-owner');
+        assert.deepEqual((await tx.query('SELECT id FROM members')).rows,[]);
+      });
+      const r=await pg.query("SELECT current_user AS role,current_setting('app.club_owner',true) AS owner");
+      assert.notEqual(r.rows[0].role,'gold_gym_app');assert.notEqual(r.rows[0].owner,'other-owner');
+    });
     await t.test('Seed loads valid PostgreSQL records once',async()=>{
       assert.equal((await post(api,{action:'seed'})).status,200);
       assert.equal((await get()).members.length,6);
@@ -95,6 +123,7 @@ try {
       const payload={day:addDays(localDay(),5),court:1,start:480,name:'Jugador Prueba',phone:'5492324000000',expectedPrice:24000,requestKey:key()};
       runtime.setUser(null);
       const availability=await get(pub,'?day='+payload.day);assert.equal(availability.status,200);assert.equal('mine' in availability,false);
+      assert.equal((await get(pub,'?day=invalid')).status,400);assert.equal((await get(pub,'?day='+addDays(localDay(),31))).status,400);assert.ok(Array.isArray(availability.occupied));assert.equal(availability.settings.booking_days,30);
       const requested=await post(pub,payload);assert.equal(requested.status,201,JSON.stringify(requested));
       assert.equal((await post(pub,payload)).id,requested.id);
       assert.equal((await get(review)).status,401);

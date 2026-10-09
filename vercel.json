@@ -3,5 +3,6 @@
   "framework": "nextjs",
   "buildCommand": "npm run build:vercel",
   "outputDirectory": ".next-vercel",
-  "installCommand": "npm ci"
+  "installCommand": "npm ci",
+  "regions": ["gru1"]
 }

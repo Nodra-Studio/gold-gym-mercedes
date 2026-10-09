@@ -28,29 +28,24 @@ export function getPostgresDatabase(): D1Database | undefined {
     async (sql, values) =>
       client.begin(async (tx) => {
         await tx.unsafe(
-          "SET LOCAL ROLE gold_gym_app; SET LOCAL search_path TO club, pg_catalog; SET LOCAL statement_timeout = '15s'",
+          "SELECT set_config('role', 'gold_gym_app', true), set_config('search_path', 'club, pg_catalog', true), set_config('statement_timeout', '15s', true), set_config('app.club_owner', $1, true)",
+          [process.env.GOLD_GYM_OWNER_ID ?? ""],
         );
-        await tx.unsafe("SELECT set_config('app.club_owner', $1, true)", [
-          process.env.GOLD_GYM_OWNER_ID ?? "",
-        ]);
         return run(tx as unknown as typeof client)(sql, values);
       }) as never,
     async (work, readOnly) =>
-      client.begin(async (tx) => {
-        if (readOnly)
+      client.begin(
+        readOnly ? "isolation level repeatable read read only" : "",
+        async (tx) => {
           await tx.unsafe(
-            "SET TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY",
+            "SELECT set_config('role', 'gold_gym_app', true), set_config('search_path', 'club, pg_catalog', true), set_config('statement_timeout', '15s', true), set_config('app.club_owner', $1, true)",
+            [process.env.GOLD_GYM_OWNER_ID ?? ""],
           );
-        await tx.unsafe(
-          "SET LOCAL ROLE gold_gym_app; SET LOCAL search_path TO club, pg_catalog; SET LOCAL statement_timeout = '15s'",
-        );
-        await tx.unsafe("SELECT set_config('app.club_owner', $1, true)", [
-          process.env.GOLD_GYM_OWNER_ID ?? "",
-        ]);
-        if (!readOnly)
-          await tx.unsafe("SELECT pg_advisory_xact_lock(71946201)");
-        return work(run(tx as unknown as typeof client));
-      }) as never,
+          if (!readOnly)
+            await tx.unsafe("SELECT pg_advisory_xact_lock(71946201)");
+          return work(run(tx as unknown as typeof client));
+        },
+      ) as never,
   );
   return database;
 }

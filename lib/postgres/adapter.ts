@@ -68,20 +68,48 @@ export function createDatabase(
   }
   return {
     prepare: (sql: string) => new Statement(sql),
-    batch: (statements: Statement[]) =>
-      transaction(
-        async (run) => {
-          const out = [];
-          for (const statement of statements)
-            out.push(await statement.execute(run));
-          return out;
-        },
-        statements.every(
-          (s) =>
-            /^\s*(SELECT|WITH)\s/i.test(s.sql) &&
-            !/\b(INSERT|UPDATE|DELETE|MERGE)\b/i.test(s.sql) &&
-            !/\b(record_cash|pg_advisory|nextval|setval)\s*\(/i.test(s.sql),
-        ),
-      ),
+    batch: (statements: Statement[]) => {
+      if (!statements.length) return Promise.resolve([]);
+      const readOnly = statements.every(
+        (s) =>
+          /^\s*(SELECT|WITH)\s/i.test(s.sql) &&
+          !/\b(INSERT|UPDATE|DELETE|MERGE)\b/i.test(s.sql) &&
+          !/\bFOR\s+(?:KEY\s+)?SHARE\b/i.test(s.sql) &&
+          !/\b(record_cash|pg_advisory|nextval|setval)\s*\(/i.test(s.sql),
+      );
+      return transaction(async (run) => {
+        if (readOnly && statements.length > 1) {
+          // One round trip for independent reads, with the same snapshot and RLS.
+          // Keep each ordered result as its own JSON array; all values stay bound.
+          const sql =
+            "SELECT " +
+            statements
+              .map(
+                (s, i) =>
+                  `(SELECT COALESCE(jsonb_agg(club_row), '[]'::jsonb) FROM (${s.sql}) AS club_row) AS batch_${i}`,
+              )
+              .join(", ");
+          const result = await run(
+            postgresQuery(sql),
+            statements.flatMap((s) => s.args),
+          );
+          return statements.map((_, i) => {
+            const rows = result.rows[0][`batch_${i}`] as Record<
+              string,
+              unknown
+            >[];
+            return {
+              results: rows,
+              success: true,
+              meta: { changes: rows.length },
+            };
+          });
+        }
+        const out = [];
+        for (const statement of statements)
+          out.push(await statement.execute(run));
+        return out;
+      }, readOnly);
+    },
   } as unknown as D1Database;
 }
