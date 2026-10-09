@@ -99,9 +99,42 @@ const row = {
       cash_entry_id: id.nullable(),
     })
     .strict(),
-  plans: z
-    .object({ id, name, price: money, days: z.number().int().min(1).max(366) })
+  booking_requests: z
+    .object({
+      id,
+      court: z.number().int().min(1).max(4),
+      day,
+      start: z.number().refine((n) => slots.includes(n)),
+      name,
+      phone,
+      status: z.enum(["pending", "confirmed", "rejected"]),
+      amount: money,
+      receipt: z.string().max(1400000),
+      deposit_expected:money.default(0),
+      payment_method:z.enum(["Transferencia","Efectivo"]).default("Transferencia"),
+      receipt_type: z.enum(["", "image/jpeg", "image/png", "application/pdf"]),
+      request_key: id,
+      created_at: stamp,
+      booking_id: id.nullable(),
+    })
     .strict(),
+  plans: z
+    .object({
+      id,
+      name,
+      price: money,
+      days: z.number().int().min(1).max(366),
+      published:z.number().int().min(0).max(1).default(0),
+      access_scope: z.enum(["gym", "pilates", "all"]).optional(),
+    })
+    .strict()
+    .transform((p) => ({
+      ...p,
+      access_scope:
+        p.access_scope ??
+        (/pilates/i.test(p.name) ? ("pilates" as const) : ("gym" as const)),
+    })),
+  member_memberships:z.object({id,member_id:id,plan_id:id,status:z.enum(["active","paused"]),expires:day,created_at:stamp}).strict(),
   members: z
     .object({
       id,
@@ -116,6 +149,7 @@ const row = {
     .strict(),
   payments: z
     .object({
+      membership_id:id.nullable().default(null),
       id,
       member_id: id,
       amount: money,
@@ -191,6 +225,7 @@ const row = {
 export const backupTables = [
   "plans",
   "members",
+  "member_memberships",
   "payments",
   "accesses",
   "bookings",
@@ -202,6 +237,7 @@ export const backupTables = [
   "cash_entries",
   "stock_moves",
   "product_changes",
+  "booking_requests",
 ] as const;
 export const backupSchema = z
   .object({
@@ -210,10 +246,13 @@ export const backupSchema = z
       z.literal(2),
       z.literal(3),
       z.literal(4),
+      z.literal(5),
+      z.literal(6),
     ]),
     configuration: z
       .object({
         padel_price: money,
+        deposit_percent:z.number().int().min(0).max(100).default(0),payment_alias:z.string().max(100).default(""),whatsapp:z.string().max(15).default(""),revision:z.number().int().min(1).default(1),price_published:z.number().int().min(0).max(1).default(0),
         booking_days: z.number().int().min(1).max(90),
         cancel_hours: z.number().int().min(0).max(168),
       })
@@ -223,6 +262,8 @@ export const backupSchema = z
     fieldNotes: z.record(z.string(), z.string()).optional(),
     records: z
       .object({
+        booking_requests: z.array(row.booking_requests).optional(),
+        member_memberships:z.array(row.member_memberships).optional(),
         plans: z.array(row.plans),
         members: z.array(row.members),
         payments: z.array(row.payments),
@@ -256,7 +297,10 @@ export function validateBackup(value: unknown) {
       !parsed.data.records.booking_payments)
   )
     throw Error("El respaldo versión 3 debe incluir caja y stock.");
-  if (parsed.data.schemaVersion === 4 && !parsed.data.records.product_changes)
+  if(parsed.data.schemaVersion===6&&!parsed.data.records.member_memberships)throw Error("El respaldo debe incluir las membresías adicionales.");
+  if (parsed.data.schemaVersion >= 5 && !parsed.data.records.booking_requests)
+    throw Error("El respaldo debe incluir las solicitudes de pádel.");
+  if (parsed.data.schemaVersion >= 4 && !parsed.data.records.product_changes)
     throw Error(
       "El respaldo versión 4 debe incluir el historial de productos.",
     );
@@ -264,6 +308,8 @@ export function validateBackup(value: unknown) {
       ...parsed.data,
       records: {
         ...parsed.data.records,
+        booking_requests: parsed.data.records.booking_requests ?? [],
+        member_memberships:parsed.data.records.member_memberships??[],
         products: parsed.data.records.products ?? [],
         product_changes: parsed.data.records.product_changes ?? [],
         cash_entries: parsed.data.records.cash_entries ?? [],
@@ -294,11 +340,19 @@ export function validateBackup(value: unknown) {
     throw Error(
       "El respaldo tiene relaciones incompletas entre socios, planes y clases.",
     );
+  const memberships=new Map(b.records.member_memberships.map(m=>[m.id,m]));
+  if(b.records.member_memberships.some(mm=>!members.has(mm.member_id)||!plans.has(mm.plan_id)||b.records.members.find(m=>m.id===mm.member_id)?.plan_id===mm.plan_id)||b.records.payments.some(p=>p.membership_id!==null&&memberships.get(p.membership_id)?.member_id!==p.member_id))throw Error("El respaldo tiene membresías o cobros sin su socio y plan.");
   function unique(values: string[]) {
     if (new Set(values).size !== values.length)
       throw Error("El respaldo contiene DNI, turnos o movimientos duplicados.");
   }
   const bookings = new Map(b.records.bookings.map((b) => [b.id, b]));
+  if (
+    b.records.booking_requests.some(
+      (r) => r.booking_id !== null && !bookings.has(r.booking_id),
+    )
+  )
+    throw Error("El respaldo contiene solicitudes sin su reserva vinculada.");
   const paid = new Map<string, number>();
   for (const payment of b.records.booking_payments) {
     const booking = bookings.get(payment.booking_id);

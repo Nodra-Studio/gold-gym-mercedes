@@ -69,7 +69,7 @@ export default function SettingsClient() {
                   method: "POST",
                   headers: { "Content-Type": "application/json" },
                   body: JSON.stringify({
-                    padel_price: Number(price),
+                    
                     booking_days: Number(days),
                     cancel_hours: Number(hours),
                   }),
@@ -86,23 +86,12 @@ export default function SettingsClient() {
             }
           }}
         >
-          <h2>Portal de jugadores</h2>
+          <h2>Reglas de reservas</h2>
           <p className="muted" style={{ margin: "18px 0" }}>
-            Configuración de demostración. Confirmá estas reglas con el club
-            antes de habilitar jugadores reales. Turnos de 90 minutos, cuatro
-            canchas y pago manual.
+            Turnos de 90 minutos, cuatro canchas y confirmación por recepción.
           </p>
           <div className="form-grid">
-            <Field label="Precio por turno (ARS)">
-              <input
-                type="number"
-                required
-                min="0"
-                max="10000000"
-                value={price}
-                onChange={(e) => setPrice(e.target.value)}
-              />
-            </Field>
+            <p>Para cambiar precios y señas, abrí <Link href="/tarifas">Planes y tarifas</Link>.</p>
             <Field label="Anticipación máxima (días)">
               <input
                 type="number"

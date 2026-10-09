@@ -26,7 +26,7 @@ export async function POST(req: Request) {
     permit(p, ["owner"]);
     const parsed = z
       .object({
-        padel_price: z.number().int().min(0).max(10000000),
+        padel_price: z.number().int().min(0).max(10000000).optional(),
         booking_days: z.number().int().min(1).max(90),
         cancel_hours: z.number().int().min(0).max(168),
       })
@@ -40,9 +40,17 @@ export async function POST(req: Request) {
     await database().batch([
       database()
         .prepare(
-          "INSERT INTO settings(owner,padel_price,booking_days,cancel_hours) VALUES(?,?,?,?) ON CONFLICT(owner) DO UPDATE SET padel_price=excluded.padel_price,booking_days=excluded.booking_days,cancel_hours=excluded.cancel_hours",
+          "INSERT INTO settings(owner,padel_price,booking_days,cancel_hours,price_published) VALUES(?,?,?,?,?) ON CONFLICT(owner) DO UPDATE SET booking_days=excluded.booking_days,cancel_hours=excluded.cancel_hours,revision=settings.revision+1,padel_price=coalesce(?,settings.padel_price),price_published=CASE WHEN CAST(? AS integer) IS NULL THEN settings.price_published ELSE 1 END",
         )
-        .bind(p.owner, s.padel_price, s.booking_days, s.cancel_hours),
+        .bind(
+          p.owner,
+          s.padel_price ?? 0,
+          s.booking_days,
+          s.cancel_hours,
+          s.padel_price === undefined ? 0 : 1,
+          s.padel_price ?? null,
+          s.padel_price ?? null,
+        ),
       database()
         .prepare(
           "INSERT INTO audit(id,owner,action,detail,created_at) VALUES(?,?,?,?,?)",
@@ -51,7 +59,7 @@ export async function POST(req: Request) {
           crypto.randomUUID(),
           p.owner,
           "Reglas de pádel actualizadas",
-          `${s.padel_price} ARS · ${s.booking_days} días · cancelación ${s.cancel_hours} h · operador ${p.userId}`,
+          `${s.padel_price === undefined ? "Reglas de reserva" : `${s.padel_price} ARS`} · ${s.booking_days} días · cancelación ${s.cancel_hours} h · operador ${p.userId}`,
           new Date().toISOString(),
         ),
     ]);

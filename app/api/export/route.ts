@@ -11,6 +11,7 @@ export async function GET() {
     const tables = [
       "plans",
       "members",
+      "member_memberships",
       "payments",
       "accesses",
       "bookings",
@@ -22,6 +23,7 @@ export async function GET() {
       "cash_entries",
       "stock_moves",
       "product_changes",
+      "booking_requests",
     ] as const;
     const results = await db.batch<Record<string, unknown>>([
       ...tables.map((table) =>
@@ -29,7 +31,7 @@ export async function GET() {
       ),
       db
         .prepare(
-          "SELECT padel_price,booking_days,cancel_hours FROM settings WHERE owner=?",
+          "SELECT padel_price,booking_days,cancel_hours,deposit_percent,payment_alias,whatsapp,revision,price_published FROM settings WHERE owner=?",
         )
         .bind(owner),
     ]);
@@ -46,7 +48,7 @@ export async function GET() {
     return new Response(
       JSON.stringify(
         {
-          schemaVersion: 4,
+          schemaVersion: 6,
           configuration: results[tables.length].results[0] ?? {
             padel_price: 24000,
             booking_days: 30,
@@ -85,4 +87,3 @@ export async function GET() {
     );
   }
 }
-

@@ -218,12 +218,13 @@ try {
         }
       },
     );
-    await t.test("Acceso único por DNI sin seleccionar sede", async () => {
-      const result = await post({ action: "access", dni: "99000001" });
+    await t.test("La terminal exige sede y registra la sede validada", async () => {
+      const result = await post({ action: "access", dni: "99000001", venue: "Calle 30" });
       assert.equal(result.status, 200);
       assert.equal(result.allowed, true);
       const state = await get();
-      assert.ok(state.accesses.some(a => a.venue === "Todas las sedes"));
+      assert.ok(state.accesses.some(a => a.venue === "Calle 30"));
+      assert.equal((await post({action:"access",dni:"99000001"})).status,400);
     });
     await t.test(
       "Un cobro repetido no duplica pago ni extiende dos veces",
@@ -1078,7 +1079,7 @@ try {
       "Informes: corte de día argentino, totales completos y páginas sin repetir",
       async () => {
         runtime.setUser("report-owner");
-        db.prepare("INSERT INTO plans VALUES (?,?,?,?,?)").run(
+        db.prepare("INSERT INTO plans(id,owner,name,price,days) VALUES (?,?,?,?,?)").run(
           "report-plan",
           "report-owner",
           "Plan",
@@ -1279,7 +1280,7 @@ try {
       runtime.setUser("player-a");assert.equal((await bookingPaymentsApi.GET(new Request("https://test.local/api/booking-payments?bookingId="+booking.id))).status,403);
     });
     await t.test("Respaldo v2 conserva cobros de pádel; v1 no inventa historial",async()=>{
-      runtime.setUser("ledger-owner");const snapshot=await(await exporter.GET()).json();assert.equal(snapshot.schemaVersion,4);assert.equal(snapshot.records.booking_payments.length,2);
+      runtime.setUser("ledger-owner");const snapshot=await(await exporter.GET()).json();assert.equal(snapshot.schemaVersion,6);assert.equal(snapshot.records.booking_payments.length,2);
       runtime.setUser("ledger-restored");assert.equal((await call(backupApi,{action:"restore",requestKey:key(),backup:snapshot})).status,200);
       const restored=await(await exporter.GET()).json();assert.equal(restored.records.booking_payments.length,2);assert.ok(restored.records.booking_payments.every(p=>restored.records.bookings.some(b=>b.id===p.booking_id)));
       const missing=structuredClone(snapshot);delete missing.records.booking_payments;assert.equal((await call(backupApi,{action:"check",requestKey:key(),backup:missing})).status,400);

@@ -6,6 +6,7 @@ import {
   Users,
   CalendarDays,
   Wallet,
+  Tags,
   BarChart3,
   ShieldCheck,
   Database,
@@ -17,6 +18,7 @@ import {
   X,
 } from "lucide-react";
 const links = [
+  { href: "/tarifas", label: "Planes y tarifas", icon: Tags },
   { href: "/gestion", label: "Socios y gimnasio", icon: Users },
   { href: "/reservas", label: "Agenda de pádel", icon: CalendarDays },
   { href: "/caja", label: "Caja y stock", icon: Wallet },

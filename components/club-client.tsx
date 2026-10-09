@@ -1,5 +1,6 @@
 "use client";
 import { branches } from "@/lib/branches";
+import MemberMemberships from "@/components/member-memberships";
 import { apiFetch } from "@/lib/api-fetch";
 import { csvDocument } from "@/lib/csv";
 import { requestId } from "@/lib/club";
@@ -67,7 +68,10 @@ export function useClub() {
     pendingRead.current = controller;
     if (!silent) setLoading(true);
     try {
-      const r = await apiFetch("/api/club", { cache: "no-store", signal: controller.signal }),
+      const r = await apiFetch("/api/club", {
+          cache: "no-store",
+          signal: controller.signal,
+        }),
         j = (await r.json()) as ClubData & {
           error?: string;
         };
@@ -99,7 +103,12 @@ export function useClub() {
   useEffect(() => {
     if (busy) return;
     const sync = () => {
-      if (document.visibilityState === "visible" && !saving.current && !pendingRead.current) void load(true);
+      if (
+        document.visibilityState === "visible" &&
+        !saving.current &&
+        !pendingRead.current
+      )
+        void load(true);
     };
     const timer = setInterval(sync, 30000);
     window.addEventListener("focus", sync);
@@ -109,7 +118,8 @@ export function useClub() {
     };
   }, [busy, load]);
   async function mutate(payload: Record<string, unknown>) {
-    if (saving.current) throw new Error("Esperá a que termine la operación en curso.");
+    if (saving.current)
+      throw new Error("Esperá a que termine la operación en curso.");
     saving.current = true;
     sequence.current++;
     pendingRead.current?.abort();
@@ -304,7 +314,14 @@ export default function ClubDashboard() {
   const [tab, setTab] = useState("resumen"),
     [search, setSearch] = useState(""),
     [modal, setModal] = useState<
-      "member" | "payment" | "plan" | "price" | "session" | "enroll" | null
+      | "memberships"
+      | "member"
+      | "payment"
+      | "plan"
+      | "price"
+      | "session"
+      | "enroll"
+      | null
     >(null),
     [selected, setSelected] = useState<Member | null>(null),
     [session, setSession] = useState<Session | null>(null),
@@ -374,22 +391,41 @@ export default function ClubDashboard() {
     } catch {}
     return () => controller.abort();
   }, [refresh]);
+  const memberPlans = (m: Member) => [
+    { plan_name: m.plan_name, expires: m.expires, status: m.status },
+    ...(data?.memberships ?? []).filter((x) => x.member_id === m.id),
+  ];
   const today = data?.today ?? localDay(),
     valid =
       data?.members.filter(
-        (m) => m.status === "active" && m.expires >= today,
+        (m) =>
+          m.status === "active" &&
+          memberPlans(m).some(
+            (x) => x.status === "active" && x.expires >= today,
+          ),
       ) ?? [],
-    expired = data?.members.filter((m) => m.expires < today) ?? [],
+    expired =
+      data?.members.filter(
+        (m) =>
+          m.status === "active" &&
+          !memberPlans(m).some(
+            (x) => x.status === "active" && x.expires >= today,
+          ),
+      ) ?? [],
     due =
       data?.members.filter(
         (m) =>
           m.status === "active" &&
-          m.expires >= today &&
-          m.expires <= addDays(today, 7),
+          memberPlans(m).some(
+            (x) =>
+              x.status === "active" &&
+              x.expires >= today &&
+              x.expires <= addDays(today, 7),
+          ),
       ) ?? [],
     members =
       data?.members.filter((m) =>
-        [m.name, m.dni, m.plan_name]
+        [m.name, m.dni, ...memberPlans(m).map((x) => x.plan_name)]
           .join(" ")
           .toLowerCase()
           .includes(search.toLowerCase()),
@@ -499,78 +535,85 @@ export default function ClubDashboard() {
                 <div className="panel">
                   <h2>El día a día</h2>
                   <div className="quick-actions">
-                  <button
-                    className="quick-action"
-                    style={{ width: "100%", textAlign: "left" }}
-                    onClick={() => open("member")}
-                  >
-                    <div>
-                      <h3>Sumar un socio</h3>
-                      <p>Datos, plan y vencimiento.</p>
-                    </div>
-                    <Users size={22} />
-                  </button>
-                  <button
-                    className="quick-action"
-                    style={{ width: "100%", textAlign: "left" }}
-                    onClick={() => open("payment")}
-                  >
-                    <div>
-                      <h3>Registrar un cobro</h3>
-                      <p>La cuota se renueva automáticamente.</p>
-                    </div>
-                    <CreditCard size={22} />
-                  </button>
-                  {data.role === "owner" && (
-                    <Link href="/reportes" className="quick-action">
+                    <button
+                      className="quick-action"
+                      style={{ width: "100%", textAlign: "left" }}
+                      onClick={() => open("member")}
+                    >
                       <div>
-                        <h3>Informes de administración</h3>
+                        <h3>Sumar un socio</h3>
+                        <p>Datos, plan y vencimiento.</p>
+                      </div>
+                      <Users size={22} />
+                    </button>
+                    <button
+                      className="quick-action"
+                      style={{ width: "100%", textAlign: "left" }}
+                      onClick={() => open("payment")}
+                    >
+                      <div>
+                        <h3>Registrar un cobro</h3>
+                        <p>La cuota se renueva automáticamente.</p>
+                      </div>
+                      <CreditCard size={22} />
+                    </button>
+                    {data.role === "owner" && (
+                      <Link href="/reportes" className="quick-action">
+                        <div>
+                          <h3>Informes de administración</h3>
+                          <p>
+                            Cobros por período, vencimientos y saldos de pádel.
+                          </p>
+                        </div>
+                        <BarChart3 size={22} />
+                      </Link>
+                    )}
+                    {data.role === "owner" && (
+                      <Link href="/configuracion" className="quick-action">
+                        <div>
+                          <h3>Configuración del club</h3>
+                          <p>Reglas de pádel, cuenta y terminal de ingreso.</p>
+                        </div>
+                        <Settings size={22} />
+                      </Link>
+                    )}
+                    <Link
+                      href="/ingreso"
+                      className="quick-action"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      <div>
+                        <h3>Abrir terminal de ingreso</h3>
                         <p>
-                          Cobros por período, vencimientos y saldos de pádel.
+                          Validación por DNI en otra pestaña, con tu sesión.
                         </p>
                       </div>
-                      <BarChart3 size={22} />
+                      <ScanLine size={22} />
                     </Link>
-                  )}
-                  {data.role === "owner" && (
-                    <Link href="/configuracion" className="quick-action">
+                    <Link href="/reservas" className="quick-action">
                       <div>
-                        <h3>Configuración del club</h3>
-                        <p>Reglas de pádel, cuenta y terminal de ingreso.</p>
+                        <h3>Ver la agenda de pádel</h3>
+                        <p>Cuatro canchas y turnos fijos.</p>
                       </div>
-                      <Settings size={22} />
+                      <CalendarDays size={22} />
                     </Link>
-                  )}
-                  <Link href="/ingreso" className="quick-action" target="_blank" rel="noopener noreferrer">
-                    <div>
-                      <h3>Abrir terminal de ingreso</h3>
-                      <p>Validación por DNI en otra pestaña, con tu sesión.</p>
-                    </div>
-                    <ScanLine size={22} />
-                  </Link>
-                  <Link href="/reservas" className="quick-action">
-                    <div>
-                      <h3>Ver la agenda de pádel</h3>
-                      <p>Cuatro canchas y turnos fijos.</p>
-                    </div>
-                    <CalendarDays size={22} />
-                  </Link>
-                  <Link href="/equipo" className="quick-action">
-                    <div>
-                      <h3>Equipo y permisos</h3>
-                      <p>Cuentas y permisos del personal.</p>
-                    </div>
-                    <ShieldCheck size={22} />
-                  </Link>
-                  {data.role === "owner" && (
-                    <Link href="/datos" className="quick-action">
+                    <Link href="/equipo" className="quick-action">
                       <div>
-                        <h3>Importación y respaldos</h3>
-                        <p>Importá socios y guardá copias de los datos.</p>
+                        <h3>Equipo y permisos</h3>
+                        <p>Cuentas y permisos del personal.</p>
                       </div>
-                      <Database size={22} />
+                      <ShieldCheck size={22} />
                     </Link>
-                  )}
+                    {data.role === "owner" && (
+                      <Link href="/datos" className="quick-action">
+                        <div>
+                          <h3>Importación y respaldos</h3>
+                          <p>Importá socios y guardá copias de los datos.</p>
+                        </div>
+                        <Database size={22} />
+                      </Link>
+                    )}
                   </div>
                 </div>
                 <div className="panel">
@@ -581,7 +624,12 @@ export default function ClubDashboard() {
                         <strong>{m.name}</strong>
                         <br />
                         <small>
-                          {m.plan_name} · {dateLabel(m.expires)}
+                          {memberPlans(m)
+                            .filter((x) => x.expires <= addDays(today, 7))
+                            .map(
+                              (x) => `${x.plan_name} · ${dateLabel(x.expires)}`,
+                            )
+                            .join(" / ")}
                         </small>
                       </div>
                       <button
@@ -662,28 +710,76 @@ export default function ClubDashboard() {
                           <br />
                           <span className="muted">DNI {m.dni}</span>
                         </TableCell>
-                        <TableCell>{m.plan_name}</TableCell>
-                        <TableCell>{dateLabel(m.expires)}</TableCell>
+                        <TableCell>
+                          <div className="membership-pills">
+                            <span
+                              title={`Plan principal · hasta ${dateLabel(m.expires)}`}
+                            >
+                              {m.plan_name}
+                            </span>
+                            {(data.memberships ?? [])
+                              .filter((x) => x.member_id === m.id)
+                              .map((x) => (
+                                <span
+                                  key={x.id}
+                                  className={
+                                    x.status === "paused" || x.expires < today
+                                      ? "is-inactive"
+                                      : ""
+                                  }
+                                  title={`${x.status === "paused" ? "Pausada" : x.expires < today ? "Vencida" : "Activa"} · hasta ${dateLabel(x.expires)}`}
+                                >
+                                  {x.plan_name}
+                                </span>
+                              ))}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          {memberPlans(m).map((x, i) => (
+                            <div key={i}>
+                              <small>
+                                {x.plan_name}: {dateLabel(x.expires)}
+                                {x.status === "paused" ? " · pausada" : ""}
+                              </small>
+                            </div>
+                          ))}
+                        </TableCell>
                         <TableCell>
                           <span
                             className={
                               "status " +
                               (m.status === "paused"
                                 ? "warn"
-                                : m.expires < today
+                                : !memberPlans(m).some(
+                                      (x) =>
+                                        x.status === "active" &&
+                                        x.expires >= today,
+                                    )
                                   ? "bad"
                                   : "")
                             }
                           >
                             {m.status === "paused"
                               ? "Pausado"
-                              : m.expires < today
+                              : !memberPlans(m).some(
+                                    (x) =>
+                                      x.status === "active" &&
+                                      x.expires >= today,
+                                  )
                                 ? "Vencido"
                                 : "Vigente"}
                           </span>
                         </TableCell>
                         <TableCell>
                           <div className="row-actions">
+                            <button
+                              className="icon-button"
+                              title="Membresías"
+                              aria-label={`Membresías de ${m.name}`}
+                              onClick={() => open("memberships", m)}
+                            >
+                              <Plus size={16} />
+                            </button>
                             <button
                               title="Editar socio"
                               aria-label={`Editar a ${m.name}`}
@@ -845,21 +941,20 @@ export default function ClubDashboard() {
                     <div>
                       <strong>{p.name}</strong>
                       <br />
-                      <small>{p.days} días de vigencia por cobro</small>
+                      <small>
+                        {p.days} días ·{" "}
+                        {p.access_scope === "pilates"
+                          ? "Solo Pilates"
+                          : p.access_scope === "all"
+                            ? "Gimnasio y Pilates"
+                            : "Solo gimnasios"}
+                      </small>
                     </div>
                     <div>
                       <strong>{money(p.price)}</strong>{" "}
-                      <button
-                        disabled={data.role !== "owner"}
-                        className="button small"
-                        aria-label={`Actualizar precio de ${p.name}`}
-                        onClick={() => {
-                          setPricePlan(p);
-                          open("price");
-                        }}
-                      >
-                        Actualizar precio
-                      </button>
+                      <Link className="button small" href="/tarifas">
+                        Editar tarifa
+                      </Link>
                     </div>
                   </div>
                 ))}
@@ -937,6 +1032,7 @@ export default function ClubDashboard() {
         }}
         title={
           {
+            memberships: "Membresías del socio",
             member: selected ? "Editar socio" : "Nuevo socio",
             payment: "Registrar cobro",
             plan: "Crear plan",
@@ -952,6 +1048,14 @@ export default function ClubDashboard() {
         }
       >
         <ErrorNotice error={error} />
+        {data && selected && modal === "memberships" && (
+          <MemberMemberships
+            member={selected}
+            data={data}
+            busy={busy}
+            submit={submit}
+          />
+        )}
         {data && modal === "member" && (
           <MemberForm
             member={selected}
@@ -1074,7 +1178,7 @@ function MemberForm({
             onChange={(e) => setExpires(e.target.value)}
           />
         </Field>
-        <Field label="Estado">
+        <Field label="Estado del socio (pausa todos sus accesos)">
           <SelectField value={status} onChange={setStatus}>
             <Option value="active">Activo</Option>
             <Option value="paused">Pausado</Option>
@@ -1100,9 +1204,14 @@ function PaymentForm({
 }) {
   const [memberId, setMember] = useState(member?.id ?? ""),
     [method, setMethod] = useState("Efectivo"),
+    [membershipId, setMembership] = useState(""),
     [venue, setVenue] = useState(""),
     [requestKey] = useState(() => requestId());
   const m = data.members.find((m) => m.id === memberId);
+  const extra = (data.memberships ?? []).filter(
+    (x) => x.member_id === memberId,
+  );
+  const chosen = extra.find((x) => x.id === membershipId) ?? m;
   return (
     <form
       onSubmit={(e) => {
@@ -1111,15 +1220,23 @@ function PaymentForm({
           action: "payment",
           venue,
           memberId,
+          membershipId: membershipId || undefined,
           method,
-          expectedPrice: m?.price,
+          expectedPrice: chosen?.price,
           requestKey,
         });
       }}
     >
       <div className="form-grid">
         <Field label="Socio" full>
-          <SelectField value={memberId} onChange={setMember} required>
+          <SelectField
+            value={memberId}
+            onChange={(v) => {
+              setMember(v);
+              setMembership("");
+            }}
+            required
+          >
             <Option value="">Elegí un socio</Option>
             {data.members.map((m) => (
               <Option key={m.id} value={m.id}>
@@ -1128,6 +1245,20 @@ function PaymentForm({
             ))}
           </SelectField>
         </Field>
+        {m && (
+          <Field label="Membresía a renovar" full>
+            <SelectField value={membershipId} onChange={setMembership}>
+              <Option value="">
+                {m.plan_name} · {money(m.price)}
+              </Option>
+              {extra.map((x) => (
+                <Option value={x.id} key={x.id}>
+                  {x.plan_name} · {money(x.price)}
+                </Option>
+              ))}
+            </SelectField>
+          </Field>
+        )}
         <Field label="Sede donde se cobra" full>
           <SelectField value={venue} onChange={setVenue} required>
             <Option value="">Elegí una sede</Option>
@@ -1146,18 +1277,18 @@ function PaymentForm({
           </SelectField>
         </Field>
       </div>
-      {m && (
+      {chosen && (
         <div className="notice" style={{ marginTop: 20 }}>
-          <strong>{money(m.price)}</strong> · {m.plan_name}
+          <strong>{money(chosen.price)}</strong> · {chosen.plan_name}
           <br />
           Nuevo vencimiento:{" "}
           {dateLabel(
             addDays(
-              m.expires > data.today ? m.expires : data.today,
-              data.plans.find((p) => p.id === m.plan_id)?.days ?? 30,
+              chosen.expires > data.today ? chosen.expires : data.today,
+              data.plans.find((p) => p.id === chosen.plan_id)?.days ?? 30,
             ),
           )}
-          {m.status === "paused" && (
+          {(m?.status === "paused" || chosen.status === "paused") && (
             <p>
               El socio seguirá pausado. Activá su membresía desde Editar socio
               cuando corresponda.
@@ -1180,13 +1311,15 @@ function PlanForm({
 }) {
   const [name, setName] = useState(""),
     [price, setPrice] = useState(""),
-    [days, setDays] = useState("30");
+    [days, setDays] = useState("30"),
+    [accessScope, setAccessScope] = useState("gym");
   return (
     <form
       onSubmit={(e) => {
         e.preventDefault();
         submit({
           action: "plan",
+          accessScope,
           name,
           price: Number(price),
           days: Number(days),
@@ -1194,6 +1327,13 @@ function PlanForm({
       }}
     >
       <div className="form-grid">
+        <Field label="Acceso incluido" full>
+          <SelectField value={accessScope} onChange={setAccessScope}>
+            <option value="gym">Gimnasios (sin Pilates)</option>
+            <option value="pilates">Solo Pilates</option>
+            <option value="all">Gimnasios y Pilates</option>
+          </SelectField>
+        </Field>
         <Field label="Nombre del plan" full>
           <input
             required

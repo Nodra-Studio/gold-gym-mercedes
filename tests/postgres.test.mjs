@@ -10,15 +10,15 @@ import { createRequire } from 'node:module';
 const folder = mkdtempSync(join(tmpdir(), 'gold-postgres-')), require = createRequire(import.meta.url);
 function compile(file, name, replacements = []) {
   let source = readFileSync(file, 'utf8');
-  const pairs = [...replacements, ['@club/runtime', './runtime.mjs'], ['@/app/chatgpt-auth', './runtime.mjs'], ['@/lib/server', './server.mjs'], ['@/lib/club', './club.mjs'], ['@/lib/backup', './backup.mjs'], ['@/lib/padel-settings', './padel-settings.mjs'], ['@/lib/csv', './csv.mjs'], ['@/lib/branches','./branches.mjs']];
+  const pairs = [...replacements, ['@club/runtime', './runtime.mjs'], ['@/app/chatgpt-auth', './runtime.mjs'], ['@/lib/server', './server.mjs'], ['@/lib/club', './club.mjs'], ['@/lib/backup', './backup.mjs'], ['@/lib/padel-settings', './padel-settings.mjs'], ['@/lib/csv', './csv.mjs'], ['@/lib/branches','./branches.mjs'], ['@/lib/public-padel','./public-padel.mjs']];
   for (const [from, to] of pairs) source = source.replaceAll(from, to);
   source = source.replaceAll("'zod'", '"zod"').replaceAll('"zod"', JSON.stringify(pathToFileURL(require.resolve('zod')).href));
   writeFileSync(join(folder, name + '.mjs'), ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.ES2022, target: ts.ScriptTarget.ES2022 } }).outputText);
 }
 writeFileSync(join(folder, 'runtime.mjs'), `export const env={}; export const supportsSitesIdentity=false; export let user=null; export let owner='owner-a'; export const setUser=x=>user=x; export const setOwner=x=>owner=x; export async function independentUserId(){return user}; export function ownerAccount(id){return id===owner}; export async function getChatGPTUser(){throw Error('Untrusted Sites identity used')}`);
 for (const [file, name, replacements] of [
-  ['lib/branches.ts','branches'], ['lib/server.ts','server'], ['lib/club.ts','club'], ['lib/backup.ts','backup',[['./club','./club.mjs']]], ['lib/padel-settings.ts','padel-settings'], ['lib/csv.ts','csv'], ['lib/postgres/adapter.ts','adapter'], ['lib/auth/config.ts','auth-config'],
-  ...['club','team','player','settings','booking-payments','reports','export','backup','cash'].map(x=>[`app/api/${x}/route.ts`, x+'-api']),
+  ['lib/public-padel.ts','public-padel'], ['lib/branches.ts','branches'], ['lib/server.ts','server'], ['lib/club.ts','club'], ['lib/backup.ts','backup',[['./club','./club.mjs']]], ['lib/padel-settings.ts','padel-settings'], ['lib/csv.ts','csv'], ['lib/postgres/adapter.ts','adapter'], ['lib/auth/config.ts','auth-config'],
+  ...['tariffs','public-prices','public-padel','padel-requests','club','team','player','settings','booking-payments','reports','export','backup','cash'].map(x=>[`app/api/${x}/route.ts`, x+'-api']),
 ]) compile(file, name, replacements);
 const load = name => import(pathToFileURL(join(folder, name+'.mjs')));
 const runtime = await load('runtime'), { createDatabase, postgresQuery } = await load('adapter');
@@ -61,7 +61,7 @@ try {
     await t.test('SQL placeholders preserve literals and parameters', ()=>assert.equal(postgresQuery("SELECT '?' as literal, ? as value"), "SELECT '?' as literal, $1 as value"));
     await t.test('Schema denies Data API roles and isolates club rows', async()=>{
       await assert.rejects(pg.transaction(async tx=>{await tx.exec('SET LOCAL ROLE anon');await tx.query('SELECT * FROM club.members')}));
-      await assert.rejects(runtime.env.DB.prepare('INSERT INTO plans VALUES(?,?,?,?,?)').bind(key(),'other-owner','Blocked',1,30).run());
+      await assert.rejects(runtime.env.DB.prepare('INSERT INTO plans(id,owner,name,price,days) VALUES(?,?,?,?,?)').bind(key(),'other-owner','Blocked',1,30).run());
       assert.equal((await runtime.env.DB.prepare('SELECT * FROM plans WHERE owner=?').bind('other-owner').all()).results.length,0);
     });
     await t.test('Seed loads valid PostgreSQL records once',async()=>{
@@ -70,6 +70,93 @@ try {
       assert.equal((await post(api,{action:'seed'})).status,409);
     });
     const data=await get(), member=data.members.find(m=>m.dni==='99000001');
+    await t.test('Pilates and gym access are enforced by the server',async()=>{
+      const m=data.members.find(m=>m.dni==='99000003');
+      await runtime.env.DB.prepare("UPDATE members SET status='active' WHERE id=?").bind(m.id).run();
+      assert.equal((await post(api,{action:'access',dni:m.dni,venue:'Calle 30'})).allowed,false);
+      assert.equal((await post(api,{action:'access',dni:m.dni,venue:'Pilates'})).allowed,true);
+      assert.equal((await post(api,{action:'access',dni:member.dni,venue:'Pilates'})).allowed,false);
+      assert.equal((await post(api,{action:'access',dni:member.dni})).status,400);
+      await runtime.env.DB.prepare("UPDATE members SET status='paused' WHERE id=?").bind(m.id).run();
+    });
+    await t.test('Public requests keep receipts private and require atomic staff confirmation',async()=>{
+      const pub=await load('public-padel-api'),review=await load('padel-requests-api');
+      const {localDay,addDays}=await load('club');clubOwner='public-owner';runtime.setOwner('public-owner');process.env.GOLD_GYM_OWNER_ID='public-owner';
+      await runtime.env.DB.prepare('INSERT INTO settings(owner,padel_price,booking_days,cancel_hours) VALUES(?,?,?,?)').bind('public-owner',24000,30,24).run();
+      await runtime.env.DB.prepare('UPDATE settings SET price_published=1 WHERE owner=?').bind('public-owner').run();
+      const payload={day:addDays(localDay(),5),court:1,start:480,name:'Jugador Prueba',phone:'5492324000000',expectedPrice:24000,requestKey:key()};
+      runtime.setUser(null);
+      const availability=await get(pub,'?day='+payload.day);assert.equal(availability.status,200);assert.equal('mine' in availability,false);
+      const requested=await post(pub,payload);assert.equal(requested.status,201,JSON.stringify(requested));
+      assert.equal((await post(pub,payload)).id,requested.id);
+      assert.equal((await get(review)).status,401);
+      assert.equal((await post(review,{id:requested.id,action:'confirm',deposit:12000})).status,401);
+      assert.equal((await post(pub,{...payload,requestKey:key(),start:570,receipt:Buffer.from('<script>bad</script>').toString('base64'),receiptType:'image/png'})).status,400);
+      runtime.setUser('public-owner');
+      assert.equal((await get(review)).requests[0].amount,24000);
+      assert.equal('receipt' in (await get(review)).requests[0],false);
+      assert.equal((await post(review,{id:requested.id,action:'confirm',deposit:24001})).status,400);
+      assert.equal((await post(review,{id:requested.id,action:'confirm',deposit:12000})).status,200);
+      assert.equal((await post(review,{id:requested.id,action:'confirm',deposit:12000})).status,409);
+      const b=(await get()).bookings.find(b=>b.request_key==='public:'+requested.id);
+      assert.ok(b);assert.equal(b.deposit,12000);
+      const ledger=await runtime.env.DB.prepare('SELECT * FROM booking_payments WHERE booking_id=?').bind(b.id).all();assert.equal(ledger.results.length,1);
+      runtime.setUser(null);assert.equal((await post(pub,{...payload,requestKey:key()})).status,409);
+      // Competing customer requests may coexist; only one confirmed booking can occupy a slot.
+      const a=await post(pub,{...payload,start:570,requestKey:key(),receipt:'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jXioAAAAASUVORK5CYII=',receiptType:'image/png'});
+      const c=await post(pub,{...payload,start:570,phone:'5492324000001',requestKey:key()});
+      assert.equal(a.status,201);assert.equal(c.status,201);
+      runtime.setUser('public-owner');
+      assert.equal((await post(review,{id:a.id,action:'confirm',deposit:0})).status,200);
+      assert.equal((await post(review,{id:c.id,action:'confirm',deposit:0})).status,409);
+      assert.equal((await post(review,{id:c.id,action:'reject',deposit:0})).status,200);
+      const protectedDownload=await review.GET(new Request('https://test.local/api/test?receipt='+a.id));assert.equal(protectedDownload.status,200);assert.equal(protectedDownload.headers.get('content-type'),'image/png');assert.match(protectedDownload.headers.get('content-disposition'),/attachment/);
+      runtime.setUser(null);assert.equal((await review.GET(new Request('https://test.local/api/test?receipt='+a.id))).status,401);runtime.setUser('public-owner');
+      const saved=await get(exporter);assert.equal(saved.records.booking_requests.length,3);const {validateBackup}=await load('backup');assert.equal(validateBackup(Object.fromEntries(Object.entries(saved).filter(([k])=>k!=='status'))).records.booking_requests.length,3);
+      delete process.env.GOLD_GYM_OWNER_ID;clubOwner='owner-a';runtime.setOwner('owner-a');runtime.setUser('owner-a');
+    });
+    await t.test('Central tariffs preserve quotes and independent memberships enforce activity access',async()=>{
+      const tariffs=await load('tariffs-api'),pubPrices=await load('public-prices-api'),pub=await load('public-padel-api');
+      const {localDay,addDays}=await load('club');
+      clubOwner='tariff-owner';runtime.setOwner(clubOwner);runtime.setUser(clubOwner);process.env.GOLD_GYM_OWNER_ID=clubOwner;
+      try {
+        assert.equal((await post(api,{action:'seed'})).status,200);
+        const d=await get(),m=d.members[0],gym=d.plans.find(x=>x.access_scope==='gym'),pilates=d.plans.find(x=>x.access_scope==='pilates');
+        assert.equal((await get(pubPrices)).plans.length,0);
+        const plan={kind:'plan',id:gym.id,price:42000,published:true,accessScope:'gym',expectedPrice:gym.price,expectedPublished:0,expectedScope:'gym'};
+        assert.equal((await post(tariffs,plan)).status,200);
+        assert.equal((await post(tariffs,plan)).status,409);
+        assert.equal((await get(pubPrices)).plans[0].price,42000);
+        const padel={kind:'padel',price:30000,depositPercent:50,alias:'club.prueba',whatsapp:'5492324000000',expectedRevision:0};
+        const saved=await post(tariffs,padel);assert.equal(saved.status,200,JSON.stringify(saved));
+        const future=addDays(localDay(),5),request={day:future,court:4,start:480,name:'Prueba Tarifas',phone:'5492324000002',expectedPrice:30000,expectedRevision:1,requestKey:key()};
+        runtime.setUser(null);const quote=await post(pub,request);assert.equal(quote.status,201,JSON.stringify(quote));assert.equal(quote.deposit_expected,15000);
+        assert.equal((await get(tariffs)).status,401);
+        runtime.setUser(clubOwner);
+        assert.equal((await post(tariffs,{...padel,price:35000,expectedRevision:1})).status,200);
+        assert.equal((await post(pub,{...request,requestKey:key(),start:570})).status,409);
+        const historic=await runtime.env.DB.prepare('SELECT amount,deposit_expected FROM booking_requests WHERE id=?').bind(quote.id).first();assert.equal(historic.amount,30000);assert.equal(historic.deposit_expected,15000);
+        await runtime.env.DB.prepare("UPDATE members SET plan_id=?,expires=?,status='active' WHERE id=?").bind(gym.id,addDays(localDay(),-1),m.id).run();
+        const added=await post(api,{action:'membership',memberId:m.id,planId:pilates.id,expires:future,status:'active'});assert.equal(added.status,200,JSON.stringify(added));
+        const mm=(await get()).memberships.find(x=>x.member_id===m.id);
+        assert.ok(mm);assert.equal((await post(api,{action:'access',dni:m.dni,venue:'Pilates'})).allowed,true);assert.equal((await post(api,{action:'access',dni:m.dni,venue:'Calle 30'})).allowed,false);
+        const payment={action:'payment',venue:'pilates',memberId:m.id,membershipId:mm.id,expectedPrice:pilates.price,method:'Efectivo',requestKey:key()};
+        assert.equal((await post(api,payment)).status,200);assert.equal((await post(api,payment)).replayed,true);
+        assert.equal((await post(api,{...payment,membershipId:undefined})).status,409);
+        const renewed=await get();assert.equal(renewed.members.find(x=>x.id===m.id).expires,addDays(localDay(),-1));assert.ok(renewed.memberships[0].expires>future);
+        assert.equal((await post(api,{action:'session',name:'Pilates prueba',day:future,time:'12:00',capacity:3,venue:'Pilates'})).status,200);
+        const session=(await get()).sessions.find(x=>x.name==='Pilates prueba');assert.equal((await post(api,{action:'enroll',sessionId:session.id,memberId:m.id})).status,200);
+        await runtime.env.DB.prepare("UPDATE members SET status='paused' WHERE id=?").bind(m.id).run();assert.equal((await post(api,{action:'access',dni:m.dni,venue:'Pilates'})).allowed,false);
+        assert.equal((await post(team,{userId:'tariff-reception',name:'Recepción',role:'reception',status:'active'})).status,200);runtime.setUser('tariff-reception');
+        assert.equal((await post(tariffs,{...plan,price:45000,expectedPrice:42000,expectedPublished:1})).status,200);
+        assert.equal((await post(tariffs,{...plan,accessScope:'all',expectedPrice:45000,expectedPublished:1})).status,403);
+        runtime.setUser(clubOwner);const snapshot=await get(exporter);const {validateBackup}=await load('backup');const valid=validateBackup(Object.fromEntries(Object.entries(snapshot).filter(([k])=>k!=='status')));assert.equal(valid.records.member_memberships.length,1);assert.equal(valid.records.payments[0].membership_id,mm.id);
+        clubOwner='tariff-restored';runtime.setOwner(clubOwner);runtime.setUser(clubOwner);
+        const restore=await post(backup,{action:'restore',requestKey:key(),backup:valid});assert.equal(restore.status,200,JSON.stringify(restore));
+        const restored=await get();assert.equal(restored.memberships.length,1);assert.equal(restored.payments[0].membership_id,restored.memberships[0].id);assert.equal((await get(tariffs)).padel.padel_price,35000);
+
+      } finally {delete process.env.GOLD_GYM_OWNER_ID;clubOwner='owner-a';runtime.setOwner('owner-a');runtime.setUser('owner-a');}
+    });
     await t.test('Payments renew dates atomically and retries do not duplicate',async()=>{
       const payload={action:'payment',venue:'calle30',memberId:member.id,expectedPrice:30000,method:'Efectivo',requestKey:key()};
       const r=await post(api,payload);assert.equal(r.status,200,JSON.stringify(r));assert.equal((await post(api,payload)).replayed,true);
@@ -77,8 +164,8 @@ try {
     });
     await t.test('Batch failure rolls back earlier writes',async()=>{
       const id=key();await assert.rejects(runtime.env.DB.batch([
-        runtime.env.DB.prepare('INSERT INTO plans VALUES(?,?,?,?,?)').bind(id,clubOwner,'Rollback',1,30),
-        runtime.env.DB.prepare('INSERT INTO plans VALUES(?,?,?,?,?)').bind(id,clubOwner,'Duplicate',1,30),
+        runtime.env.DB.prepare('INSERT INTO plans(id,owner,name,price,days) VALUES(?,?,?,?,?)').bind(id,clubOwner,'Rollback',1,30),
+        runtime.env.DB.prepare('INSERT INTO plans(id,owner,name,price,days) VALUES(?,?,?,?,?)').bind(id,clubOwner,'Duplicate',1,30),
       ]));assert.equal(await runtime.env.DB.prepare('SELECT * FROM plans WHERE id=?').bind(id).first(),null);
     });
     await t.test('Owner grants, restricts and revokes staff access',async()=>{
@@ -201,7 +288,7 @@ try {
     });
     let snapshot;
     await t.test('JSON backup retains numeric fields and relations',async()=>{
-      const response=await exporter.GET();assert.equal(response.status,200);snapshot=await response.json();assert.equal(snapshot.schemaVersion,4);
+      const response=await exporter.GET();assert.equal(response.status,200);snapshot=await response.json();assert.equal(snapshot.schemaVersion,6);
       assert.equal(snapshot.records.booking_payments.length,2);
     });
     await t.test('Backup rejects incomplete transfers and invalid product history',async()=>{

@@ -1,3 +1,4 @@
+import PublicPrices from "@/components/public-prices";
 import { BrandIcon } from "@/components/brand-icon";
 import { ArrowUpRight } from "lucide-react";
 import { SiteHeader } from "@/components/site-header";
@@ -109,6 +110,7 @@ export default function Club() {
             </details>
           </div>
         </section>
+        <PublicPrices section="gym" />
       </main>
       <SiteFooter />
       <ScrollReveal />

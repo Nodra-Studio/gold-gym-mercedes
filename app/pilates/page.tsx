@@ -1,3 +1,4 @@
+import PublicPrices from "@/components/public-prices";
 import { BrandIcon } from "@/components/brand-icon";
 import type { Metadata } from "next";
 import {
@@ -263,6 +264,7 @@ export default function Pilates() {
           </a>
           <p className="muted">Te contamos horarios y planes disponibles.</p>
         </section>
+        <PublicPrices section="pilates" />
       </main>
       <SiteFooter />
       <ScrollReveal />

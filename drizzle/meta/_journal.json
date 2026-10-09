@@ -57,6 +57,20 @@
       "when": 1791379800000,
       "tag": "0007_inventory_transfers_product_edits",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "6",
+      "when": 1791471630000,
+      "tag": "0008_public_booking_plan_scope",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "6",
+      "when": 1791487403000,
+      "tag": "0009_central_tariffs_memberships",
+      "breakpoints": true
     }
   ]
 }

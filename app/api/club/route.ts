@@ -7,6 +7,7 @@ import {
   slots,
   isValidDay,
   accessDecision,
+  accessForMemberships,
 } from "@/lib/club";
 export const dynamic = "force-dynamic";
 const id = z.string().min(1).max(150),
@@ -19,9 +20,20 @@ const id = z.string().min(1).max(150),
     .regex(/^[+\d\s()-]*$/, "Teléfono inválido"),
   key = z.string().uuid();
 const schema = z.discriminatedUnion("action", [
+  z.object({
+    action: z.literal("membership"),
+    memberId: id,
+    planId: id,
+    expires: day,
+    status: z.enum(["active", "paused"]),
+    id: id.optional(),
+    expectedExpires: day.optional(),
+    expectedStatus: z.enum(["active", "paused"]).optional(),
+  }),
   z.object({ action: z.literal("seed") }),
   z.object({
     action: z.literal("plan"),
+    accessScope: z.enum(["gym", "pilates", "all"]).optional(),
     name,
     price: z.number().int().min(0).max(10000000),
     days: z.number().int().min(1).max(366),
@@ -40,7 +52,16 @@ const schema = z.discriminatedUnion("action", [
   }),
   z.object({
     action: z.literal("member"),
-    original: z.object({ name: z.string(), dni: z.string(), phone: z.string(), plan_id: z.string(), status: z.string(), expires: z.string() }).optional(),
+    original: z
+      .object({
+        name: z.string(),
+        dni: z.string(),
+        phone: z.string(),
+        plan_id: z.string(),
+        status: z.string(),
+        expires: z.string(),
+      })
+      .optional(),
     id: id.optional(),
     name,
     dni: z.string().regex(/^\d{7,8}$/, "El DNI debe tener 7 u 8 números"),
@@ -51,6 +72,7 @@ const schema = z.discriminatedUnion("action", [
   }),
   z.object({
     action: z.literal("payment"),
+    membershipId: id.optional(),
     venue: z.enum(["calle30", "calle23", "velez", "pilates"]),
     memberId: id,
     method: z.enum(["Efectivo", "Transferencia", "Tarjeta"]),
@@ -60,7 +82,19 @@ const schema = z.discriminatedUnion("action", [
   z.object({
     action: z.literal("access"),
     dni: z.string().regex(/^\d{7,8}$/, "Ingresá 7 u 8 números"),
-    venue: z.enum(["Calle 30", "Calle 23", "Club Unión", "Pilates", "Unión Gold Club", "Club Vélez"]).transform(v => ["Club Vélez", "Unión Gold Club"].includes(v) ? "Club Unión" : v).optional(),
+    venue: z
+      .enum([
+        "Calle 30",
+        "Calle 23",
+        "Club Unión",
+        "Pilates",
+        "Unión Gold Club",
+        "Club Vélez",
+      ])
+      .transform((v) =>
+        ["Club Vélez", "Unión Gold Club"].includes(v) ? "Club Unión" : v,
+      )
+      .optional(),
   }),
   z.object({
     action: z.literal("booking"),
@@ -83,7 +117,18 @@ const schema = z.discriminatedUnion("action", [
     day,
     time: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/),
     capacity: z.number().int().min(1).max(100),
-    venue: z.enum(["Calle 30", "Calle 23", "Club Unión", "Pilates", "Unión Gold Club", "Club Vélez"]).transform(v => ["Club Vélez", "Unión Gold Club"].includes(v) ? "Club Unión" : v),
+    venue: z
+      .enum([
+        "Calle 30",
+        "Calle 23",
+        "Club Unión",
+        "Pilates",
+        "Unión Gold Club",
+        "Club Vélez",
+      ])
+      .transform((v) =>
+        ["Club Vélez", "Unión Gold Club"].includes(v) ? "Club Unión" : v,
+      ),
   }),
   z.object({ action: z.literal("enroll"), sessionId: id, memberId: id }),
   z.object({ action: z.literal("cancelEnrollment"), id }),
@@ -128,14 +173,15 @@ export async function GET() {
     const owner = context.owner,
       db = database();
     const queries = [
-      "SELECT id,name,price,days FROM plans WHERE owner=? ORDER BY name",
-      "SELECT m.*,p.name as plan_name,p.price FROM members m JOIN plans p ON p.id=m.plan_id AND p.owner=m.owner WHERE m.owner=? ORDER BY m.name",
+      "SELECT id,name,price,days,access_scope FROM plans WHERE owner=? ORDER BY name",
+      "SELECT m.*,p.name as plan_name,p.price,p.access_scope FROM members m JOIN plans p ON p.id=m.plan_id AND p.owner=m.owner WHERE m.owner=? ORDER BY m.name",
       "SELECT p.*,m.name FROM payments p JOIN members m ON m.id=p.member_id AND m.owner=p.owner WHERE p.owner=? ORDER BY p.created_at DESC LIMIT 500",
       "SELECT * FROM accesses WHERE owner=? ORDER BY created_at DESC LIMIT 100",
       "SELECT * FROM bookings WHERE owner=? ORDER BY day,start",
       "SELECT s.*,(SELECT count(*) FROM enrollments e WHERE e.session_id=s.id) as enrolled FROM sessions s WHERE s.owner=? ORDER BY s.day,s.time",
       "SELECT e.*,m.name FROM enrollments e JOIN members m ON m.id=e.member_id AND m.owner=e.owner WHERE e.owner=?",
       "SELECT * FROM audit WHERE owner=? ORDER BY created_at DESC LIMIT 100",
+      "SELECT mm.*,p.name AS plan_name,p.price,p.days,p.access_scope FROM member_memberships mm JOIN plans p ON p.id=mm.plan_id AND p.owner=mm.owner WHERE mm.owner=? ORDER BY p.name",
     ];
     const r = await db.batch(queries.map((q) => db.prepare(q).bind(owner)));
     return reply(
@@ -149,6 +195,7 @@ export async function GET() {
           "sessions",
           "enrollments",
           "audit",
+          "memberships",
         ].map((k, i) => [k, r[i].results]),
         ["today", localDay()],
         ["role", context.role],
@@ -216,9 +263,16 @@ export async function POST(req: Request) {
         const stmts = plans.map(([i, n, p, d]) =>
           db
             .prepare(
-              "INSERT INTO plans (id,owner,name,price,days) VALUES (?,?,?,?,?)",
+              "INSERT INTO plans (id,owner,name,price,days,access_scope) VALUES (?,?,?,?,?,?)",
             )
-            .bind(prefix + i, owner, n, p, d),
+            .bind(
+              prefix + i,
+              owner,
+              n,
+              p,
+              d,
+              i === "pilates" ? "pilates" : "gym",
+            ),
         );
         const people = [
           ["Ana Demo", "99000001", "free", 20, "active"],
@@ -296,7 +350,7 @@ export async function POST(req: Request) {
         await db.batch([
           db
             .prepare(
-              "INSERT INTO plans (id,owner,name,price,days) VALUES (?,?,?,?,?)",
+              "INSERT INTO plans (id,owner,name,price,days,access_scope) VALUES (?,?,?,?,?,?)",
             )
             .bind(
               crypto.randomUUID(),
@@ -304,6 +358,8 @@ export async function POST(req: Request) {
               input.name,
               input.price,
               input.days,
+              input.accessScope ??
+                (/pilates/i.test(input.name) ? "pilates" : "gym"),
             ),
           log("Plan creado", input.name),
         ]);
@@ -389,23 +445,147 @@ export async function POST(req: Request) {
           );
         break;
       }
+      case "membership": {
+        const m = await owned("members", input.memberId);
+        await owned("plans", input.planId);
+        if (m.plan_id === input.planId)
+          throw new ClubError(
+            "Ese es el plan principal. Editalo desde la ficha del socio.",
+          );
+        const ident = input.id ?? crypto.randomUUID(),
+          audit = crypto.randomUUID();
+        if (input.id) {
+          if (!input.expectedExpires || !input.expectedStatus)
+            throw new ClubError(
+              "Actualizá la membresía antes de editarla.",
+              409,
+            );
+          const r = await db.batch([
+            db
+              .prepare(
+                "INSERT INTO audit(id,owner,action,detail,created_at) SELECT ?,?,'Membresía actualizada',?,? WHERE EXISTS(SELECT 1 FROM member_memberships WHERE id=? AND owner=? AND member_id=? AND plan_id=? AND expires=? AND status=?)",
+              )
+              .bind(
+                audit,
+                owner,
+                `${input.memberId} · ${input.planId} · operador ${context.userId}`,
+                now,
+                ident,
+                owner,
+                input.memberId,
+                input.planId,
+                input.expectedExpires,
+                input.expectedStatus,
+              ),
+            db
+              .prepare(
+                "UPDATE member_memberships SET status=?,expires=? WHERE id=? AND owner=? AND EXISTS(SELECT 1 FROM audit WHERE id=? AND owner=?)",
+              )
+              .bind(input.status, input.expires, ident, owner, audit, owner),
+          ]);
+          if (!r[0].meta.changes)
+            throw new ClubError(
+              "La membresía cambió. Actualizá la ficha.",
+              409,
+            );
+        } else
+          await db.batch([
+            db
+              .prepare(
+                "INSERT INTO member_memberships(id,owner,member_id,plan_id,status,expires,created_at) SELECT ?,?,?,?,?,?,? WHERE EXISTS(SELECT 1 FROM members WHERE id=? AND owner=? AND plan_id<>?)",
+              )
+              .bind(
+                ident,
+                owner,
+                input.memberId,
+                input.planId,
+                input.status,
+                input.expires,
+                now,
+                input.memberId,
+                owner,
+                input.planId,
+              ),
+            db
+              .prepare(
+                "INSERT INTO audit(id,owner,action,detail,created_at) SELECT ?,?,'Membresía agregada',?,? WHERE EXISTS(SELECT 1 FROM member_memberships WHERE id=? AND owner=?)",
+              )
+              .bind(
+                audit,
+                owner,
+                `${input.memberId} · ${input.planId} · operador ${context.userId}`,
+                now,
+                ident,
+                owner,
+              ),
+          ]);
+        break;
+      }
       case "member": {
         await owned("plans", input.planId);
         if (input.id) {
+          const duplicatePlan = await db
+            .prepare(
+              "SELECT id FROM member_memberships WHERE owner=? AND member_id=? AND plan_id=?",
+            )
+            .bind(owner, input.id, input.planId)
+            .first();
+          if (duplicatePlan)
+            throw new ClubError(
+              "Ese plan ya está asignado como membresía adicional. Conservá el principal y editá la membresía.",
+            );
           await owned("members", input.id);
-          if (!input.original) throw new ClubError("Actualizá la ficha antes de guardar.", 409);
+          if (!input.original)
+            throw new ClubError("Actualizá la ficha antes de guardar.", 409);
           const original = input.original;
           const auditId = crypto.randomUUID();
           // Both statements share the database's serialized write transaction.
           // A stale snapshot inserts no audit record and cannot update the member.
           const result = await db.batch([
-            db.prepare("INSERT INTO audit(id,owner,action,detail,created_at) SELECT ?,?,?,?,? WHERE EXISTS (SELECT 1 FROM members WHERE id=? AND owner=? AND name=? AND dni=? AND phone=? AND plan_id=? AND status=? AND expires=?)")
-              .bind(auditId, owner, "Socio actualizado", `${input.name} · operador ${context.userId}`, now,
-                input.id, owner, original.name, original.dni, original.phone, original.plan_id, original.status, original.expires),
-            db.prepare("UPDATE members SET name=?,dni=?,phone=?,plan_id=?,status=?,expires=? WHERE id=? AND owner=? AND EXISTS (SELECT 1 FROM audit WHERE id=? AND owner=?)")
-              .bind(input.name, input.dni, input.phone, input.planId, input.status, input.expires, input.id, owner, auditId, owner),
+            db
+              .prepare(
+                "INSERT INTO audit(id,owner,action,detail,created_at) SELECT ?,?,?,?,? WHERE EXISTS (SELECT 1 FROM members WHERE id=? AND owner=? AND name=? AND dni=? AND phone=? AND plan_id=? AND status=? AND expires=?) AND NOT EXISTS(SELECT 1 FROM member_memberships WHERE owner=? AND member_id=? AND plan_id=?)",
+              )
+              .bind(
+                auditId,
+                owner,
+                "Socio actualizado",
+                `${input.name} · operador ${context.userId}`,
+                now,
+                input.id,
+                owner,
+                original.name,
+                original.dni,
+                original.phone,
+                original.plan_id,
+                original.status,
+                original.expires,
+                owner,
+                input.id,
+                input.planId,
+              ),
+            db
+              .prepare(
+                "UPDATE members SET name=?,dni=?,phone=?,plan_id=?,status=?,expires=? WHERE id=? AND owner=? AND EXISTS (SELECT 1 FROM audit WHERE id=? AND owner=?)",
+              )
+              .bind(
+                input.name,
+                input.dni,
+                input.phone,
+                input.planId,
+                input.status,
+                input.expires,
+                input.id,
+                owner,
+                auditId,
+                owner,
+              ),
           ]);
-          if (!result[1].meta.changes) throw new ClubError("Otra recepción modificó esta ficha o registró un pago. Cerrá la ficha, actualizá los datos y volvé a editarla.", 409);
+          if (!result[1].meta.changes)
+            throw new ClubError(
+              "Otra recepción modificó esta ficha o registró un pago. Cerrá la ficha, actualizá los datos y volvé a editarla.",
+              409,
+            );
         } else
           await db.batch([
             db
@@ -429,12 +609,98 @@ export async function POST(req: Request) {
       }
       case "payment": {
         const duplicate = await db
-          .prepare("SELECT id FROM payments WHERE owner=? AND request_key=?")
+          .prepare(
+            "SELECT id,member_id,membership_id,amount,method FROM payments WHERE owner=? AND request_key=?",
+          )
           .bind(owner, input.requestKey)
           .first();
-        if (duplicate) return reply({ ok: true, replayed: true });
-        const m = await owned("members", input.memberId),
-          p = await owned("plans", String(m.plan_id));
+        if (duplicate) {
+          if (
+            duplicate.member_id !== input.memberId ||
+            (duplicate.membership_id ?? null) !==
+              (input.membershipId ?? null) ||
+            duplicate.amount !== input.expectedPrice ||
+            duplicate.method !== input.method
+          )
+            throw new ClubError(
+              "Ese cobro ya fue registrado con otros datos. Cerrá el formulario y revisá el historial.",
+              409,
+            );
+          return reply({ ok: true, replayed: true });
+        }
+        const m = await owned("members", input.memberId);
+        if (input.membershipId) {
+          const mm = await db
+            .prepare(
+              "SELECT mm.*,p.price,p.days,p.name FROM member_memberships mm JOIN plans p ON p.id=mm.plan_id AND p.owner=mm.owner WHERE mm.id=? AND mm.member_id=? AND mm.owner=?",
+            )
+            .bind(input.membershipId, input.memberId, owner)
+            .first<{
+              price: number;
+              days: number;
+              plan_id: string;
+              name: string;
+            }>();
+          if (!mm) throw new ClubError("Membresía no disponible.", 404);
+          if (mm.price !== input.expectedPrice)
+            throw new ClubError(
+              "El precio cambió. Actualizá antes de cobrar.",
+              409,
+            );
+          const paymentId = crypto.randomUUID();
+          const result = await db.batch([
+            db
+              .prepare(
+                "INSERT INTO payments(id,owner,member_id,amount,method,created_at,request_key,venue,membership_id) SELECT ?,?,?,?,?,?,?,?,? WHERE EXISTS(SELECT 1 FROM member_memberships mm JOIN plans p ON p.id=mm.plan_id AND p.owner=mm.owner WHERE mm.id=? AND mm.member_id=? AND mm.owner=? AND p.price=? AND p.days=?)",
+              )
+              .bind(
+                paymentId,
+                owner,
+                input.memberId,
+                mm.price,
+                input.method,
+                now,
+                input.requestKey,
+                input.venue,
+                input.membershipId,
+                input.membershipId,
+                input.memberId,
+                owner,
+                mm.price,
+                mm.days,
+              ),
+            db
+              .prepare(
+                "UPDATE member_memberships SET expires=date(CASE WHEN expires>? THEN expires ELSE ? END,'+' || ? || ' days') WHERE id=? AND owner=? AND EXISTS(SELECT 1 FROM payments WHERE id=?)",
+              )
+              .bind(
+                today,
+                today,
+                mm.days,
+                input.membershipId,
+                owner,
+                paymentId,
+              ),
+            db
+              .prepare(
+                "INSERT INTO audit(id,owner,action,detail,created_at) SELECT ?,?,'Cobro de membresía registrado',?,? WHERE EXISTS(SELECT 1 FROM payments WHERE id=?)",
+              )
+              .bind(
+                crypto.randomUUID(),
+                owner,
+                `${m.name} · ${mm.name} · ${mm.price} ARS · operador ${context.userId}`,
+                now,
+                paymentId,
+              ),
+          ]);
+          if (!result[0].meta.changes)
+            throw new ClubError(
+              "El plan cambió durante el cobro. Actualizá y revisá el importe.",
+              409,
+            );
+          break;
+        }
+        const p = await owned("plans", String(m.plan_id));
         if (input.expectedPrice !== p.price)
           throw new ClubError(
             "El precio cambió. Cerrá el formulario y revisá el importe antes de cobrar.",
@@ -488,18 +754,22 @@ export async function POST(req: Request) {
         break;
       }
       case "access": {
-        const m = await db
+        if (!input.venue)
+          throw new ClubError("Seleccioná la sede de la terminal.");
+        const rows = await db
           .prepare(
-            "SELECT id,name,status,expires FROM members WHERE owner=? AND dni=?",
+            "SELECT m.id,m.name,m.status,m.expires,p.access_scope FROM members m JOIN plans p ON p.id=m.plan_id AND p.owner=m.owner WHERE m.owner=? AND m.dni=? UNION ALL SELECT m.id,m.name,CASE WHEN m.status='paused' THEN 'paused' ELSE mm.status END AS status,mm.expires,p.access_scope FROM members m JOIN member_memberships mm ON mm.member_id=m.id AND mm.owner=m.owner JOIN plans p ON p.id=mm.plan_id AND p.owner=mm.owner WHERE m.owner=? AND m.dni=?",
           )
-          .bind(owner, input.dni)
-          .first<{
+          .bind(owner, input.dni, owner, input.dni)
+          .all<{
             id: string;
             name: string;
             status: string;
             expires: string;
+            access_scope: string;
           }>();
-        const decision = accessDecision(m, today);
+        const m = rows.results[0];
+        const decision = accessForMemberships(rows.results, today, input.venue);
         await db
           .prepare(
             "INSERT INTO accesses (id,owner,member_id,name,allowed,reason,venue,created_at) VALUES (?,?,?,?,?,?,?,?)",
@@ -518,7 +788,7 @@ export async function POST(req: Request) {
         return reply({
           ...decision,
           name: m?.name ?? null,
-          expires: m?.expires ?? null,
+          expires: decision.expires,
           hardware: "simulated",
         });
       }
@@ -655,19 +925,13 @@ export async function POST(req: Request) {
           )
         )
           throw new ClubError("La clase ya pasó.");
-        const decision = accessDecision(
-          { status: String(m.status), expires: String(m.expires) },
-          String(s.day),
-        );
-        if (!decision.allowed)
-          throw new ClubError(
-            "El socio debe tener una membresía vigente para la fecha de la clase.",
-          );
+        const scope = s.venue === "Pilates" ? "pilates" : "gym";
+        // Repeat eligibility inside the serialized transaction alongside capacity.
         const enrollmentId = crypto.randomUUID();
         const result = await db.batch([
           db
             .prepare(
-              "INSERT INTO enrollments (id,owner,session_id,member_id) SELECT ?,?,?,? WHERE (SELECT count(*) FROM enrollments WHERE session_id=?) < (SELECT capacity FROM sessions WHERE id=? AND owner=?) AND EXISTS(SELECT 1 FROM members WHERE id=? AND owner=? AND status='active' AND expires>=?)",
+              "INSERT INTO enrollments (id,owner,session_id,member_id) SELECT ?,?,?,? WHERE (SELECT count(*) FROM enrollments WHERE session_id=?) < (SELECT capacity FROM sessions WHERE id=? AND owner=?) AND EXISTS(SELECT 1 FROM members m JOIN plans p ON p.id=m.plan_id AND p.owner=m.owner WHERE m.id=? AND m.owner=? AND m.status='active' AND ((m.expires>=? AND p.access_scope IN (?, 'all')) OR EXISTS(SELECT 1 FROM member_memberships mm JOIN plans mp ON mp.id=mm.plan_id AND mp.owner=mm.owner WHERE mm.member_id=m.id AND mm.owner=m.owner AND mm.status='active' AND mm.expires>=? AND mp.access_scope IN (?, 'all'))))",
             )
             .bind(
               enrollmentId,
@@ -680,6 +944,9 @@ export async function POST(req: Request) {
               input.memberId,
               owner,
               String(s.day),
+              scope,
+              String(s.day),
+              scope,
             ),
           db
             .prepare(
@@ -696,7 +963,7 @@ export async function POST(req: Request) {
         ]);
         if (!result[0].meta.changes)
           throw new ClubError(
-            "No quedan lugares o cambió la vigencia del socio. Actualizá la información.",
+            "No quedan lugares o el socio no tiene una membresía vigente para esta actividad. Actualizá la información.",
             409,
           );
         break;
@@ -730,4 +997,3 @@ export async function POST(req: Request) {
     return failure(e);
   }
 }
-

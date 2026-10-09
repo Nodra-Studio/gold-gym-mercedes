@@ -1,3 +1,4 @@
+import PublicPrices from "@/components/public-prices";
 import Link from "next/link";
 import { WaveMarquee } from "@/components/wave-marquee";
 import { BrandIcon } from "@/components/brand-icon";
@@ -356,6 +357,7 @@ export default function Home() {
           </a>
           <p>Contanos qué te gustaría hacer. Te ayudamos a empezar.</p>
         </section>
+        <PublicPrices section="all" />
       </main>
       <SiteFooter />
       <ScrollReveal />

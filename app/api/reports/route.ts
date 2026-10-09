@@ -116,9 +116,9 @@ export async function GET(req: Request) {
         .bind(owner, from, to, pageSize, (bookingPage - 1) * pageSize),
       db
         .prepare(
-          "SELECT COUNT(*) AS total,COALESCE(SUM(CASE WHEN status='paused' THEN 1 ELSE 0 END),0) AS paused,COALESCE(SUM(CASE WHEN status='active' AND expires<? THEN 1 ELSE 0 END),0) AS expired,COALESCE(SUM(CASE WHEN status='active' AND expires>=? THEN 1 ELSE 0 END),0) AS current FROM members WHERE owner=?",
+          "SELECT COUNT(*) AS total,COALESCE(SUM(CASE WHEN status='paused' THEN 1 ELSE 0 END),0) AS paused,COALESCE(SUM(CASE WHEN status='active' AND expires<? AND NOT EXISTS(SELECT 1 FROM member_memberships mm WHERE mm.owner=members.owner AND mm.member_id=members.id AND mm.status='active' AND mm.expires>=?) THEN 1 ELSE 0 END),0) AS expired,COALESCE(SUM(CASE WHEN status='active' AND (expires>=? OR EXISTS(SELECT 1 FROM member_memberships mm WHERE mm.owner=members.owner AND mm.member_id=members.id AND mm.status='active' AND mm.expires>=?)) THEN 1 ELSE 0 END),0) AS current FROM members WHERE owner=?",
         )
-        .bind(today, today, owner),
+        .bind(today, today, today, today, owner),
     ]);
     return Response.json(
       {

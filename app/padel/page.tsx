@@ -1,4 +1,4 @@
-import { BrandIcon } from "@/components/brand-icon";
+import PublicPrices from "@/components/public-prices";
 import type { Metadata } from "next";
 import { ArrowUpRight, MapPin, Utensils } from "lucide-react";
 import { SiteHeader } from "@/components/site-header";
@@ -24,13 +24,8 @@ export default function Padel() {
               <br />
               Nos vemos en la cancha.
             </p>
-            <a
-              href={brand.contact}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="gg-button"
-            >
-              <BrandIcon name="whatsapp" /> Coordinar un turno <ArrowUpRight size={20} />
+            <a href="/turnos" className="gg-button">
+              Ver canchas y horarios <ArrowUpRight size={20} />
             </a>
             <div className="gg-hero-note">
               <span>4 CANCHAS / SINTÉTICO + BLINDEX</span>
@@ -95,57 +90,43 @@ export default function Padel() {
             ))}
           </div>
           <div className="gg-link-row" data-reveal>
-            <a
-              className="gg-text-link"
-              href={brand.buffet}
-              target="_blank"
-              rel="noopener noreferrer"
-            >
+            <a className="gg-text-link" href={brand.buffet}>
               <Utensils size={18} />
               Menú del buffet <ArrowUpRight size={16} />
             </a>
-            <a
-              className="gg-text-link"
-              href={brand.padel}
-              target="_blank"
-              rel="noopener noreferrer"
-            >
+            <a className="gg-text-link" href={brand.padel}>
               <span className="gg-instagram-icon" aria-hidden="true" />
               Novedades y torneos <ArrowUpRight size={16} />
             </a>
-            <a
-              className="gg-text-link"
-              href={venues[2].map}
-              target="_blank"
-              rel="noopener noreferrer"
-            >
+            <a className="gg-text-link" href={venues[2].map}>
               <MapPin size={18} />
               Cómo llegar <ArrowUpRight size={16} />
             </a>
           </div>
         </section>
         <section className="gg-final">
-          <p className="gg-kicker" data-reveal>HACETE EL ESPACIO</p>
+          <p className="gg-kicker" data-reveal>
+            HACETE EL ESPACIO
+          </p>
           <h2 data-reveal data-reveal-delay="1">
             UN TURNO FIJO.
             <br />
             <span>UN BUEN PLAN.</span>
           </h2>
           <a
-            href={brand.contact}
+            href="/turnos"
             className="gg-button gg-button-dark"
             data-reveal
             data-reveal-delay="2"
-            target="_blank"
-            rel="noopener noreferrer"
           >
-            <BrandIcon name="whatsapp" /> Consultar disponibilidad <ArrowUpRight />
+            Ver canchas y horarios <ArrowUpRight />
           </a>
           <p>
             Recepción registra y confirma tu turno. No necesitás crear una
             cuenta.
           </p>
         </section>
+        <PublicPrices section="padel" />
       </main>
       <SiteFooter />
       <ScrollReveal />

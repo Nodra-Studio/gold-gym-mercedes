@@ -1,7 +1,9 @@
 "use client";
+import PadelRequests from "@/components/padel-requests";
 import BookingPaymentHistory from "@/components/booking-payment-history";
 import { requestId, slotPassed } from "@/lib/club";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { apiFetch } from "@/lib/api-fetch";
 import Link from "next/link";
 import {
   ChevronLeft,
@@ -72,31 +74,34 @@ export default function PadelAgenda() {
           {notice}
         </div>
       )}
-      {data && <div className="stats">
-        <div className="stat">
-          <span>RESERVAS DEL DÍA</span>
-          <strong>{played.length}</strong>
-          <small>{dateLabel(day)}</small>
+      {data && <PadelRequests onChange={() => void refresh()} />}
+      {data && (
+        <div className="stats">
+          <div className="stat">
+            <span>RESERVAS DEL DÍA</span>
+            <strong>{played.length}</strong>
+            <small>{dateLabel(day)}</small>
+          </div>
+          <div className="stat">
+            <span>TURNOS DISPONIBLES</span>
+            <strong>
+              {slots.filter((s) => !slotPassed(day, s)).length * 4 -
+                bookings.filter((b) => !slotPassed(day, b.start)).length}
+            </strong>
+            <small>Disponibilidad del club</small>
+          </div>
+          <div className="stat">
+            <span>TOTAL RESERVADO</span>
+            <strong>{money(played.reduce((s, b) => s + b.amount, 0))}</strong>
+            <small>Importe previsto</small>
+          </div>
+          <div className="stat">
+            <span>PAGADO REGISTRADO</span>
+            <strong>{money(played.reduce((s, b) => s + b.deposit, 0))}</strong>
+            <small>No procesa pagos online</small>
+          </div>
         </div>
-        <div className="stat">
-          <span>TURNOS DISPONIBLES</span>
-          <strong>
-            {slots.filter((s) => !slotPassed(day, s)).length * 4 -
-              bookings.filter((b) => !slotPassed(day, b.start)).length}
-          </strong>
-          <small>Disponibilidad del club</small>
-        </div>
-        <div className="stat">
-          <span>TOTAL RESERVADO</span>
-          <strong>{money(played.reduce((s, b) => s + b.amount, 0))}</strong>
-          <small>Importe previsto</small>
-        </div>
-        <div className="stat">
-          <span>PAGADO REGISTRADO</span>
-          <strong>{money(played.reduce((s, b) => s + b.deposit, 0))}</strong>
-          <small>No procesa pagos online</small>
-        </div>
-      </div>}
+      )}
       <section className="panel">
         <div className="panel-heading">
           <div className="date-controls">
@@ -149,7 +154,18 @@ export default function PadelAgenda() {
         {loading && !data ? (
           <Loading />
         ) : !data ? (
-          <div className="connection-empty"><p>No pudimos consultar la agenda. Los horarios no están disponibles hasta recuperar la conexión.</p><button className="button gold" onClick={() => void refresh()}>Volver a cargar</button><Link href="/acceso" className="button">Iniciar sesión</Link></div>
+          <div className="connection-empty">
+            <p>
+              No pudimos consultar la agenda. Los horarios no están disponibles
+              hasta recuperar la conexión.
+            </p>
+            <button className="button gold" onClick={() => void refresh()}>
+              Volver a cargar
+            </button>
+            <Link href="/acceso" className="button">
+              Iniciar sesión
+            </Link>
+          </div>
         ) : (
           <div className="calendar-wrap">
             <div className="calendar-grid">
@@ -434,15 +450,39 @@ function BookingForm({
   const [name, setName] = useState(""),
     [phone, setPhone] = useState(""),
     [kind, setKind] = useState("booking"),
-    [amount, setAmount] = useState("24000"),
+    [amount, setAmount] = useState(""),
+    [tariffLoaded, setTariffLoaded] = useState(false),
+    [tariffError, setTariffError] = useState(""),
     [deposit, setDeposit] = useState("0"),
     [depositMethod, setDepositMethod] = useState("Efectivo"),
     [weeks, setWeeks] = useState("1"),
     [requestKey] = useState(() => requestId());
+  useEffect(() => {
+    let active = true;
+    void apiFetch("/api/tariffs")
+      .then(async (r) => {
+        if (!r.ok)
+          throw Error(
+            "No pudimos cargar la tarifa. Cerrá y volvé a abrir la reserva.",
+          );
+        const data = (await r.json()) as { padel: { padel_price: number } };
+        if (active) {
+          setAmount(String(data.padel.padel_price));
+          setTariffLoaded(true);
+        }
+      })
+      .catch((e) => {
+        if (active) setTariffError(e.message);
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
   return (
     <form
       onSubmit={(e) => {
         e.preventDefault();
+        if (!tariffLoaded && kind === "booking") return;
         submit({
           action: "booking",
           day,
@@ -459,6 +499,11 @@ function BookingForm({
         });
       }}
     >
+      {tariffError && (
+        <p role="alert" className="error-box">
+          {tariffError}
+        </p>
+      )}
       <div className="form-grid">
         <Field label="Tipo" full>
           <SelectField value={kind} onChange={setKind}>
@@ -499,6 +544,7 @@ function BookingForm({
                 min="0"
                 max="10000000"
                 step="1"
+                disabled={!tariffLoaded}
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
               />
@@ -539,7 +585,7 @@ function BookingForm({
         seña sólo se registra en el primer turno.
       </p>
       <div className="form-actions">
-        <SaveButton busy={busy}>
+        <SaveButton busy={busy || (!tariffLoaded && kind === "booking")}>
           {kind === "block" ? "Bloquear horario" : "Confirmar reserva"}
         </SaveButton>
       </div>

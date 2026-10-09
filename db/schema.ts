@@ -12,6 +12,8 @@ export const plans = sqliteTable("plans", {
   name: text("name").notNull(),
   price: integer("price").notNull(),
   days: integer("days").notNull(),
+  accessScope: text("access_scope").notNull().default("gym"),
+  published: integer("published").notNull().default(0),
 });
 export const members = sqliteTable(
   "members",
@@ -33,6 +35,26 @@ export const members = sqliteTable(
     index("members_owner_expiry").on(t.owner, t.expires),
   ],
 );
+export const memberMemberships = sqliteTable(
+  "member_memberships",
+  {
+    id: text("id").primaryKey(),
+    owner: text("owner").notNull(),
+    memberId: text("member_id")
+      .notNull()
+      .references(() => members.id),
+    planId: text("plan_id")
+      .notNull()
+      .references(() => plans.id),
+    status: text("status").notNull().default("active"),
+    expires: text("expires").notNull(),
+    createdAt: text("created_at").notNull(),
+  },
+  (t) => [
+    uniqueIndex("member_memberships_unique").on(t.owner, t.memberId, t.planId),
+    index("member_memberships_member").on(t.owner, t.memberId),
+  ],
+);
 export const payments = sqliteTable(
   "payments",
   {
@@ -41,6 +63,7 @@ export const payments = sqliteTable(
     memberId: text("member_id")
       .notNull()
       .references(() => members.id),
+    membershipId: text("membership_id").references(() => memberMemberships.id),
     amount: integer("amount").notNull(),
     method: text("method").notNull(),
     venue: text("venue"),
@@ -168,6 +191,11 @@ export const settings = sqliteTable("settings", {
   padelPrice: integer("padel_price").notNull().default(24000),
   bookingDays: integer("booking_days").notNull().default(30),
   cancelHours: integer("cancel_hours").notNull().default(24),
+  depositPercent: integer("deposit_percent").notNull().default(0),
+  paymentAlias: text("payment_alias").notNull().default(""),
+  whatsapp: text("whatsapp").notNull().default(""),
+  revision: integer("revision").notNull().default(1),
+  pricePublished: integer("price_published").notNull().default(0),
 });
 
 export const bookingPayments = sqliteTable(
@@ -269,5 +297,31 @@ export const productChanges = sqliteTable(
       t.productId,
       t.createdAt,
     ),
+  ],
+);
+
+export const bookingRequests = sqliteTable(
+  "booking_requests",
+  {
+    id: text("id").primaryKey(),
+    owner: text("owner").notNull(),
+    court: integer("court").notNull(),
+    day: text("day").notNull(),
+    start: integer("start").notNull(),
+    name: text("name").notNull(),
+    phone: text("phone").notNull(),
+    status: text("status").notNull().default("pending"),
+    depositExpected: integer("deposit_expected").notNull().default(0),
+    paymentMethod: text("payment_method").notNull().default("Transferencia"),
+    amount: integer("amount").notNull(),
+    receipt: text("receipt").notNull().default(""),
+    receiptType: text("receipt_type").notNull().default(""),
+    requestKey: text("request_key").notNull(),
+    createdAt: text("created_at").notNull(),
+    bookingId: text("booking_id"),
+  },
+  (t) => [
+    uniqueIndex("booking_requests_key").on(t.owner, t.requestKey),
+    index("booking_requests_queue").on(t.owner, t.status, t.day),
   ],
 );

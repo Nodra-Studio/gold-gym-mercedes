@@ -86,7 +86,7 @@ export async function POST(req: Request) {
           id: ids.get(record.id),
           owner: p.owner,
         };
-        for (const key of ["plan_id", "member_id", "session_id", "booking_id", "product_id", "cash_entry_id", "reverses", "transfer_id"])
+        for (const key of ["membership_id", "plan_id", "member_id", "session_id", "booking_id", "product_id", "cash_entry_id", "reverses", "transfer_id"])
           if (typeof r[key] === "string") r[key] = ids.get(r[key] as string);
         if ("created_by" in r) r.created_by = null;
         if ("request_key" in r)
@@ -109,13 +109,14 @@ export async function POST(req: Request) {
       statements.push(
         db
           .prepare(
-            "INSERT INTO settings(owner,padel_price,booking_days,cancel_hours) SELECT ?,?,?,? WHERE EXISTS(SELECT 1 FROM restores WHERE owner=? AND request_key=?) ON CONFLICT(owner) DO UPDATE SET padel_price=excluded.padel_price,booking_days=excluded.booking_days,cancel_hours=excluded.cancel_hours",
+            "INSERT INTO settings(owner,padel_price,booking_days,cancel_hours,deposit_percent,payment_alias,whatsapp,revision,price_published) SELECT ?,?,?,?,?,?,?,?,? WHERE EXISTS(SELECT 1 FROM restores WHERE owner=? AND request_key=?) ON CONFLICT(owner) DO UPDATE SET padel_price=excluded.padel_price,booking_days=excluded.booking_days,cancel_hours=excluded.cancel_hours,deposit_percent=excluded.deposit_percent,payment_alias=excluded.payment_alias,whatsapp=excluded.whatsapp,revision=excluded.revision,price_published=excluded.price_published",
           )
           .bind(
             p.owner,
             c.padel_price,
             c.booking_days,
             c.cancel_hours,
+            c.deposit_percent,c.payment_alias,c.whatsapp,c.revision,c.price_published,
             p.owner,
             input.requestKey,
           ),

@@ -3,6 +3,18 @@ export type Plan = {
   name: string;
   price: number;
   days: number;
+  access_scope?: "gym" | "pilates" | "all";
+};
+export type MemberMembership = {
+  id: string;
+  member_id: string;
+  plan_id: string;
+  status: string;
+  expires: string;
+  plan_name: string;
+  price: number;
+  days: number;
+  access_scope: string;
 };
 export type Member = {
   id: string;
@@ -70,6 +82,7 @@ export type ClubData = {
   role: "owner" | "reception";
   plans: Plan[];
   members: Member[];
+  memberships: MemberMembership[];
   payments: Payment[];
   accesses: Access[];
   bookings: Booking[];
@@ -112,18 +125,42 @@ export function accessDecision(
   member: {
     status: string;
     expires: string;
+    access_scope?: string;
   } | null,
   day: string,
+  venue?: string,
 ) {
   if (!member) return { allowed: false, reason: "DNI no registrado" };
   if (member.status !== "active")
     return { allowed: false, reason: "Membresía pausada" };
   if (member.expires < day) return { allowed: false, reason: "Cuota vencida" };
-  const daysRemaining = Math.round((Date.parse(member.expires + "T12:00:00Z") - Date.parse(day + "T12:00:00Z")) / 86400000);
-  const warning = daysRemaining <= 7
-    ? daysRemaining === 0 ? "Tu cuota vence hoy. Acercate a recepción para renovarla."
-      : `Tu cuota vence en ${daysRemaining} ${daysRemaining === 1 ? "día" : "días"}. Acercate a recepción para renovarla.`
-    : null;
+  if (venue) {
+    const scope = member.access_scope;
+    if (!["gym", "pilates", "all"].includes(scope ?? ""))
+      return {
+        allowed: false,
+        reason: "Recepción debe revisar los accesos de tu plan",
+      };
+    if (scope !== "all" && (venue === "Pilates") !== (scope === "pilates"))
+      return {
+        allowed: false,
+        reason:
+          scope === "pilates"
+            ? "Tu plan es exclusivo de Pilates"
+            : "Tu plan no incluye Pilates",
+      };
+  }
+  const daysRemaining = Math.round(
+    (Date.parse(member.expires + "T12:00:00Z") -
+      Date.parse(day + "T12:00:00Z")) /
+      86400000,
+  );
+  const warning =
+    daysRemaining <= 7
+      ? daysRemaining === 0
+        ? "Tu cuota vence hoy. Acercate a recepción para renovarla."
+        : `Tu cuota vence en ${daysRemaining} ${daysRemaining === 1 ? "día" : "días"}. Acercate a recepción para renovarla.`
+      : null;
   return { allowed: true, reason: "Membresía vigente", warning, daysRemaining };
 }
 export function isValidDay(day: string) {
@@ -155,3 +192,26 @@ export function slotPassed(day: string, minutes: number, now = new Date()) {
   return day < today || (day === today && minutes <= hours * 60 + mins);
 }
 
+export function accessForMemberships(
+  memberships: { status: string; expires: string; access_scope?: string }[],
+  day: string,
+  venue: string,
+) {
+  const included = memberships.filter(
+    (m) =>
+      m.access_scope === "all" ||
+      (venue === "Pilates"
+        ? m.access_scope === "pilates"
+        : m.access_scope === "gym"),
+  );
+  const ordered = [...(included.length ? included : memberships)].sort(
+    (a, b) =>
+      Number(b.status === "active") - Number(a.status === "active") ||
+      b.expires.localeCompare(a.expires),
+  );
+  const selected = ordered[0] ?? null;
+  return {
+    ...accessDecision(selected, day, venue),
+    expires: selected?.expires ?? null,
+  };
+}

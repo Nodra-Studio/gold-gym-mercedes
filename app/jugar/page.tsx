@@ -1,2 +1,4 @@
-import { redirect } from 'next/navigation';
-export default function Page() { redirect('/padel'); }
+import { redirect } from "next/navigation";
+export default function Page() {
+  redirect("/turnos");
+}
