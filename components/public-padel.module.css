@@ -5,9 +5,9 @@
   --line: #3d4538;
   max-width: 1240px;
   margin: auto;
-  padding: 156px 28px 88px;
+  padding: 56px 28px 88px;
   color: var(--ink);
-  font-family: var(--font-body), Arial, sans-serif;
+  font-family: var(--font-sans), Arial, sans-serif;
 }
 .page button,
 .page input {
@@ -888,7 +888,7 @@
 }
 @media (max-width: 800px) {
   .page {
-    padding: 125px 22px 60px;
+    padding: 40px 22px 60px;
   }
   .header {
     margin-bottom: 28px;
@@ -959,7 +959,7 @@
 }
 @media (max-width: 480px) {
   .page {
-    padding: 117px 16px 48px;
+    padding: 32px 16px 48px;
   }
   .page h1 {
     font-size: 42px;
@@ -1059,7 +1059,7 @@
     padding: 18px 22px;
   }
   .success {
-    padding-top: 135px;
+    padding-top: 56px;
   }
   .success h1 {
     font-size: 39px;
