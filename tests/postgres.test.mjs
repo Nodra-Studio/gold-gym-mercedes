@@ -124,6 +124,7 @@ try {
       runtime.setUser(null);
       const availability=await get(pub,'?day='+payload.day);assert.equal(availability.status,200);assert.equal('mine' in availability,false);
       assert.equal((await get(pub,'?day=invalid')).status,400);assert.equal((await get(pub,'?day='+addDays(localDay(),31))).status,400);assert.ok(Array.isArray(availability.occupied));assert.equal(availability.settings.booking_days,30);
+      assert.equal((await post(pub,{...payload,paymentMethod:'Efectivo',requestKey:key()})).status,400);
       const requested=await post(pub,payload);assert.equal(requested.status,201,JSON.stringify(requested));
       assert.equal((await post(pub,payload)).id,requested.id);
       assert.equal((await get(review)).status,401);
@@ -133,11 +134,11 @@ try {
       assert.equal((await get(review)).requests[0].amount,24000);
       assert.equal('receipt' in (await get(review)).requests[0],false);
       assert.equal((await post(review,{id:requested.id,action:'confirm',deposit:24001})).status,400);
-      assert.equal((await post(review,{id:requested.id,action:'confirm',deposit:12000})).status,200);
+      assert.equal((await post(review,{id:requested.id,action:'confirm',deposit:12000,method:'Efectivo'})).status,200);
       assert.equal((await post(review,{id:requested.id,action:'confirm',deposit:12000})).status,409);
       const b=(await get()).bookings.find(b=>b.request_key==='public:'+requested.id);
       assert.ok(b);assert.equal(b.deposit,12000);
-      const ledger=await runtime.env.DB.prepare('SELECT * FROM booking_payments WHERE booking_id=?').bind(b.id).all();assert.equal(ledger.results.length,1);
+      const ledger=await runtime.env.DB.prepare('SELECT * FROM booking_payments WHERE booking_id=?').bind(b.id).all();assert.equal(ledger.results.length,1);assert.equal(ledger.results[0].method,'Efectivo');
       runtime.setUser(null);assert.equal((await post(pub,{...payload,requestKey:key()})).status,409);
       // Competing customer requests may coexist; only one confirmed booking can occupy a slot.
       const a=await post(pub,{...payload,start:570,requestKey:key(),receipt:'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jXioAAAAASUVORK5CYII=',receiptType:'image/png'});

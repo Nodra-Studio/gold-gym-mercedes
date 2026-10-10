@@ -9,11 +9,9 @@ import {
   ChevronRight,
   Clock3,
   CloudRain,
-  CreditCard,
   MapPin,
   RefreshCw,
   ShieldCheck,
-  Wallet,
 } from "lucide-react";
 import { apiFetch } from "@/lib/api-fetch";
 import {
@@ -70,8 +68,7 @@ export default function PublicPadel() {
     [slot, setSlot] = useState<Choice | null>(null);
   const [review, setReview] = useState(false),
     [busy, setBusy] = useState(false);
-  const [done, setDone] = useState(""),
-    [paymentMethod, setPaymentMethod] = useState("Transferencia");
+  const [done, setDone] = useState("");
   const [quoted, setQuoted] = useState<{
     amount: number;
     deposit: number;
@@ -85,6 +82,7 @@ export default function PublicPadel() {
   const sending = useRef(false),
     key = useRef(""),
     heading = useRef<HTMLHeadingElement>(null);
+  const paymentMethod = "Transferencia";
   const venue = venues.find((v) => v.name === "Club Unión")!;
   // Revalidate on return from another tab. Keep the customer's entered details.
   useEffect(() => {
@@ -609,45 +607,12 @@ export default function PublicPadel() {
                 </fieldset>
               </section>
               <section className={s.panel}>
-                <h2>Medio de pago</h2>
+                <h2>Seña por transferencia</h2>
                 <p className={s.subtle}>
-                  Los pagos online todavía no están habilitados. Por ahora,
-                  coordiná la seña con recepción.
+                  Consultá la disponibilidad con recepción antes de transferir.
+                  Tu solicitud se confirma cuando el club verifica el turno y el
+                  pago.
                 </p>
-                <div className={s.onlineMethods}>
-                  <div aria-disabled="true">
-                    <Wallet size={23} />
-                    <strong>Billetera Mercado Pago</strong>
-                    <span>No disponible aún</span>
-                  </div>
-                  <div aria-disabled="true">
-                    <CreditCard size={23} />
-                    <strong>Crédito o débito</strong>
-                    <span>No disponible aún</span>
-                  </div>
-                </div>
-                <fieldset className={s.paymentMethods} disabled={busy}>
-                  <legend>Coordinar con recepción</legend>
-                  {["Transferencia", "Efectivo"].map((method) => (
-                    <label key={method}>
-                      <input
-                        type="radio"
-                        name="paymentMethod"
-                        value={method}
-                        checked={paymentMethod === method}
-                        onChange={() => setPaymentMethod(method)}
-                      />
-                      <span>
-                        <strong>{method}</strong>
-                        <small>
-                          {method === "Transferencia"
-                            ? "Luego de confirmar disponibilidad con el club."
-                            : "Acordá el pago y la seña en recepción."}
-                        </small>
-                      </span>
-                    </label>
-                  ))}
-                </fieldset>
                 {paymentMethod === "Transferencia" && (
                   <div className={s.transfer}>
                     {currentData?.settings.payment_alias && (

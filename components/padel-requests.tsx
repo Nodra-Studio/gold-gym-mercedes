@@ -26,6 +26,7 @@ export default function PadelRequests({
     [error, setError] = useState(""),
     [busy, setBusy] = useState(""),
     [deposits, setDeposits] = useState<Record<string, string>>({}),
+    [methods, setMethods] = useState<Record<string, string>>({}),
     [prices, setPrices] = useState<Record<string, string>>({});
   const saving = useRef(false),
     pending = useRef<AbortController | null>(null),
@@ -95,7 +96,9 @@ export default function PadelRequests({
             action,
             deposit: Number(deposits[id] || 0),
             method:
-              rows.find((r) => r.id === id)?.payment_method ?? "Transferencia",
+              methods[id] ??
+              rows.find((r) => r.id === id)?.payment_method ??
+              "Transferencia",
             ...(prices[id] ? { amount: Number(prices[id]) } : {}),
           }),
         }),
@@ -206,6 +209,23 @@ export default function PadelRequests({
                   setDeposits({ ...deposits, [r.id]: e.target.value })
                 }
               />
+            </label>
+            <label>
+              Medio del pago recibido
+              <select
+                value={methods[r.id] ?? r.payment_method}
+                disabled={!!busy}
+                onChange={(e) =>
+                  setMethods({ ...methods, [r.id]: e.target.value })
+                }
+              >
+                <option value="Transferencia">Transferencia verificada</option>
+                <option value="Efectivo">Efectivo recibido en recepción</option>
+              </select>
+              <small>
+                Registrá solo el dinero efectivamente recibido. Si el cliente se
+                acerca al club, podés cobrar la seña en efectivo.
+              </small>
             </label>
             <button className="button gold" disabled={!!busy}>
               Confirmar turno

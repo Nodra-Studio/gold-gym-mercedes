@@ -32,9 +32,7 @@ const schema = z
     phone: z.string().regex(/^\+?\d{8,15}$/),
     expectedPrice: z.number().int().min(0),
     expectedRevision: z.number().int().min(0).optional(),
-    paymentMethod: z
-      .enum(["Transferencia", "Efectivo"])
-      .default("Transferencia"),
+    paymentMethod: z.literal("Transferencia").default("Transferencia"),
     requestKey: z.string().uuid(),
     receipt: z.string().max(1400000).default(""),
     receiptType: z

@@ -2,7 +2,7 @@
   --gold: #e4c47f;
   --ink: #f6f3e9;
   --muted: #b7bdb0;
-  --line: #3d4538;
+  --line: #3d3e36;
   max-width: 1240px;
   margin: auto;
   padding: 56px 28px 88px;
@@ -169,7 +169,7 @@
   padding: 9px 10px;
   min-height: 42px;
   max-width: 156px;
-  background: #222b1d;
+  background: #22231f;
   color: var(--ink);
   border: 1px solid #647057;
   border-radius: 7px;
@@ -190,7 +190,7 @@
   gap: 5px;
   justify-items: center;
   padding: 13px 10px;
-  background: #21291c;
+  background: #20211e;
   color: var(--ink);
   border: 1px solid var(--line);
   border-radius: 9px;
@@ -244,7 +244,7 @@
   gap: 10px;
   align-items: center;
   text-align: left;
-  background: #20281c;
+  background: #1c1d1a;
   color: var(--ink);
   border: 1px solid var(--line);
   padding: 15px;
@@ -260,7 +260,7 @@
   stroke: currentColor;
   stroke-width: 1.4;
   flex-shrink: 0;
-  color: #9cae84;
+  color: #d3b36b;
 }
 .courts button > svg:last-child:not(:first-child) {
   margin-left: auto;
@@ -279,7 +279,7 @@
   font-weight: 600;
 }
 .courts button[aria-pressed="true"] {
-  background: #2d3825;
+  background: #29271f;
   border-color: var(--gold);
   box-shadow: inset 0 0 0 1px var(--gold);
 }
@@ -303,8 +303,8 @@
   min-height: 100px;
 }
 .slots > button {
-  background: #222c1d;
-  border: 1px solid #647256;
+  background: #20211e;
+  border: 1px solid #606256;
   color: var(--ink);
   border-radius: 8px;
   min-height: 79px;
@@ -367,8 +367,8 @@
 .summary {
   position: sticky;
   top: 112px;
-  background: #252e1f;
-  border: 1px solid #58624d;
+  background: #21221e;
+  border: 1px solid #515247;
   border-radius: 12px;
   padding: 25px;
 }
@@ -394,7 +394,7 @@
 }
 .summaryDetails svg {
   flex-shrink: 0;
-  color: #b7caa0;
+  color: #d3b36b;
 }
 .total {
   display: grid;
@@ -477,7 +477,7 @@
   border: 1px solid var(--line);
   border-radius: 12px;
   padding: 28px;
-  background: #20281c;
+  background: #1c1d1a;
 }
 .panel > h2 {
   margin-bottom: 12px;
@@ -557,7 +557,7 @@
 }
 .paymentMethods label:has(input:checked) {
   border-color: var(--gold);
-  background: #2e3825;
+  background: #302d24;
 }
 .paymentMethods input {
   width: 19px;
@@ -599,7 +599,7 @@
 }
 .transfer input::file-selector-button {
   border: 1px solid #71815f;
-  background: #303d25;
+  background: #302d24;
   color: var(--ink);
   padding: 10px;
   border-radius: 5px;
@@ -616,8 +616,8 @@
 .order {
   position: sticky;
   top: 110px;
-  background: #f0f1e7;
-  color: #25301d;
+  background: #f2efe5;
+  color: #282820;
   border-radius: 12px;
   overflow: hidden;
 }
@@ -630,7 +630,7 @@
 .order h2 {
   font-size: 36px;
   margin: 15px 0 8px;
-  color: #25301d;
+  color: #282820;
 }
 .orderHeader > p:not(.eyebrow) {
   font-size: 14px;
@@ -692,8 +692,8 @@
   color: #566448;
 }
 .order .primary {
-  background: #28381c;
-  border-color: #28381c;
+  background: #24251f;
+  border-color: #24251f;
   color: #faf5df;
 }
 .order .primary:disabled {
@@ -816,7 +816,7 @@
   display: grid;
   place-items: center;
   color: var(--gold);
-  background: #303e25;
+  background: #302d24;
   width: 76px;
   height: 76px;
   border-radius: 50%;
@@ -826,7 +826,7 @@
   display: grid;
   gap: 10px;
   width: 100%;
-  background: #273220;
+  background: #25251f;
   border: 1px solid #566449;
   border-radius: 10px;
   padding: 24px;
@@ -854,7 +854,7 @@
   .date:not([aria-pressed="true"]):hover,
   .slots > button:not(:disabled):not([aria-pressed="true"]):hover {
     border-color: var(--gold);
-    background: #303c26;
+    background: #302d24;
   }
   .courts button:hover {
     border-color: var(--gold);
@@ -1070,5 +1070,218 @@
     animation: none !important;
     transition: none !important;
     scroll-behavior: auto !important;
+  }
+}
+
+/* Gold booking: restrained typography, photography and a flatter calendar. */
+.header {
+  align-items: center;
+  padding-bottom: 32px;
+  border-bottom: 1px solid var(--line);
+  margin-bottom: 24px;
+}
+.header h1 {
+  max-width: 650px;
+  font-size: clamp(44px, 5.5vw, 74px);
+}
+.location {
+  width: 290px;
+  min-height: 170px;
+  padding: 24px;
+  align-items: flex-end;
+  border-radius: 3px;
+  background:
+    linear-gradient(180deg, rgba(0, 0, 0, 0.05), rgba(0, 0, 0, 0.9)),
+    url("/images/padel.webp") center 48% / cover;
+  box-shadow: inset 0 0 0 1px #ffffff20;
+}
+.location strong {
+  font-size: 20px;
+  color: #fff;
+}
+.location small {
+  color: #e3e0d6;
+  line-height: 1.5;
+}
+.location > svg {
+  margin-bottom: 3px;
+}
+.steps {
+  border: 0;
+  margin-bottom: 28px;
+  padding-bottom: 0;
+}
+.dateStrip {
+  gap: 0;
+  border-bottom: 1px solid var(--line);
+  padding: 0;
+  margin: 0 0 32px;
+}
+.date {
+  border: 0;
+  border-bottom: 2px solid transparent;
+  border-radius: 0;
+  min-height: 86px;
+  background: transparent;
+  flex-basis: 60px;
+  padding: 12px 8px;
+}
+.date[aria-pressed="true"] {
+  background: #d3b36b0d;
+  color: var(--gold);
+  border-bottom-color: var(--gold);
+}
+.date strong {
+  font-size: 25px;
+}
+.date small {
+  font-size: 11px;
+}
+.courts {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0;
+  border-bottom: 1px solid var(--line);
+}
+.courts button {
+  background: transparent;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  border-radius: 0;
+  box-shadow: none;
+  padding: 12px 8px;
+  min-height: 75px;
+  justify-content: center;
+}
+.courts button[aria-pressed="true"] {
+  background: #d3b36b0d;
+  border-color: var(--gold);
+  box-shadow: none;
+}
+.courts button > svg:first-child {
+  display: none;
+}
+.courts button > svg:last-child:not(:first-child) {
+  width: 14px;
+  margin-left: 0;
+}
+.courts strong {
+  font-size: 15px;
+}
+.courts small {
+  font-size: 9px;
+}
+.slots > button {
+  border-radius: 4px;
+  min-height: 64px;
+}
+.slots strong {
+  font-size: 21px;
+}
+.summary,
+.panel,
+.order,
+.receipt {
+  border-radius: 4px;
+}
+.summary {
+  border-top: 2px solid var(--gold);
+}
+.panel {
+  background: transparent;
+  padding: 0 0 28px;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+}
+.checkoutMain {
+  gap: 30px;
+}
+.contacts {
+  grid-template-columns: 1fr 1fr;
+  gap: 18px;
+}
+.transfer {
+  margin-top: 18px;
+  padding-top: 0;
+  border-top: 0;
+}
+@media (max-width: 1050px) {
+  .header {
+    flex-direction: row;
+  }
+  .header h1 {
+    font-size: 52px;
+  }
+  .location {
+    width: 250px;
+    min-height: 155px;
+  }
+}
+@media (max-width: 800px) {
+  .header {
+    gap: 24px;
+  }
+  .header h1 {
+    font-size: 48px;
+  }
+  .location {
+    width: 210px;
+    min-height: 145px;
+  }
+  .courts button {
+    justify-content: flex-start;
+    padding: 14px;
+  }
+  .checkoutMain {
+    gap: 24px;
+  }
+}
+@media (max-width: 600px) {
+  .header {
+    display: block;
+    padding-bottom: 24px;
+  }
+  .header h1 {
+    font-size: 47px;
+    max-width: 360px;
+  }
+  .location {
+    width: 100%;
+    min-height: 112px;
+    margin-top: 24px;
+    padding: 18px;
+    background-position: center 53%;
+  }
+  .location span {
+    flex: 1;
+  }
+  .location strong {
+    font-size: 18px;
+  }
+  .courts button {
+    padding: 12px 5px;
+    justify-content: center;
+    gap: 5px;
+  }
+  .courts strong {
+    font-size: 13px;
+  }
+  .courts button > svg:last-child:not(:first-child) {
+    display: none;
+  }
+  .contacts {
+    grid-template-columns: 1fr;
+  }
+  .date {
+    flex-basis: 51px;
+    min-height: 78px;
+  }
+  .dateStrip {
+    overflow-x: auto;
+  }
+  .page .lead {
+    max-width: 330px;
+  }
+  .steps {
+    gap: 12px;
   }
 }
