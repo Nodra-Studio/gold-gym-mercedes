@@ -24,6 +24,8 @@ export default function PadelRequests({
 }) {
   const [rows, setRows] = useState<RequestRow[]>([]),
     [error, setError] = useState(""),
+    [loadError, setLoadError] = useState(""),
+    [notice, setNotice] = useState(""),
     [busy, setBusy] = useState(""),
     [rejectId, setRejectId] = useState(""),
     [deposits, setDeposits] = useState<Record<string, string>>({}),
@@ -48,10 +50,10 @@ export default function PadelRequests({
       if (!r.ok) throw Error(j.error);
       if (ticket !== sequence.current || controller.signal.aborted) return;
       setRows(j.requests);
-      setError("");
+      setLoadError("");
     } catch (e) {
       if (controller.signal.aborted || ticket !== sequence.current) return;
-      setError(
+      setLoadError(
         e instanceof Error ? e.message : "No pudimos cargar las solicitudes.",
       );
     } finally {
@@ -88,6 +90,8 @@ export default function PadelRequests({
     pending.current = null;
     setBusy(id);
     setError("");
+    setNotice("");
+    const request = rows.find((row) => row.id === id);
     try {
       const r = await apiFetch("/api/padel-requests", {
           method: "POST",
@@ -106,6 +110,11 @@ export default function PadelRequests({
         j = (await r.json()) as { error?: string; requests: RequestRow[] };
       if (!r.ok) throw Error(j.error);
       setRejectId("");
+      setNotice(
+        action === "confirm"
+          ? `Turno de ${request?.name ?? "cliente"} confirmado. Pago registrado: ${money(Number(deposits[id] || 0))}. Avisale al cliente por WhatsApp.`
+          : `Solicitud de ${request?.name ?? "cliente"} rechazada. Avisale al cliente por WhatsApp.`,
+      );
       setRows((current) => current.filter((row) => row.id !== id));
       void load();
       onChange();
@@ -132,6 +141,12 @@ export default function PadelRequests({
         Revisá el comprobante y el dinero recibido antes de confirmar. Avisale
         al cliente por WhatsApp: no se envían mensajes automáticos.
       </p>
+      {notice && <p role="status">{notice}</p>}
+      {loadError && (
+        <p role="alert" className="error-box">
+          {loadError} Usá Actualizar para volver a consultar.
+        </p>
+      )}
       {error && (
         <p role="alert" className="error-box">
           {error}
@@ -142,134 +157,186 @@ export default function PadelRequests({
           Buscando solicitudes…
         </p>
       )}
-      {!loading && !rows.length && !error && (
+      {!loading && !rows.length && !error && !loadError && (
         <p className="muted">No hay solicitudes pendientes.</p>
       )}
-      {rows.slice(0, limit ?? rows.length).map((r) => (
-        <article className="request-row" key={r.id}>
-          <div>
-            <strong>{r.name}</strong>{" "}
-            <small>#{r.id.slice(0, 8).toUpperCase()}</small>
-            <p>
-              Cancha {r.court} · {dateLabel(r.day)} · {timeLabel(r.start)} ·{" "}
-              {r.amount ? money(r.amount) : "Tarifa a confirmar"}
-            </p>
-            <a
-              href={`https://wa.me/${r.phone.replace(/\D/g, "")}`}
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              Contactar · {r.phone}
-            </a>
-            {!!r.has_receipt && (
-              <>
-                {" "}
-                ·{" "}
-                <a
-                  href={`/api/padel-requests?receipt=${r.id}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  Descargar comprobante
-                </a>
-              </>
-            )}
-            <p>
-              Seña solicitada: {money(r.deposit_expected)} · {r.payment_method}
-            </p>
-          </div>
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              void act(r.id, "confirm");
-            }}
-          >
-            <label>
-              Precio acordado del turno (ARS)
-              <input
-                type="number"
-                disabled={!!busy}
-                min="1"
-                max="10000000"
-                step="1"
-                required
-                value={prices[r.id] ?? (r.amount ? String(r.amount) : "")}
-                onChange={(e) =>
-                  setPrices({ ...prices, [r.id]: e.target.value })
-                }
-              />
-            </label>
-            <label>
-              Pago verificado (ARS)
-              <input
-                type="number"
-                disabled={!!busy}
-                min="0"
-                max={Number(prices[r.id] || r.amount) || 10000000}
-                step="1"
-                value={deposits[r.id] ?? ""}
-                placeholder="0"
-                onChange={(e) =>
-                  setDeposits({ ...deposits, [r.id]: e.target.value })
-                }
-              />
-            </label>
-            <label>
-              Medio del pago recibido
-              <select
-                value={methods[r.id] ?? r.payment_method}
-                disabled={!!busy}
-                onChange={(e) =>
-                  setMethods({ ...methods, [r.id]: e.target.value })
-                }
+      {rows.slice(0, limit ?? rows.length).map((r) => {
+        const amount = Number(prices[r.id] ?? r.amount);
+        const paid = Number(deposits[r.id] || 0);
+        const validAmounts =
+          Number.isFinite(amount) &&
+          amount > 0 &&
+          Number.isFinite(paid) &&
+          paid >= 0 &&
+          paid <= amount;
+        return (
+          <article className="request-row" key={r.id}>
+            <div>
+              <strong>{r.name}</strong>{" "}
+              <small>#{r.id.slice(0, 8).toUpperCase()}</small>
+              <p>
+                Cancha {r.court} · {dateLabel(r.day)} · {timeLabel(r.start)} ·{" "}
+                {r.amount ? money(r.amount) : "Tarifa a confirmar"}
+              </p>
+              <a
+                href={`https://wa.me/${r.phone.replace(/\D/g, "")}`}
+                target="_blank"
+                rel="noopener noreferrer"
               >
-                <option value="Transferencia">Transferencia verificada</option>
-                <option value="Efectivo">Efectivo recibido en recepción</option>
-              </select>
-              <small>
-                Registrá solo el dinero efectivamente recibido. Si el cliente se
-                acerca al club, podés cobrar la seña en efectivo.
-              </small>
-            </label>
-            <button className="button gold" disabled={!!busy}>
-              Confirmar turno
-            </button>
-            <button
-              type="button"
-              className="button"
-              disabled={!!busy}
-              onClick={() => setRejectId(r.id)}
+                Contactar · {r.phone}
+              </a>
+              {!!r.has_receipt && (
+                <>
+                  {" "}
+                  ·{" "}
+                  <a
+                    href={`/api/padel-requests?receipt=${r.id}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    Descargar comprobante
+                  </a>
+                </>
+              )}
+              <p>
+                Seña solicitada: {money(r.deposit_expected)} ·{" "}
+                {r.payment_method}
+              </p>
+            </div>
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                if (!validAmounts || rejectId === r.id) return;
+                void act(r.id, "confirm");
+              }}
             >
-              Rechazar
-            </button>
-            {rejectId === r.id && (
-              <div role="alert" style={{ flexBasis: "100%" }}>
-                <p>
-                  ¿Rechazar la solicitud de {r.name} para la cancha {r.court},
-                  el {dateLabel(r.day)} a las {timeLabel(r.start)}? Tendrás que
-                  avisarle al cliente.
-                </p>
-                <button
-                  type="button"
-                  className="button"
+              <label>
+                Precio acordado del turno (ARS)
+                <input
+                  type="number"
                   disabled={!!busy}
-                  onClick={() => void act(r.id, "reject")}
-                >
-                  Sí, rechazar solicitud
-                </button>{" "}
-                <button
-                  type="button"
-                  className="button"
+                  min="1"
+                  max="10000000"
+                  step="1"
+                  required
+                  value={prices[r.id] ?? (r.amount ? String(r.amount) : "")}
+                  onChange={(e) =>
+                    setPrices({ ...prices, [r.id]: e.target.value })
+                  }
+                />
+              </label>
+              <label>
+                Pago verificado (ARS)
+                <input
+                  type="number"
                   disabled={!!busy}
-                  onClick={() => setRejectId("")}
+                  min="0"
+                  max={amount || 10000000}
+                  step="1"
+                  value={deposits[r.id] ?? ""}
+                  placeholder="0"
+                  onChange={(e) =>
+                    setDeposits({ ...deposits, [r.id]: e.target.value })
+                  }
+                />
+              </label>
+              <label>
+                Medio del pago recibido
+                <select
+                  value={methods[r.id] ?? r.payment_method}
+                  disabled={!!busy}
+                  onChange={(e) =>
+                    setMethods({ ...methods, [r.id]: e.target.value })
+                  }
                 >
-                  Volver
-                </button>
+                  <option value="Transferencia">
+                    Transferencia verificada
+                  </option>
+                  <option value="Efectivo">
+                    Efectivo recibido en recepción
+                  </option>
+                </select>
+                <small>
+                  Registrá solo el dinero efectivamente recibido. Si el cliente
+                  se acerca al club, podés cobrar la seña en efectivo.
+                </small>
+              </label>
+              <div
+                style={{ flexBasis: "100%" }}
+                aria-live="polite"
+                aria-atomic="true"
+              >
+                {validAmounts && (
+                  <>
+                    <p>
+                      <strong>Saldo por cobrar: {money(amount - paid)}</strong>
+                    </p>
+                    {paid === 0 ? (
+                      <p className="muted">
+                        Se confirmará sin pago registrado. El total quedará
+                        pendiente.
+                      </p>
+                    ) : paid < r.deposit_expected ? (
+                      <p className="muted">
+                        El pago recibido es menor que la seña solicitada de{" "}
+                        {money(r.deposit_expected)}.
+                      </p>
+                    ) : null}
+                  </>
+                )}
+                {paid > amount && amount > 0 && (
+                  <p className="error-box">
+                    El pago no puede superar el precio del turno.
+                  </p>
+                )}
               </div>
-            )}
-          </form>
-        </article>
-      ))}
+              <button
+                className="button gold"
+                disabled={!!busy || !validAmounts || rejectId === r.id}
+              >
+                {busy === r.id
+                  ? "Guardando…"
+                  : paid === 0
+                    ? "Confirmar sin pago"
+                    : "Confirmar turno y pago"}
+              </button>
+              <button
+                type="button"
+                className="button"
+                disabled={!!busy}
+                onClick={() => setRejectId(r.id)}
+              >
+                Rechazar
+              </button>
+              {rejectId === r.id && (
+                <div role="alert" style={{ flexBasis: "100%" }}>
+                  <p>
+                    ¿Rechazar la solicitud de {r.name} para la cancha {r.court},
+                    el {dateLabel(r.day)} a las {timeLabel(r.start)}? Tendrás
+                    que avisarle al cliente.
+                  </p>
+                  <button
+                    type="button"
+                    className="button"
+                    disabled={!!busy}
+                    onClick={() => void act(r.id, "reject")}
+                  >
+                    Sí, rechazar solicitud
+                  </button>{" "}
+                  <button
+                    type="button"
+                    className="button"
+                    disabled={!!busy}
+                    onClick={() => setRejectId("")}
+                  >
+                    Volver
+                  </button>
+                </div>
+              )}
+            </form>
+          </article>
+        );
+      })}
       {limit && rows.length > limit && (
         <Link className="button small" href="/reservas">
           Ver las {rows.length} solicitudes en la agenda
