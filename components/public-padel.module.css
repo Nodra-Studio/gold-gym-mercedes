@@ -1285,3 +1285,40 @@
     gap: 12px;
   }
 }
+
+.courts .courtCount {
+  font-size: 10px;
+  letter-spacing: normal;
+  margin-top: 7px;
+  color: #c8c7ba;
+}
+.attachment {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 13px 0;
+  font-size: 12px;
+  border-top: 1px solid var(--line);
+  margin-top: 12px;
+}
+.attachment span {
+  overflow-wrap: anywhere;
+  min-width: 0;
+}
+.attachment button {
+  background: none;
+  color: var(--gold);
+  border: 0;
+  min-height: 44px;
+  text-decoration: underline;
+  flex-shrink: 0;
+}
+@media (max-width: 480px) {
+  .courts .courtCount {
+    font-size: 9px;
+  }
+  .courts button {
+    min-height: 88px;
+  }
+}

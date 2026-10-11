@@ -64,6 +64,9 @@ export default function PublicPadel() {
     [court, setCourt] = useState(1);
   const [data, setData] = useState<Availability | null>(null),
     [loading, setLoading] = useState(true);
+  const [availabilityError, setAvailabilityError] = useState("");
+  const [receiptFile, setReceiptFile] = useState<File | null>(null);
+  const [receiptError, setReceiptError] = useState("");
   const [error, setError] = useState(""),
     [slot, setSlot] = useState<Choice | null>(null);
   const [review, setReview] = useState(false),
@@ -79,6 +82,8 @@ export default function PublicPadel() {
     [clock, setClock] = useState(Date.now());
   const [name, setName] = useState(""),
     [phone, setPhone] = useState("");
+  const receiptInput = useRef<HTMLInputElement>(null);
+  const availabilityPending = useRef(false);
   const sending = useRef(false),
     key = useRef(""),
     heading = useRef<HTMLHeadingElement>(null);
@@ -86,8 +91,13 @@ export default function PublicPadel() {
   const venue = venues.find((v) => v.name === "Club Unión")!;
   // Revalidate on return from another tab. Keep the customer's entered details.
   useEffect(() => {
+    if (done) return;
     const update = () => {
-      if (document.visibilityState === "visible" && !sending.current) {
+      if (
+        document.visibilityState === "visible" &&
+        !sending.current &&
+        !availabilityPending.current
+      ) {
         setRefresh((n) => n + 1);
         setClock(Date.now());
       }
@@ -98,11 +108,12 @@ export default function PublicPadel() {
       clearInterval(timer);
       document.removeEventListener("visibilitychange", update);
     };
-  }, []);
+  }, [done]);
   useEffect(() => {
     if (done) return;
     const c = new AbortController();
     setLoading(true);
+    availabilityPending.current = true;
     apiFetch("/api/public-padel?day=" + day, {
       signal: c.signal,
       cache: "no-store",
@@ -112,21 +123,27 @@ export default function PublicPadel() {
         if (!r.ok) throw Error(j.error);
         if (!c.signal.aborted) {
           setData(j);
-          setError("");
+          setAvailabilityError("");
         }
       })
       .catch((e) => {
         if (!c.signal.aborted) {
-          setData(null);
-          setError(e.message);
+          setAvailabilityError(e.message);
         }
       })
       .finally(() => {
-        if (!c.signal.aborted) setLoading(false);
+        if (!c.signal.aborted) {
+          setLoading(false);
+          availabilityPending.current = false;
+        }
       });
-    return () => c.abort();
+    return () => {
+      c.abort();
+      availabilityPending.current = false;
+    };
   }, [day, refresh, done]);
   useEffect(() => {
+    if (!review || done) return;
     const c = new AbortController();
     apiFetch("/api/padel-weather", { signal: c.signal })
       .then((r) => r.json() as Promise<Partial<Weather>>)
@@ -136,7 +153,7 @@ export default function PublicPadel() {
       })
       .catch(() => {});
     return () => c.abort();
-  }, []);
+  }, [review, done]);
   useEffect(() => {
     if (review || done) heading.current?.focus();
   }, [review, done]);
@@ -156,7 +173,8 @@ export default function PublicPadel() {
       (o) => o.court === courtNumber && o.start === start,
     );
   const availableSlots = slots.filter((start) => available(court, start));
-  const validSlot = !!slot && available(slot.court, slot.start);
+  const validSlot =
+    !availabilityError && !!slot && available(slot.court, slot.start);
   const price = currentData?.settings.padel_price ?? 0;
   const deposit = Math.round(
     (price * (currentData?.settings.deposit_percent ?? 0)) / 100,
@@ -181,6 +199,9 @@ export default function PublicPadel() {
   const forecast = coverage >= instant + 90 * 60000 ? periods : [];
   function chooseDay(value: string) {
     if (!value || value === day) return;
+    setReceiptFile(null);
+    setReceiptError("");
+    setAvailabilityError("");
     setDay(value);
     setSlot(null);
     setReview(false);
@@ -188,6 +209,10 @@ export default function PublicPadel() {
     key.current = "";
   }
   function chooseSlot(start: number) {
+    if (slot?.court !== court || slot.start !== start) {
+      setReceiptFile(null);
+      setReceiptError("");
+    }
     setSlot({ court, start });
     setError("");
     key.current = "";
@@ -205,7 +230,7 @@ export default function PublicPadel() {
     setError("");
     try {
       const values = new FormData(e.currentTarget),
-        file = values.get("receipt") as File;
+        file = receiptFile;
       let receipt = "",
         receiptType = "";
       if (paymentMethod === "Transferencia" && file?.size) {
@@ -327,6 +352,8 @@ export default function PublicPadel() {
         <button
           className={s.textButton}
           onClick={() => {
+            setReceiptFile(null);
+            setReceiptError("");
             setDone("");
             setReview(false);
             setSlot(null);
@@ -433,6 +460,9 @@ export default function PublicPadel() {
                   key={c}
                   aria-pressed={court === c}
                   onClick={() => {
+                    if (c === court) return;
+                    setReceiptFile(null);
+                    setReceiptError("");
                     setCourt(c);
                     setSlot(null);
                     setError("");
@@ -446,6 +476,13 @@ export default function PublicPadel() {
                   <span>
                     <small>PÁDEL</small>
                     <strong>Cancha {c}</strong>
+                    <small className={s.courtCount}>
+                      {loading
+                        ? "Consultando…"
+                        : availabilityError
+                          ? "Sin actualizar"
+                          : `${slots.filter((start) => available(c, start)).length} turnos libres`}
+                    </small>
                   </span>
                   {court === c && <Check size={18} />}
                 </button>
@@ -469,9 +506,9 @@ export default function PublicPadel() {
               </button>
             </div>
             <p className={s.subtle}>{dateLabel(day)} · Hora de Argentina</p>
-            {error && (
+            {(error || availabilityError) && (
               <div className={s.error} role="alert">
-                {error}
+                {error || availabilityError}
                 <button type="button" onClick={() => setRefresh((n) => n + 1)}>
                   Volver a intentar
                 </button>
@@ -487,7 +524,7 @@ export default function PublicPadel() {
                 availableSlots.map((start) => (
                   <button
                     key={start}
-                    disabled={loading}
+                    disabled={loading || !!availabilityError}
                     aria-pressed={slot?.court === court && slot.start === start}
                     onClick={() => chooseSlot(start)}
                   >
@@ -625,15 +662,60 @@ export default function PublicPadel() {
                       Comprobante de seña <span>(opcional)</span>
                       <input
                         disabled={busy}
+                        ref={receiptInput}
                         name="receipt"
                         type="file"
                         accept="image/jpeg,image/png,application/pdf"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (!file) return;
+                          if (
+                            file.size > 1048576 ||
+                            ![
+                              "image/jpeg",
+                              "image/png",
+                              "application/pdf",
+                            ].includes(file.type)
+                          ) {
+                            setReceiptError(
+                              "Elegí un JPG, PNG o PDF de hasta 1 MB.",
+                            );
+                            e.target.value = "";
+                            return;
+                          }
+                          setReceiptFile(file);
+                          setReceiptError("");
+                        }}
                       />
                       <small>
                         JPG, PNG o PDF de hasta 1 MB. Adjuntalo solo si ya
                         coordinaste y pagaste la transferencia.
                       </small>
                     </label>
+                    {receiptFile && (
+                      <div className={s.attachment}>
+                        <span>
+                          Adjunto: <strong>{receiptFile.name}</strong>
+                        </span>
+                        <button
+                          type="button"
+                          disabled={busy}
+                          onClick={() => {
+                            setReceiptFile(null);
+                            if (receiptInput.current)
+                              receiptInput.current.value = "";
+                            setReceiptError("");
+                          }}
+                        >
+                          Quitar
+                        </button>
+                      </div>
+                    )}
+                    {receiptError && (
+                      <p role="alert" className={s.error}>
+                        {receiptError}
+                      </p>
+                    )}
                   </div>
                 )}
               </section>
@@ -710,14 +792,14 @@ export default function PublicPadel() {
                   La solicitud no bloquea la cancha. Recepción verificará el
                   turno y la seña antes de confirmarlo.
                 </p>
-                {currentData && !validSlot && (
+                {currentData && !availabilityError && !validSlot && (
                   <p className={s.error} role="alert">
                     Este horario ya no está disponible. Elegí otro turno.
                   </p>
                 )}
-                {error && (
+                {(error || availabilityError) && (
                   <div className={s.error} role="alert">
-                    {error}
+                    {error || availabilityError}
                     <button
                       type="button"
                       disabled={loading || busy}

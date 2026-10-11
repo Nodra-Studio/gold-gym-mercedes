@@ -25,6 +25,7 @@ export default function PadelRequests({
   const [rows, setRows] = useState<RequestRow[]>([]),
     [error, setError] = useState(""),
     [busy, setBusy] = useState(""),
+    [rejectId, setRejectId] = useState(""),
     [deposits, setDeposits] = useState<Record<string, string>>({}),
     [methods, setMethods] = useState<Record<string, string>>({}),
     [prices, setPrices] = useState<Record<string, string>>({});
@@ -104,6 +105,7 @@ export default function PadelRequests({
         }),
         j = (await r.json()) as { error?: string; requests: RequestRow[] };
       if (!r.ok) throw Error(j.error);
+      setRejectId("");
       setRows((current) => current.filter((row) => row.id !== id));
       void load();
       onChange();
@@ -186,6 +188,7 @@ export default function PadelRequests({
               Precio acordado del turno (ARS)
               <input
                 type="number"
+                disabled={!!busy}
                 min="1"
                 max="10000000"
                 step="1"
@@ -200,6 +203,7 @@ export default function PadelRequests({
               Pago verificado (ARS)
               <input
                 type="number"
+                disabled={!!busy}
                 min="0"
                 max={Number(prices[r.id] || r.amount) || 10000000}
                 step="1"
@@ -234,10 +238,35 @@ export default function PadelRequests({
               type="button"
               className="button"
               disabled={!!busy}
-              onClick={() => void act(r.id, "reject")}
+              onClick={() => setRejectId(r.id)}
             >
               Rechazar
             </button>
+            {rejectId === r.id && (
+              <div role="alert" style={{ flexBasis: "100%" }}>
+                <p>
+                  ¿Rechazar la solicitud de {r.name} para la cancha {r.court},
+                  el {dateLabel(r.day)} a las {timeLabel(r.start)}? Tendrás que
+                  avisarle al cliente.
+                </p>
+                <button
+                  type="button"
+                  className="button"
+                  disabled={!!busy}
+                  onClick={() => void act(r.id, "reject")}
+                >
+                  Sí, rechazar solicitud
+                </button>{" "}
+                <button
+                  type="button"
+                  className="button"
+                  disabled={!!busy}
+                  onClick={() => setRejectId("")}
+                >
+                  Volver
+                </button>
+              </div>
+            )}
           </form>
         </article>
       ))}
