@@ -34,7 +34,8 @@ import {
   type Booking,
 } from "@/lib/club";
 export default function PadelAgenda() {
-  const { data, error, busy, loading, refresh, mutate, setError } = useClub("padel");
+  const { data, error, busy, loading, refresh, mutate, setError } =
+    useClub("padel");
   const [day, setDay] = useState(localDay()),
     [slot, setSlot] = useState<{
       court: number;
@@ -42,6 +43,7 @@ export default function PadelAgenda() {
     } | null>(null),
     [detail, setDetail] = useState<Booking | null>(null),
     [notice, setNotice] = useState(""),
+    [cancelId, setCancelId] = useState(""),
     [method, setMethod] = useState("Efectivo");
   const bookings =
       data?.bookings.filter((b) => b.day === day && b.status === "confirmed") ??
@@ -51,6 +53,8 @@ export default function PadelAgenda() {
     const b = bookings.find((b) => b.court === court && b.start === start);
     setError("");
     setNotice("");
+    setCancelId("");
+    setMethod("Efectivo");
     if (b) setDetail(b);
     else setSlot({ court, start });
   };
@@ -216,6 +220,8 @@ export default function PadelAgenda() {
                 className="text-link"
                 onClick={() => {
                   setError("");
+                  setCancelId("");
+                  setMethod("Efectivo");
                   setDetail(b);
                 }}
               >
@@ -297,17 +303,22 @@ export default function PadelAgenda() {
         {detail && (
           <>
             <h3>{detail.name}</h3>
-            <p>{detail.phone || "Sin teléfono registrado"}</p>
-            <div className="notice" style={{ margin: 0 }}>
-              Total: {money(detail.amount)}
-              <br />
-              Pagado: {money(detail.deposit)}
-              <br />
-              Pendiente: {money(detail.amount - detail.deposit)}
-            </div>
-            <BookingPaymentHistory bookingId={detail.id} />
+            {detail.kind === "booking" && (
+              <>
+                <p>{detail.phone || "Sin teléfono registrado"}</p>
+                <div className="notice" style={{ margin: 0 }}>
+                  Total: {money(detail.amount)}
+                  <br />
+                  Pagado: {money(detail.deposit)}
+                  <br />
+                  Pendiente: {money(detail.amount - detail.deposit)}
+                </div>
+                <BookingPaymentHistory key={detail.id} bookingId={detail.id} />
+              </>
+            )}
             {detail.status === "confirmed" &&
               detail.kind === "booking" &&
+              cancelId !== detail.id &&
               detail.deposit < detail.amount && (
                 <form
                   style={{ marginTop: 20 }}
@@ -344,35 +355,80 @@ export default function PadelAgenda() {
                   </div>
                 </form>
               )}
-            <p className="muted">
-              Cancelar libera este turno. Los otros turnos de una serie semanal
-              se conservan. Si hubo una seña, coordiná su devolución por
-              separado.
-            </p>
-            <div className="form-actions">
-              <button
-                className="button small"
-                disabled={busy}
-                onClick={() => setDetail(null)}
+            {cancelId === detail.id ? (
+              <section
+                className="notice"
+                aria-label="Confirmación de cancelación"
               >
-                Volver
-              </button>
-              <button
-                className="button small"
-                disabled={busy || detail.status === "cancelled"}
-                onClick={async () => {
-                  try {
-                    await mutate({ action: "cancelBooking", id: detail.id });
-                    setDetail(null);
-                    setNotice(
-                      "Turno cancelado. El horario volvió a quedar libre.",
-                    );
-                  } catch {}
-                }}
-              >
-                {busy ? "Cancelando…" : "Confirmar cancelación"}
-              </button>
-            </div>
+                <h3>
+                  {detail.kind === "block"
+                    ? "¿Liberar este horario?"
+                    : "¿Cancelar esta reserva?"}
+                </h3>
+                <p>
+                  {detail.name} · Cancha {detail.court} ·{" "}
+                  {dateLabel(detail.day)} · {timeLabel(detail.start)}
+                </p>
+                <p>
+                  Este horario volverá a estar disponible. Los otros turnos de
+                  una serie semanal se conservan.
+                </p>
+                {detail.deposit > 0 && (
+                  <p>
+                    <strong>Hay {money(detail.deposit)} cobrados.</strong> Esta
+                    acción no devuelve dinero: coordiná cualquier devolución por
+                    separado.
+                  </p>
+                )}
+                <div className="form-actions">
+                  <button
+                    className="button small"
+                    disabled={busy}
+                    onClick={() => setCancelId("")}
+                  >
+                    Conservar turno
+                  </button>
+                  <button
+                    className="button small"
+                    disabled={busy}
+                    onClick={async () => {
+                      try {
+                        await mutate({
+                          action: "cancelBooking",
+                          id: detail.id,
+                        });
+                        setDetail(null);
+                        setCancelId("");
+                        setNotice(
+                          "Turno cancelado. El horario volvió a quedar libre.",
+                        );
+                      } catch {}
+                    }}
+                  >
+                    {busy ? "Cancelando…" : "Sí, liberar horario"}
+                  </button>
+                </div>
+              </section>
+            ) : (
+              <div className="form-actions">
+                <button
+                  className="button small"
+                  disabled={busy}
+                  onClick={() => setDetail(null)}
+                >
+                  Volver
+                </button>
+                <button
+                  className="button small"
+                  disabled={busy || detail.status === "cancelled"}
+                  onClick={() => setCancelId(detail.id)}
+                >
+                  {detail.kind === "block"
+                    ? "Liberar horario"
+                    : "Cancelar reserva"}
+                </button>
+              </div>
+            )}
           </>
         )}
       </FormModal>

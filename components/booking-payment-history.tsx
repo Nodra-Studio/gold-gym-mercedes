@@ -19,30 +19,42 @@ export default function BookingPaymentHistory({
   bookingId: string;
 }) {
   const [data, setData] = useState<History | null>(null),
-    [error, setError] = useState("");
+    [error, setError] = useState(""),
+    [retry, setRetry] = useState(0);
   useEffect(() => {
     const controller = new AbortController();
     // Clear the previous booking before requesting this booking’s payment history.
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setData(null);
     setError("");
-    void apiFetch("/api/booking-payments?" + new URLSearchParams({ bookingId }), {
-      signal: controller.signal,
-    })
+    void apiFetch(
+      "/api/booking-payments?" + new URLSearchParams({ bookingId }),
+      {
+        signal: controller.signal,
+      },
+    )
       .then(async (r) => {
         const j = (await r.json()) as History & { error?: string };
         if (!r.ok) throw Error(j.error ?? "No se pudo cargar el historial.");
-        setData(j);
+        if (!controller.signal.aborted) setData(j);
       })
       .catch((e) => {
         if (!controller.signal.aborted) setError(e.message);
       });
     return () => controller.abort();
-  }, [bookingId]);
+  }, [bookingId, retry]);
   return (
     <section className="booking-payment-history">
       <h3>Historial de cobros</h3>
       <ErrorNotice error={error} />
+      {error && (
+        <button
+          className="button small"
+          onClick={() => setRetry((value) => value + 1)}
+        >
+          Reintentar historial
+        </button>
+      )}
       {!data && !error && <p role="status">Cargando cobros…</p>}
       {data && (
         <>
