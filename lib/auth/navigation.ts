@@ -1,4 +1,4 @@
-import { safeReturnTo } from './config';
+import { safeReturnTo } from './return-to';
 
 export function portalForRole(role: string) {
   if (role === 'owner' || role === 'reception') return '/gestion';

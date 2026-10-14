@@ -46,9 +46,9 @@ export function SiteFooter() {
       </div>
       <div className="gg-footer-bottom">
         <span>Musculación · Pilates · Pádel</span>
-        <Link href="/acceso">
+        <a href="/acceso">
           Acceso del personal <ArrowUpRight size={14} />
-        </Link>
+        </a>
         <span>Diseño y desarrollo por Nodra Studio</span>
       </div>
     </footer>

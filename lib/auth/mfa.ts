@@ -1,5 +1,5 @@
 import type { SupabaseClient, User } from '@supabase/supabase-js';
-import { safeReturnTo } from './config';
+import { safeReturnTo } from './return-to';
 
 export function mfaReturnTo(value: unknown) {
   const next = safeReturnTo(value);

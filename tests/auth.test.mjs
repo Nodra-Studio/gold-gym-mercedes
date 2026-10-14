@@ -22,9 +22,10 @@ export const authClient=async()=>({auth:{
  updateUser:async()=>{calls.push(['password']);return {error:null}},
  signOut:async input=>{calls.push(['logout',input]);return {error:null}}
 }});`);
-compile('lib/auth/config.ts','config',[]);
-compile('lib/auth/mfa.ts','mfa',[["'./config'","'./config.mjs'"]]);
-compile('lib/auth/navigation.ts','navigation',[["'./config'","'./config.mjs'"]]);
+compile('lib/auth/return-to.ts','return-to',[]);
+compile('lib/auth/config.ts','config',[["'./return-to'","'./return-to.mjs'"]]);
+compile('lib/auth/mfa.ts','mfa',[["'./return-to'","'./return-to.mjs'"]]);
+compile('lib/auth/navigation.ts','navigation',[["'./return-to'","'./return-to.mjs'"]]);
 compile('lib/api-fetch.ts','api-fetch',[]);
 compile('lib/server.ts','server',[['@club/runtime','./mock.mjs'],['@/app/chatgpt-auth','./mock.mjs']]);
 compile('app/api/auth/route.ts','route',[["'zod'",JSON.stringify(pathToFileURL(require.resolve('zod')).href)],["import { authConfigured } from '@/lib/auth/config';","import { authConfigured } from './mock.mjs';"],['@/lib/auth/navigation','./navigation.mjs'],['@/lib/auth/mfa','./mfa.mjs'],['@/lib/auth/client','./mock.mjs'],['@/lib/auth/rate-limit','./mock.mjs'],['@/lib/server','./server.mjs']]);
