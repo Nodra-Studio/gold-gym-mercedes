@@ -2,6 +2,10 @@ import { z } from "zod";
 import { createHash } from "node:crypto";
 import { database, body, ClubError, apiError } from "@/lib/server";
 import { publicOwner, validateReceipt } from "@/lib/public-padel";
+import {
+  isPublicPhone,
+  normalizePublicPhone,
+} from "@/lib/public-padel-validation";
 const settingsQuery =
   "SELECT CASE WHEN price_published=1 THEN padel_price ELSE 0 END AS padel_price,booking_days,cancel_hours,deposit_percent,payment_alias,whatsapp,revision FROM settings WHERE owner=?";
 const defaultSettings = {
@@ -29,7 +33,7 @@ const schema = z
     court: z.number().int().min(1).max(4),
     start: z.number().refine((n) => slots.includes(n)),
     name: z.string().trim().min(2).max(80),
-    phone: z.string().regex(/^\+?\d{8,15}$/),
+    phone: z.string().max(40).transform(normalizePublicPhone).refine(isPublicPhone),
     expectedPrice: z.number().int().min(0),
     expectedRevision: z.number().int().min(0).optional(),
     paymentMethod: z.literal("Transferencia").default("Transferencia"),

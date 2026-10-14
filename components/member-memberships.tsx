@@ -19,11 +19,12 @@ export default function MemberMemberships({
       (p) =>
         p.id !== member.plan_id && !existing.some((m) => m.plan_id === p.id),
     );
-  const [selected, setSelected] = useState(""),
+  const [selected, setSelected] = useState<(typeof existing)[number] | null>(null),
     [planId, setPlan] = useState(available[0]?.id ?? ""),
     [expires, setExpires] = useState(data.today),
     [status, setStatus] = useState("active");
-  const current = existing.find((m) => m.id === selected);
+  // Background refreshes must not replace the version this form is editing.
+  const current = selected;
   return (
     <form
       onSubmit={(e) => {
@@ -57,12 +58,12 @@ export default function MemberMemberships({
         <label className="field full">
           Membresía
           <select
-            value={selected}
+            value={selected?.id ?? ""}
             disabled={busy}
             onChange={(e) => {
               const v = e.target.value,
                 m = existing.find((m) => m.id === v);
-              setSelected(v);
+              setSelected(m ? { ...m } : null);
               setExpires(m?.expires ?? data.today);
               setStatus(m?.status ?? "active");
             }}

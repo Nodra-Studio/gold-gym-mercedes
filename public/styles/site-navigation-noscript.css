@@ -1,0 +1,16 @@
+/* Keep the existing mobile navigation usable when scripting is disabled. */
+@media (max-width: 760px) {
+  .marketing .gg-header {
+    position: static;
+    max-height: none;
+    overflow-y: visible;
+  }
+
+  .gg-header .gg-menu {
+    display: none;
+  }
+
+  .gg-header .gg-nav {
+    display: flex;
+  }
+}

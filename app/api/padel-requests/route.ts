@@ -140,7 +140,7 @@ export async function POST(req: Request) {
       if (!result[0].meta.changes)
         throw new ClubError("La solicitud cambió. Actualizá la lista.", 409);
     } else {
-      await db.batch([
+      const result = await db.batch([
         db
           .prepare(
             "INSERT INTO audit(id,owner,action,detail,created_at) SELECT ?,?,'Solicitud de pádel rechazada',?,? WHERE EXISTS(SELECT 1 FROM booking_requests WHERE id=? AND owner=? AND status='pending')",
@@ -159,6 +159,8 @@ export async function POST(req: Request) {
           )
           .bind(i.id, p.owner),
       ]);
+      if (!result[1].meta.changes)
+        throw new ClubError("La solicitud cambió. Actualizá la lista.", 409);
     }
     return Response.json({ ok: true });
   } catch (e) {

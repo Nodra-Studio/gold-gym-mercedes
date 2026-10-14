@@ -15,15 +15,17 @@ type History = {
 };
 export default function BookingPaymentHistory({
   bookingId,
+  totalPaid,
 }: {
   bookingId: string;
+  totalPaid: number;
 }) {
   const [data, setData] = useState<History | null>(null),
     [error, setError] = useState(""),
     [retry, setRetry] = useState(0);
   useEffect(() => {
     const controller = new AbortController();
-    // Clear the previous booking before requesting this booking’s payment history.
+    // Clear stale movements when another operator changes the recorded payment.
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setData(null);
     setError("");
@@ -42,7 +44,7 @@ export default function BookingPaymentHistory({
         if (!controller.signal.aborted) setError(e.message);
       });
     return () => controller.abort();
-  }, [bookingId, retry]);
+  }, [bookingId, totalPaid, retry]);
   return (
     <section className="booking-payment-history">
       <h3>Historial de cobros</h3>
