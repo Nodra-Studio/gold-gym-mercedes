@@ -2,7 +2,6 @@
 (() => {
   'use strict';
   const KEY = 'gold-terminal-offline-v1';
-  const CACHE = 'gold-terminal-shell-v1';
   const elements = Object.fromEntries(['venue', 'copy-status', 'pending', 'title', 'detail', 'form', 'dni', 'check', 'notice', 'forget'].map(id => [id, document.getElementById(id)]));
   let busy = false, syncing = false, resetTimer;
   const read = () => {
@@ -59,7 +58,10 @@
       const registrations = await navigator.serviceWorker.getRegistrations();
       await Promise.all(registrations.filter(r => new URL(r.scope).pathname.replace(/\/$/, '') === '/ingreso').map(r => r.unregister()));
     }
-    if ('caches' in window) await caches.delete(CACHE);
+    if ('caches' in window) {
+      const names = await caches.keys();
+      await Promise.all(names.filter(name => name.startsWith('gold-terminal-shell-')).map(name => caches.delete(name)));
+    }
     refresh();
   };
   const request = async (path, payload) => {

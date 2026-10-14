@@ -1,11 +1,17 @@
 /* Only a public terminal shell is cached. Private HTML, API and session requests
  * always reach the network and are never put in this cache. */
-const CACHE = 'gold-terminal-shell-v1';
+const CACHE = 'gold-terminal-shell-v2';
 const ASSETS = ['/terminal-offline.html', '/terminal-offline.js', '/terminal-offline.css', '/images/logo.webp'];
 self.addEventListener('install', event => {
   event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(ASSETS)).then(() => self.skipWaiting()));
 });
-self.addEventListener('activate', event => { event.waitUntil(self.clients.claim()); });
+self.addEventListener('activate', event => {
+  event.waitUntil((async () => {
+    const names = await caches.keys();
+    await Promise.all(names.filter(name => name.startsWith('gold-terminal-shell-') && name !== CACHE).map(name => caches.delete(name)));
+    await self.clients.claim();
+  })());
+});
 self.addEventListener('fetch', event => {
   const url = new URL(event.request.url);
   if (url.origin !== self.location.origin || event.request.method !== 'GET') return;

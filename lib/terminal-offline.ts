@@ -68,7 +68,10 @@ export async function clearTerminalOffline() {
     const registrations = await navigator.serviceWorker.getRegistrations();
     await Promise.all(registrations.filter(r => new URL(r.scope).pathname.replace(/\/$/, '') === "/ingreso").map(r => r.unregister()));
   }
-  if ("caches" in window) await caches.delete("gold-terminal-shell-v1");
+  if ("caches" in window) {
+    const names = await caches.keys();
+    await Promise.all(names.filter(name => name.startsWith("gold-terminal-shell-")).map(name => caches.delete(name)));
+  }
 }
 
 /** Only queues facts supplied by this device; the server reconstructs the decision. */

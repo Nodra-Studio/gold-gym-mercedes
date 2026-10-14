@@ -17,7 +17,7 @@
     "start:vercel": "next start",
     "typecheck": "tsc --noEmit",
     "test": "node --test tests/*.test.mjs",
-    "test:vercel": "node tests/vercel-smoke.mjs",
+    "test:vercel": "node tests/vercel-smoke.mjs && node tests/security-ssr.mjs",
     "backend:check": "node --env-file-if-exists=.env.local scripts/check-backend.mjs"
   },
   "dependencies": {
