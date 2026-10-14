@@ -71,6 +71,34 @@
       "when": 1791487403000,
       "tag": "0009_central_tariffs_memberships",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "6",
+      "when": 1791984510822,
+      "tag": "0010_member_home_branch",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "6",
+      "when": 1791984846993,
+      "tag": "0011_cash_movement_corrections",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "6",
+      "when": 1791984957395,
+      "tag": "0012_offline_terminal_access",
+      "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "6",
+      "when": 1792001657244,
+      "tag": "0013_fiscal_issuer_settings",
+      "breakpoints": true
     }
   ]
 }

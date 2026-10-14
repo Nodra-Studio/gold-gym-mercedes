@@ -4,6 +4,8 @@ export const requiredClubTables = Object.freeze([
   'enrollments', 'staff', 'imports', 'restores', 'settings', 'booking_payments',
   'auth_limits', 'products', 'cash_entries', 'stock_moves', 'product_changes',
   'booking_requests', 'member_memberships',
+  'cash_entry_changes', 'offline_devices', 'offline_snapshots', 'offline_events',
+  'issuer_settings',
 ]);
 
 export async function verifyClubSchema(query) {

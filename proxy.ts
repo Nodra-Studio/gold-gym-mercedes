@@ -40,7 +40,28 @@ export async function proxy(request: NextRequest) {
       },
     );
     // Refresh before Server Components read cookies. Roles remain checked by principal().
-    await client.auth.getClaims();
+    const claims = await client.auth.getClaims();
+    const path = request.nextUrl.pathname;
+    const accountRoute = ['/acceso', '/crear-cuenta', '/recuperar', '/actualizar-clave', '/verificar', '/api/auth', '/api/mfa'].includes(path) || path.startsWith('/auth/');
+    if (!accountRoute && !claims.error && claims.data?.claims.sub && claims.data.claims.aal !== 'aal2') {
+      const assurance = await client.auth.mfa.getAuthenticatorAssuranceLevel();
+      let blocked: NextResponse | null = null;
+      if (assurance.error || !assurance.data?.currentLevel) {
+        blocked = path.startsWith('/api/')
+          ? NextResponse.json({ error: 'No pudimos verificar la seguridad de la sesión. Volvé a intentar.' }, { status: 503 })
+          : NextResponse.redirect(new URL('/verificar?next=' + encodeURIComponent(path + request.nextUrl.search), request.url));
+      } else if (assurance.data.nextLevel === 'aal2' && assurance.data.currentLevel !== 'aal2') {
+        blocked = path.startsWith('/api/')
+          ? NextResponse.json({ error: 'Completá la verificación en dos pasos para abrir la gestión.', code: 'MFA_REQUIRED', next: '/verificar' }, { status: 403 })
+          : NextResponse.redirect(new URL('/verificar?next=' + encodeURIComponent(path + request.nextUrl.search), request.url));
+      }
+      if (blocked) {
+        for (const cookie of response.cookies.getAll()) blocked.cookies.set(cookie);
+        blocked.headers.set('Cache-Control', 'private, no-store');
+        blocked.headers.set('X-Robots-Tag', 'noindex, nofollow');
+        return blocked;
+      }
+    }
     response.headers.set("Cache-Control", "private, no-store");
     response.headers.set("X-Robots-Tag", "noindex, nofollow");
     return response;
@@ -70,6 +91,7 @@ export const config = {
     "/crear-cuenta/:path*",
     "/recuperar/:path*",
     "/actualizar-clave/:path*",
+    "/verificar/:path*",
     "/auth/:path*",
     "/caja/:path*",
     "/api/:path*",
@@ -80,6 +102,7 @@ export const config = {
     "/configuracion/:path*",
     "/equipo/:path*",
     "/datos/:path*",
+    "/datos-fiscales/:path*",
     "/reportes/:path*",
     "/signin-with-chatgpt/:path*",
     "/signout-with-chatgpt/:path*",

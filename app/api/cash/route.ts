@@ -87,6 +87,17 @@ const schema = z.discriminatedUnion("action", [
     .strict(),
   z
     .object({
+      action: z.literal("income"),
+      venue,
+      concept: z.string().trim().min(3).max(300),
+      amount,
+      method,
+      day: z.string().refine(isValidDay),
+      requestKey,
+    })
+    .strict(),
+  z
+    .object({
       action: z.literal("expense"),
       venue,
       category: z.enum(expenseCategories),
@@ -99,8 +110,24 @@ const schema = z.discriminatedUnion("action", [
     .strict(),
   z
     .object({
+      action: z.literal("editEntry"),
+      id: z.string().uuid(),
+      venue,
+      category: z.enum([...expenseCategories, "Otros ingresos"]),
+      concept: z.string().trim().min(3).max(300),
+      amount,
+      method,
+      day: z.string().refine(isValidDay),
+      expectedRevision: z.number().int().min(1),
+      reason: z.string().trim().min(3).max(300),
+      requestKey,
+    })
+    .strict(),
+  z
+    .object({
       action: z.literal("reverse"),
       id: z.string().uuid(),
+      expectedRevision: z.number().int().min(1),
       reason: z.string().trim().min(3).max(300),
       requestKey,
     })
@@ -117,13 +144,16 @@ export async function POST(req: Request) {
         "Revisá la sede, los importes y los datos del formulario.",
       );
     if (
-      ["product", "reverse", "adjust", "editProduct"].includes(
+      ["product", "reverse", "adjust", "editProduct", "editEntry"].includes(
         input.data.action,
       )
     )
       permit(p, ["owner"]);
-    if (input.data.action === "expense" && input.data.day > localDay())
-      throw new ClubError("El gasto no puede tener fecha futura.");
+    if (
+      ["expense", "income", "editEntry"].includes(input.data.action) &&
+      "day" in input.data && input.data.day > localDay()
+    )
+      throw new ClubError("El movimiento no puede tener fecha futura.");
     const result = await database()
       .prepare("SELECT record_cash(?,?,?::jsonb) AS result")
       .bind(p.owner, p.userId, JSON.stringify(input.data))
@@ -170,20 +200,20 @@ export async function GET(req: Request) {
       throw new ClubError("Sede inválida.");
     if (
       category &&
-      !["Cuotas", "Pádel", "Productos", ...expenseCategories].includes(category)
+      !["Cuotas", "Pádel", "Productos", "Otros ingresos", ...expenseCategories].includes(category)
     )
       throw new ClubError("Categoría inválida.");
     if (!Number.isSafeInteger(offset) || offset < 0 || offset > 1000000)
       throw new ClubError("Página inválida.");
     const union = `WITH ledger AS (
-   SELECT c.id,c.venue,c.kind,c.category,c.concept,c.amount,c.method,c.day,c.created_at,c.actor,c.reverses,
+   SELECT c.id,c.venue,c.kind,c.category,c.concept,c.amount,c.method,c.day,c.created_at,c.actor,c.reverses,c.revision,
     EXISTS(SELECT 1 FROM cash_entries r WHERE r.owner=c.owner AND r.reverses=c.id) AS reversed
     FROM cash_entries c WHERE c.owner=?
    UNION ALL SELECT p.id,p.venue,'membership','Cuotas','Cuota · '||m.name,p.amount,p.method,
-    to_char(p.created_at::timestamptz AT TIME ZONE 'America/Argentina/Buenos_Aires','YYYY-MM-DD'),p.created_at,NULL,NULL,false
+    to_char(p.created_at::timestamptz AT TIME ZONE 'America/Argentina/Buenos_Aires','YYYY-MM-DD'),p.created_at,NULL,NULL,1,false
     FROM payments p JOIN members m ON m.id=p.member_id AND m.owner=p.owner WHERE p.owner=?
    UNION ALL SELECT b.id,b.venue,'padel','Pádel','Pádel · '||r.name,b.amount,b.method,
-    to_char(b.created_at::timestamptz AT TIME ZONE 'America/Argentina/Buenos_Aires','YYYY-MM-DD'),b.created_at,NULL,NULL,false
+    to_char(b.created_at::timestamptz AT TIME ZONE 'America/Argentina/Buenos_Aires','YYYY-MM-DD'),b.created_at,NULL,NULL,1,false
     FROM booking_payments b JOIN bookings r ON r.id=b.booking_id AND r.owner=b.owner WHERE b.owner=?
   ), filtered AS (SELECT * FROM ledger WHERE day>=? AND day<=? ${branch === "unknown" ? "AND venue IS NULL" : branch ? "AND venue=?" : ""} ${category ? "AND category=?" : ""})`;
     const args = [
@@ -277,6 +307,11 @@ export async function GET(req: Request) {
           "SELECT c.id,c.product_id,c.before_state,c.after_state,c.created_at,c.actor,p.name FROM product_changes c JOIN products p ON p.id=c.product_id AND p.owner=c.owner WHERE c.owner=? ORDER BY c.created_at DESC,c.id DESC LIMIT 50",
         )
         .bind(p.owner),
+      db
+        .prepare(
+          "SELECT id,cash_entry_id,before_state,after_state,reason,created_at,actor FROM cash_entry_changes WHERE owner=? ORDER BY created_at DESC,id DESC LIMIT 50",
+        )
+        .bind(p.owner),
     ]);
     return Response.json(
       {
@@ -291,6 +326,7 @@ export async function GET(req: Request) {
         stock: data[3].results,
         stockMoves: data[4].results,
         productChanges: data[5].results,
+        entryChanges: data[6].results,
       },
       { headers },
     );

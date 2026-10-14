@@ -13,7 +13,7 @@ export const dynamic = "force-dynamic";
 const inputSchema = z.object({
   userId: z.string().trim().min(1).max(200),
   name: z.string().trim().min(2).max(80),
-  role: z.enum(["reception", "gate", "player"]),
+  role: z.enum(["owner", "reception", "gate", "player"]),
   status: z.enum(["active", "revoked"]),
 });
 export async function GET() {
@@ -24,23 +24,27 @@ export async function GET() {
       .prepare("SELECT owner,role,status FROM staff WHERE user_id=?")
       .bind(userId)
       .first<{ owner: string; role: string; status: string }>();
-    if (membership)
+    if (membership && (membership.status !== "active" || membership.role !== "owner"))
       return Response.json(
         {
           userId,
           authProvider: supportsSitesIdentity ? "sites" : "supabase",
-          role: membership.status === "active" ? membership.role : "revoked",
+          role: membership.status === "active" && ["reception", "gate", "player"].includes(membership.role) ? membership.role : "revoked",
           members: [],
         },
         { headers: { "Cache-Control": "no-store" } },
       );
-    if (!supportsSitesIdentity && !ownerAccount(userId))
+    if (!membership && !supportsSitesIdentity && !ownerAccount(userId))
       return Response.json({ userId, role: "pending", members: [], authProvider: "supabase" }, { headers: { "Cache-Control": "no-store" } });
+    // A delegated owner uses the club's original dataset, never a new space
+    // keyed by their own account. The membership is checked on every request.
+    const p = await principal();
+    permit(p, ["owner"]);
     const result = await db
       .prepare(
         "SELECT user_id,name,role,status,created_at FROM staff WHERE owner=? ORDER BY name",
       )
-      .bind(userId)
+      .bind(p.owner)
       .all();
     return Response.json(
       { userId, role: "owner", members: result.results, authProvider: supportsSitesIdentity ? "sites" : "supabase" },
@@ -59,9 +63,9 @@ export async function POST(req: Request) {
       throw new ClubError("Revisá el identificador, nombre y rol.");
     const input = parsed.data,
       db = database();
-    if (input.userId === p.userId || ownerAccount(input.userId))
+    if (input.userId === p.userId || input.userId === p.owner || ownerAccount(input.userId))
       throw new ClubError(
-        "No podés cambiar tu propio acceso de administración.",
+        "No podés cambiar tu propio acceso ni el de la cuenta principal del club.",
       );
     const existing = await db
       .prepare("SELECT owner FROM staff WHERE user_id=?")
@@ -81,15 +85,19 @@ export async function POST(req: Request) {
         409,
       );
     const now = new Date().toISOString();
-    await db.batch([
+    // Recheck the acting owner's membership inside the serialized write batch.
+    // A request that began before revocation must not enable another account.
+    const authorization = "(?=? OR EXISTS(SELECT 1 FROM staff actor WHERE actor.user_id=? AND actor.owner=? AND actor.role='owner' AND actor.status='active'))";
+    const authorizationArgs = [p.userId, p.owner, p.userId, p.owner];
+    const result = await db.batch([
       db
         .prepare(
-          "INSERT INTO staff(user_id,owner,name,role,status,created_at) VALUES(?,?,?,?,?,?) ON CONFLICT(user_id) DO UPDATE SET name=excluded.name,role=excluded.role,status=excluded.status WHERE staff.owner=excluded.owner",
+          `INSERT INTO staff(user_id,owner,name,role,status,created_at) SELECT ?,?,?,?,?,? WHERE ${authorization} ON CONFLICT(user_id) DO UPDATE SET name=excluded.name,role=excluded.role,status=excluded.status WHERE staff.owner=excluded.owner`,
         )
-        .bind(input.userId, p.owner, input.name, input.role, input.status, now),
+        .bind(input.userId, p.owner, input.name, input.role, input.status, now, ...authorizationArgs),
       db
         .prepare(
-          "INSERT INTO audit(id,owner,action,detail,created_at) VALUES(?,?,?,?,?)",
+          `INSERT INTO audit(id,owner,action,detail,created_at) SELECT ?,?,?,?,? WHERE ${authorization} AND EXISTS(SELECT 1 FROM staff WHERE user_id=? AND owner=? AND name=? AND role=? AND status=?)`,
         )
         .bind(
           crypto.randomUUID(),
@@ -97,8 +105,16 @@ export async function POST(req: Request) {
           "Acceso del equipo actualizado",
           `${input.name} · ${input.role} · ${input.status} · operador ${p.userId}`,
           now,
+          ...authorizationArgs,
+          input.userId,
+          p.owner,
+          input.name,
+          input.role,
+          input.status,
         ),
     ]);
+    if (Number(result[0].meta.changes) !== 1)
+      throw new ClubError("Tu acceso cambió o esa cuenta pertenece a otro espacio. Volvé a cargar el equipo antes de continuar.", 403);
     return Response.json(
       { ok: true },
       { headers: { "Cache-Control": "no-store" } },

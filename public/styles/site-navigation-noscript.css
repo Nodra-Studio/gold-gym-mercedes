@@ -1,5 +1,5 @@
 /* Keep the existing mobile navigation usable when scripting is disabled. */
-@media (max-width: 760px) {
+@media (max-width: 1024px) {
   .marketing .gg-header {
     position: static;
     max-height: none;

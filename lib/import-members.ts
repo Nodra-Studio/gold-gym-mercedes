@@ -5,6 +5,7 @@ export type ImportMember = {
   plan: string;
   status: "active" | "paused";
   expires: string;
+  homeBranch?: 'calle30' | 'calle23' | 'velez' | 'pilates' | null;
 };
 // RFC-style quoted fields, including delimiters, escaped quotes and newlines.
 export function parseMembersCsv(source: string): ImportMember[] {
@@ -67,22 +68,34 @@ export function parseMembersCsv(source: string): ImportMember[] {
   const headings = (rows.shift() ?? []).map(normalize),
     expected = ["nombre", "dni", "telefono", "plan", "estado", "vencimiento"];
   if (
-    headings.length !== 6 ||
-    new Set(headings).size !== 6 ||
+    ![6, 7].includes(headings.length) ||
+    new Set(headings).size !== headings.length ||
+    headings.some(h => !expected.includes(h) && h !== 'sede') ||
     expected.some((h) => !headings.includes(h))
   )
     throw Error(
-      "Usá estas seis columnas: Nombre, DNI, Teléfono, Plan, Estado, Vencimiento.",
+      "Usá Nombre, DNI, Teléfono, Plan, Estado, Vencimiento y, si la conocés, Sede.",
     );
   if (!rows.length || rows.length > 200)
     throw Error("Importá entre 1 y 200 socios por archivo.");
   return rows.map((r, index) => {
-    if (r.length !== 6)
+    if (r.length !== headings.length)
       throw Error(`Fila ${index + 2}: faltan o sobran columnas.`);
     const read = (h: string) => r[headings.indexOf(h)].trim();
     const state = normalize(read("estado"));
     if (!["active", "paused", "activo", "pausado"].includes(state))
       throw Error(`Fila ${index + 2}: Estado debe ser activo o pausado.`);
+    let homeBranch: ImportMember['homeBranch'];
+    if (headings.includes('sede')) {
+      const branch = normalize(read('sede')).replace(/[^a-z0-9]/g, '');
+      const branches: Record<string, NonNullable<ImportMember['homeBranch']>> = {
+        calle30: 'calle30', calle23: 'calle23', velez: 'velez', clubunion: 'velez',
+        uniongoldclub: 'velez', clubuniongimnasioypadel: 'velez', pilates: 'pilates', goldpilates: 'pilates',
+      };
+      if (!branch || branch === 'sinsederegistrada') homeBranch = null;
+      else if (branches[branch]) homeBranch = branches[branch];
+      else throw Error(`Fila ${index + 2}: la sede debe ser Calle 30, Calle 23, Club Unión o Pilates.`);
+    }
     return {
       name: read("nombre"),
       dni: read("dni"),
@@ -90,6 +103,7 @@ export function parseMembersCsv(source: string): ImportMember[] {
       plan: read("plan"),
       status: ["active", "activo"].includes(state) ? "active" : "paused",
       expires: read("vencimiento"),
+      ...(homeBranch === undefined ? {} : { homeBranch }),
     };
   });
 }

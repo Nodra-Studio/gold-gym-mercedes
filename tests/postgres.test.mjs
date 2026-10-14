@@ -7,23 +7,25 @@ import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { createRequire } from 'node:module';
+import { nicoRegressions } from './nico-regressions.mjs';
 const folder = mkdtempSync(join(tmpdir(), 'gold-postgres-')), require = createRequire(import.meta.url);
 function compile(file, name, replacements = []) {
   let source = readFileSync(file, 'utf8');
-  const pairs = [...replacements, ['@club/runtime', './runtime.mjs'], ['@/app/chatgpt-auth', './runtime.mjs'], ['@/lib/server', './server.mjs'], ['@/lib/club', './club.mjs'], ['@/lib/backup', './backup.mjs'], ['@/lib/padel-settings', './padel-settings.mjs'], ['@/lib/csv', './csv.mjs'], ['@/lib/branches','./branches.mjs'], ['@/lib/public-padel-validation','./public-padel-validation.mjs'], ['@/lib/public-padel','./public-padel.mjs']];
+  const pairs = [...replacements, ['@club/runtime', './runtime.mjs'], ['@/app/chatgpt-auth', './runtime.mjs'], ['@/lib/server', './server.mjs'], ['@/lib/club', './club.mjs'], ['@/lib/backup', './backup.mjs'], ['@/lib/padel-settings', './padel-settings.mjs'], ['@/lib/csv', './csv.mjs'], ['@/lib/branches','./branches.mjs'], ['@/lib/terminal-offline','./terminal-offline.mjs'], ['@/lib/fiscal-settings','./fiscal-lib.mjs'], ['@/lib/public-padel-validation','./public-padel-validation.mjs'], ['@/lib/public-padel','./public-padel.mjs']];
   for (const [from, to] of pairs) source = source.replaceAll(from, to);
   source = source.replaceAll("'zod'", '"zod"').replaceAll('"zod"', JSON.stringify(pathToFileURL(require.resolve('zod')).href));
   writeFileSync(join(folder, name + '.mjs'), ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.ES2022, target: ts.ScriptTarget.ES2022 } }).outputText);
 }
-writeFileSync(join(folder, 'runtime.mjs'), `export const env={}; export const supportsSitesIdentity=false; export let user=null; export let owner='owner-a'; export const setUser=x=>user=x; export const setOwner=x=>owner=x; export async function independentUserId(){return user}; export function ownerAccount(id){return id===owner}; export async function getChatGPTUser(){throw Error('Untrusted Sites identity used')}`);
+writeFileSync(join(folder, 'runtime.mjs'), `export const env={}; export const supportsSitesIdentity=false; export let user=null; export let owner='owner-a'; export let identityError=null; export const setIdentityError=x=>identityError=x; export const setUser=x=>user=x; export const setOwner=x=>owner=x; export async function independentUserId(){if(identityError)throw identityError;return user}; export function ownerAccount(id){return id===owner}; export async function getChatGPTUser(){throw Error('Untrusted Sites identity used')}`);
 for (const [file, name, replacements] of [
-  ['lib/public-padel.ts','public-padel'], ['lib/public-padel-validation.ts','public-padel-validation'], ['lib/branches.ts','branches'], ['lib/server.ts','server'], ['lib/club.ts','club'], ['lib/backup.ts','backup',[['./club','./club.mjs']]], ['lib/padel-settings.ts','padel-settings'], ['lib/csv.ts','csv'], ['lib/postgres/adapter.ts','adapter'], ['lib/auth/config.ts','auth-config'],
-  ...['tariffs','public-prices','public-padel','padel-requests','club','team','player','settings','booking-payments','reports','export','backup','cash'].map(x=>[`app/api/${x}/route.ts`, x+'-api']),
+  ['lib/public-padel.ts','public-padel'], ['lib/public-padel-validation.ts','public-padel-validation'], ['lib/branches.ts','branches'], ['lib/server.ts','server'], ['lib/club.ts','club'], ['lib/terminal-offline.ts','terminal-offline'], ['lib/fiscal-settings.ts','fiscal-lib'], ['lib/backup.ts','backup',[['./club','./club.mjs']]], ['lib/padel-settings.ts','padel-settings'], ['lib/csv.ts','csv'], ['lib/postgres/adapter.ts','adapter'], ['lib/auth/config.ts','auth-config'],
+  ...['tariffs','public-prices','public-padel','padel-requests','club','team','player','settings','booking-payments','reports','export','backup','cash','offline-access','fiscal-settings'].map(x=>[`app/api/${x}/route.ts`, x+'-api']),
 ]) compile(file, name, replacements);
 const load = name => import(pathToFileURL(join(folder, name+'.mjs')));
 const runtime = await load('runtime'), { createDatabase, postgresQuery } = await load('adapter');
 const api = await load('club-api'), team = await load('team-api'), player = await load('player-api'), ledger = await load('booking-payments-api'), reports = await load('reports-api'), exporter = await load('export-api'), backup = await load('backup-api'), config = await load('auth-config');
 const cash=await load('cash-api');
+const offline=await load('offline-access-api'),fiscal=await load('fiscal-settings-api'),terminal=await load('terminal-offline'),logic=await load('club');
 const pg = new PGlite();
 let clubOwner = 'owner-a';
 await pg.exec('CREATE ROLE anon; CREATE ROLE authenticated;');
@@ -58,6 +60,11 @@ try {
       assert.equal((await get(team)).role,'pending');
     });
     runtime.setUser('owner-a');
+    await t.test('An incomplete second factor returns a useful 403 without treating it as infrastructure failure',async()=>{
+      runtime.setIdentityError(Object.assign(new Error('Required'),{code:'MFA_REQUIRED'}));
+      try { const r=await get();assert.equal(r.status,403);assert.match(r.error,/verificación en dos pasos/); }
+      finally { runtime.setIdentityError(null); }
+    });
     await t.test('SQL placeholders preserve literals and parameters', ()=>assert.equal(postgresQuery("SELECT '?' as literal, ? as value"), "SELECT '?' as literal, $1 as value"));
     await t.test('Schema denies Data API roles and isolates club rows', async()=>{
       await assert.rejects(pg.transaction(async tx=>{await tx.exec('SET LOCAL ROLE anon');await tx.query('SELECT * FROM club.members')}));
@@ -319,10 +326,10 @@ try {
       const today=(await get()).today;
       assert.equal((await post(cash,{action:'expense',venue:'pilates',category:'Limpieza',concept:'Factura limpieza',amount:500,method:'Transferencia',day:today,requestKey:key()})).status,200);
       await post(team,{userId:'reception',name:'Recepción',role:'reception',status:'active'});runtime.setUser('reception');
-      assert.equal((await post(cash,{action:'reverse',id:sale,reason:'Devolución',requestKey:key()})).status,403);
+      assert.equal((await post(cash,{action:'reverse',id:sale,expectedRevision:1,reason:'Devolución',requestKey:key()})).status,403);
       assert.equal((await post(cash,{action:'product',name:'Otro',category:'Bebidas',price:100,requestKey:key()})).status,403);
       runtime.setUser('owner-a');
-      const payload={action:'reverse',id:sale,reason:'Producto devuelto',requestKey:key()};
+      const payload={action:'reverse',id:sale,expectedRevision:1,reason:'Producto devuelto',requestKey:key()};
       assert.equal((await post(cash,payload)).status,200);assert.equal((await post(cash,payload)).replayed,true);
       assert.equal((await post(cash,{...payload,requestKey:key()})).status,409);
       const data=await get(cash,'?category=Productos');assert.equal(data.summary.balance,0);assert.equal(data.entries.length,2);assert.equal(data.stock.find(s=>s.venue==='velez').quantity,1);
@@ -393,10 +400,80 @@ try {
       const filtered=await get(cash,'?venue=pilates&category=Limpieza');assert.equal(filtered.byVenue.length,1);assert.equal(filtered.byVenue[0].venue,'pilates');assert.equal(filtered.byMethod[0].method,'Transferencia');assert.equal(filtered.byMethod[0].balance,-500);
       const empty=await get(cash,'?venue=calle23&category=Electricidad');assert.equal(empty.summary.count,0);assert.equal(empty.byVenue.length,0);assert.equal(empty.byMethod.length,0);
     });
+    let correctedExpense,manualIncome;
+    await t.test('Electricity expenses and manual income save with the correct signed amounts',async()=>{
+      const today=(await get()).today;
+      const expense={action:'expense',venue:'calle30',category:'Electricidad',concept:'Factura eléctrica de prueba',amount:500,method:'Transferencia',day:today,requestKey:key()};
+      const income={action:'income',venue:'velez',concept:'Ingreso manual de prueba',amount:1000,method:'Efectivo',day:today,requestKey:key()};
+      for(const payload of [expense,income]) {
+        const r=await post(cash,payload);assert.equal(r.status,200,JSON.stringify(r));
+        assert.equal((await post(cash,payload)).replayed,true);
+        const saved=await runtime.env.DB.prepare('SELECT kind,category,amount,revision,actor FROM cash_entries WHERE id=?').bind(r.id).first();
+        assert.deepEqual(saved,{kind:payload.action,category:payload.action==='expense'?'Electricidad':'Otros ingresos',amount:payload.action==='expense'?-500:1000,revision:1,actor:'owner-a'});
+        if(payload.action==='expense')correctedExpense=r.id;else manualIncome=r.id;
+      }
+      assert.equal((await get(cash,'?venue=calle30&category=Electricidad')).summary.balance,-500);
+      assert.equal((await post(cash,{...expense,day:logic.addDays(today,1),requestKey:key()})).status,400);
+      assert.equal((await post(cash,{...income,amount:0,requestKey:key()})).status,400);
+    });
+    await t.test('Manual corrections preserve signed snapshots, operator, reason and replay history',async()=>{
+      const today=(await get()).today;
+      const input={action:'editEntry',id:correctedExpense,venue:'pilates',category:'Servicios',concept:'Factura corregida',amount:600,method:'Tarjeta',day:today,expectedRevision:1,reason:'Error al cargar el importe',requestKey:key()};
+      runtime.setUser('reception');assert.equal((await post(cash,input)).status,403);runtime.setUser('owner-a');
+      const denied=await runtime.env.DB.prepare('SELECT record_cash(?,?,?::jsonb) AS result').bind('owner-a','reception',JSON.stringify(input)).first();assert.equal(denied.result.status,403);
+      assert.equal((await post(cash,input)).status,200);
+      const saved=await runtime.env.DB.prepare('SELECT * FROM cash_entries WHERE id=?').bind(correctedExpense).first();
+      assert.equal(saved.amount,-600);assert.equal(saved.revision,2);assert.equal(saved.actor,'owner-a');
+      const history=(await get(cash)).entryChanges.filter(x=>x.cash_entry_id===correctedExpense);
+      assert.equal(history.length,1);assert.equal(history[0].actor,'owner-a');assert.equal(history[0].reason,input.reason);
+      const before=JSON.parse(history[0].before_state),after=JSON.parse(history[0].after_state);
+      assert.deepEqual(before,{venue:'calle30',kind:'expense',category:'Electricidad',concept:'Factura eléctrica de prueba',amount:-500,method:'Transferencia',day:today,revision:1});
+      assert.deepEqual(after,{venue:'pilates',kind:'expense',category:'Servicios',concept:'Factura corregida',amount:-600,method:'Tarjeta',day:today,revision:2});
+      const concurrent=await Promise.all([650,700].map(amount=>post(cash,{...input,amount,expectedRevision:2,requestKey:key()})));
+      assert.deepEqual(concurrent.map(r=>r.status).sort(),[200,409]);
+      assert.equal((await post(cash,input)).replayed,true,'The original retry remains valid after a newer correction');
+      assert.equal((await post(cash,{...input,amount:999})).status,409);
+      const current=await get(cash);assert.equal(current.entryChanges.filter(x=>x.cash_entry_id===correctedExpense).length,2);
+      assert.equal(current.entries.find(x=>x.id===correctedExpense).revision,3);
+      assert.equal((await post(cash,{action:'reverse',id:correctedExpense,expectedRevision:2,reason:'Pantalla antigua',requestKey:key()})).status,409);
+      const reverse={action:'reverse',id:correctedExpense,expectedRevision:3,reason:'Corrección anulada de prueba',requestKey:key()};
+      assert.equal((await post(cash,reverse)).status,200);assert.equal((await post(cash,reverse)).replayed,true);
+      assert.equal((await post(cash,{...input,expectedRevision:3,requestKey:key()})).status,409);
+      const paired=(await get(cash)).entries.filter(x=>x.id===correctedExpense||x.reverses===correctedExpense);assert.equal(paired.length,2);assert.equal(paired.reduce((n,x)=>n+x.amount,0),0);
+    });
+    await t.test('Corrections reject sale and membership rows and incompatible categories',async()=>{
+      const input={action:'editEntry',id:manualIncome,venue:'velez',category:'Otros ingresos',concept:'Ingreso corregido',amount:1200,method:'Transferencia',day:(await get()).today,expectedRevision:1,reason:'Importe rectificado',requestKey:key()};
+      assert.equal((await post(cash,{...input,category:'Electricidad'})).status,400);
+      assert.equal((await post(cash,{...input,id:sale})).status,400);
+      const payment=(await get()).payments[0];assert.equal((await post(cash,{...input,id:payment.id})).status,400);
+      assert.equal((await post(cash,{action:'reverse',id:payment.id,expectedRevision:1,reason:'No corresponde',requestKey:key()})).status,400);
+      assert.equal((await post(cash,{...input,expectedRevision:undefined})).status,400);
+      assert.equal((await post(cash,input)).status,200);
+      const saved=await runtime.env.DB.prepare('SELECT amount,kind,revision FROM cash_entries WHERE id=?').bind(manualIncome).first();assert.deepEqual(saved,{amount:1200,kind:'income',revision:2});
+    });
+    await t.test('A failed correction audit rolls back the entry and version history',async()=>{
+      await pg.exec("CREATE FUNCTION club.test_entry_failure() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN IF NEW.action='Caja: editEntry' THEN RAISE EXCEPTION 'test failure'; END IF; RETURN NEW; END $$; CREATE TRIGGER entry_test_failure BEFORE INSERT ON club.audit FOR EACH ROW EXECUTE FUNCTION club.test_entry_failure();");
+      const before=await get(cash);
+      try {
+        assert.equal((await post(cash,{action:'editEntry',id:manualIncome,venue:'calle23',category:'Otros ingresos',concept:'Corrección que falla',amount:9999,method:'Efectivo',day:(await get()).today,expectedRevision:2,reason:'Auditoría indisponible',requestKey:key()})).status,503);
+        const after=await get(cash);assert.deepEqual(after.entries,before.entries);assert.deepEqual(after.entryChanges,before.entryChanges);
+      } finally { await pg.exec('DROP TRIGGER entry_test_failure ON club.audit; DROP FUNCTION club.test_entry_failure();'); }
+    });
     let snapshot;
+    await nicoRegressions(t,{api,team,reports,exporter,offline,fiscal,terminal,logic,db:runtime.env.DB,runtime,post,get,owner:'owner-a',sqlRoleChecks:true,
+      // Fixture time travel uses the harness administrator; the app role cannot
+      // rewrite a signed server copy's preparation or expiration timestamps.
+      fixtureSnapshotDates:(id,preparedAt,expiresAt)=>pg.query('UPDATE club.offline_snapshots SET prepared_at=$1,expires_at=$2 WHERE id=$3 AND owner=$4',[preparedAt,expiresAt,id,'owner-a']),
+    });
     await t.test('JSON backup retains numeric fields and relations',async()=>{
-      const response=await exporter.GET();assert.equal(response.status,200);snapshot=await response.json();assert.equal(snapshot.schemaVersion,6);
+      const response=await exporter.GET();assert.equal(response.status,200);snapshot=await response.json();assert.equal(snapshot.schemaVersion,7);
       assert.equal(snapshot.records.booking_payments.length,2);
+      assert.equal(snapshot.records.cash_entry_changes.length,3);
+      assert.equal(snapshot.records.cash_entries.find(x=>x.id===correctedExpense).revision,3);
+      assert.equal(snapshot.records.cash_entries.find(x=>x.id===manualIncome).revision,2);
+      assert.equal(snapshot.records.issuer_settings.length,1);
+      assert.ok(snapshot.records.members.some(x=>x.home_branch==='calle30'));
+      for(const forbidden of ['staff','offline_devices','offline_snapshots','offline_events'])assert.equal(forbidden in snapshot.records,false);
     });
     await t.test('Backup rejects incomplete transfers and invalid product history',async()=>{
       let invalid=structuredClone(snapshot);invalid.records.stock_moves=invalid.records.stock_moves.filter(m=>m.kind!=='transfer_in');
@@ -407,6 +484,16 @@ try {
       clubOwner='owner-b';runtime.setOwner(clubOwner);runtime.setUser(clubOwner);
       const r=await post(backup,{action:'restore',requestKey:key(),backup:snapshot});assert.equal(r.status,200,JSON.stringify(r));
       const restored=await get();assert.equal(restored.members.length,6);assert.equal((await get(cash)).products.length,1);assert.equal((await get(cash)).stock.reduce((n,s)=>n+s.quantity,0),2);assert.equal((await get(cash)).productChanges.length,3);assert.notEqual(restored.members[0].id,member.id);
+      const restoredCash=await get(cash),changes=restoredCash.entryChanges;
+      assert.equal(changes.length,3);
+      for(const old of snapshot.records.cash_entry_changes) {
+        const match=changes.find(x=>x.created_at===old.created_at&&x.reason===old.reason&&x.after_state===old.after_state);
+        assert.ok(match);assert.equal(match.actor,old.actor);assert.equal(match.before_state,old.before_state);assert.notEqual(match.cash_entry_id,old.cash_entry_id);
+        assert.ok(restoredCash.entries.some(x=>x.id===match.cash_entry_id));
+      }
+      for(const old of snapshot.records.members)assert.equal(restored.members.find(x=>x.dni===old.dni).home_branch,old.home_branch);
+      const restoredFiscal=(await get(fiscal)).settings;assert.equal(restoredFiscal.length,1);assert.equal(restoredFiscal[0].revision,2);assert.equal(restoredFiscal[0].owner,'owner-b');
+      assert.deepEqual((await runtime.env.DB.prepare('SELECT id FROM offline_devices WHERE owner=?').bind('owner-b').all()).results,[]);
       const book=restored.bookings.find(b=>b.name===booking.name);assert.equal((await get(ledger,'?bookingId='+book.id)).payments.length,2);
     });
     await t.test('Redirects reject external URLs and auth loops',()=>{

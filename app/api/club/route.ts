@@ -19,6 +19,7 @@ const id = z.string().min(1).max(150),
     .max(30)
     .regex(/^[+\d\s()-]*$/, "Teléfono inválido"),
   key = z.string().uuid();
+const homeBranch = z.enum(["calle30", "calle23", "velez", "pilates"]);
 const schema = z.discriminatedUnion("action", [
   z.object({
     action: z.literal("membership"),
@@ -57,6 +58,7 @@ const schema = z.discriminatedUnion("action", [
         name: z.string(),
         dni: z.string(),
         phone: z.string(),
+        home_branch: homeBranch.nullable().optional(),
         plan_id: z.string(),
         status: z.string(),
         expires: z.string(),
@@ -66,6 +68,7 @@ const schema = z.discriminatedUnion("action", [
     name,
     dni: z.string().regex(/^\d{7,8}$/, "El DNI debe tener 7 u 8 números"),
     phone,
+    homeBranch: homeBranch.nullable().optional(),
     planId: id,
     expires: day,
     status: z.enum(["active", "paused"]),
@@ -543,17 +546,20 @@ export async function POST(req: Request) {
             throw new ClubError(
               "Ese plan ya está asignado como membresía adicional. Conservá el principal y editá la membresía.",
             );
-          await owned("members", input.id);
+          const current = await owned("members", input.id);
           if (!input.original)
             throw new ClubError("Actualizá la ficha antes de guardar.", 409);
           const original = input.original;
+          const memberBranch = input.homeBranch === undefined
+            ? current.home_branch ?? null
+            : input.homeBranch;
           const auditId = crypto.randomUUID();
           // Both statements share the database's serialized write transaction.
           // A stale snapshot inserts no audit record and cannot update the member.
           const result = await db.batch([
             db
               .prepare(
-                "INSERT INTO audit(id,owner,action,detail,created_at) SELECT ?,?,?,?,? WHERE EXISTS (SELECT 1 FROM members WHERE id=? AND owner=? AND name=? AND dni=? AND phone=? AND plan_id=? AND status=? AND expires=?) AND NOT EXISTS(SELECT 1 FROM member_memberships WHERE owner=? AND member_id=? AND plan_id=?)",
+                "INSERT INTO audit(id,owner,action,detail,created_at) SELECT ?,?,?,?,? WHERE EXISTS (SELECT 1 FROM members WHERE id=? AND owner=? AND name=? AND dni=? AND phone=? AND plan_id=? AND status=? AND expires=? AND COALESCE(home_branch,'')=?) AND NOT EXISTS(SELECT 1 FROM member_memberships WHERE owner=? AND member_id=? AND plan_id=?)",
               )
               .bind(
                 auditId,
@@ -569,13 +575,14 @@ export async function POST(req: Request) {
                 original.plan_id,
                 original.status,
                 original.expires,
+                original.home_branch ?? "",
                 owner,
                 input.id,
                 input.planId,
               ),
             db
               .prepare(
-                "UPDATE members SET name=?,dni=?,phone=?,plan_id=?,status=?,expires=? WHERE id=? AND owner=? AND EXISTS (SELECT 1 FROM audit WHERE id=? AND owner=?)",
+                "UPDATE members SET name=?,dni=?,phone=?,plan_id=?,status=?,expires=?,home_branch=? WHERE id=? AND owner=? AND EXISTS (SELECT 1 FROM audit WHERE id=? AND owner=?)",
               )
               .bind(
                 input.name,
@@ -584,6 +591,7 @@ export async function POST(req: Request) {
                 input.planId,
                 input.status,
                 input.expires,
+                memberBranch,
                 input.id,
                 owner,
                 auditId,
@@ -599,7 +607,7 @@ export async function POST(req: Request) {
           await db.batch([
             db
               .prepare(
-                "INSERT INTO members (id,owner,name,dni,phone,plan_id,status,expires,created_at) VALUES (?,?,?,?,?,?,?,?,?)",
+                "INSERT INTO members (id,owner,name,dni,phone,plan_id,status,expires,created_at,home_branch) VALUES (?,?,?,?,?,?,?,?,?,?)",
               )
               .bind(
                 crypto.randomUUID(),
@@ -611,6 +619,7 @@ export async function POST(req: Request) {
                 input.status,
                 input.expires,
                 now,
+                input.homeBranch ?? null,
               ),
             log("Socio creado", input.name),
           ]);

@@ -12,7 +12,14 @@ export type ClubRole = "owner" | "reception" | "gate" | "player";
 export type Principal = { userId: string; owner: string; role: ClubRole };
 export async function identity() {
   if (!supportsSitesIdentity) {
-    const id = await independentUserId();
+    let id: string | null;
+    try {
+      id = await independentUserId();
+    } catch (error) {
+      if (error && typeof error === "object" && "code" in error && error.code === "MFA_REQUIRED")
+        throw new ClubError("Completá la verificación en dos pasos para abrir la gestión.", 403);
+      throw error;
+    }
     if (id) return id;
   } else {
     const user = await getChatGPTUser();
@@ -41,7 +48,7 @@ export async function principal(): Promise<Principal> {
   }
   if (
     membership.status !== "active" ||
-    !["reception", "gate", "player"].includes(membership.role)
+    !["owner", "reception", "gate", "player"].includes(membership.role)
   )
     throw new ClubError(
       "Tu acceso al club fue desactivado. Contactá a la administración.",

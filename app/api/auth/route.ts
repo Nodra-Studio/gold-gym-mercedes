@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { authClient } from '@/lib/auth/client';
 import { authConfigured } from '@/lib/auth/config';
 import { afterLogin } from '@/lib/auth/navigation';
+import { sessionMfaState, mfaReturnTo } from '@/lib/auth/mfa';
 import { allowAuthAttempt } from '@/lib/auth/rate-limit';
 import { body, ClubError, apiError } from '@/lib/server';
 export const dynamic = 'force-dynamic';
@@ -28,7 +29,11 @@ export async function POST(request: Request) {
     if (input.action === 'login') {
       const { error } = await client.auth.signInWithPassword({ email: input.email, password: input.password });
       if (error) throw new ClubError('No pudimos iniciar sesión. Revisá tus datos y la confirmación del correo.', 401);
-      return reply({ next: afterLogin(input.returnTo) });
+      const { data: signedIn, error: userError } = await client.auth.getUser();
+      if (userError || !signedIn.user) throw new ClubError('No pudimos verificar la sesión. Volvé a intentar.', 503);
+      const next = afterLogin(input.returnTo);
+      const security = await sessionMfaState(client, signedIn.user);
+      return reply({ next: security.requiresVerification ? '/verificar?next=' + encodeURIComponent(mfaReturnTo(next)) : next });
     }
     if (input.action === 'signup') {
       callback.searchParams.set('next', '/portal');
@@ -51,6 +56,8 @@ export async function POST(request: Request) {
     const { data, error } = await client.auth.getUser();
     if (error || !data.user) throw new ClubError('Iniciá sesión o abrí nuevamente el enlace del correo.', 401);
     if (input.action === 'password') {
+      if ((await sessionMfaState(client, data.user)).requiresVerification)
+        throw new ClubError('Completá la verificación en dos pasos antes de cambiar la contraseña.', 403);
       if (!await allowAuthAttempt(data.user.id, 'password')) throw new ClubError('Esperá 15 minutos antes de cambiar nuevamente la contraseña.', 429);
       const { error: updateError } = await client.auth.updateUser({ password: input.password });
       if (updateError) throw new ClubError('No pudimos actualizar la contraseña. Solicitá un nuevo enlace.', 400);

@@ -13,7 +13,7 @@ import {
 type Staff = {
   user_id: string;
   name: string;
-  role: "reception" | "gate" | "player";
+  role: "owner" | "reception" | "gate" | "player";
   status: "active" | "revoked";
 };
 type Team = {
@@ -80,7 +80,7 @@ export default function TeamClient() {
       <header className="work-header">
         <div>
           <p className="eyebrow">GOLD GYM / EQUIPO</p>
-          <h1>Accesos del personal.</h1>
+          <h1>Dueños y equipo.</h1>
           <p>Permisos para trabajar sobre el mismo club.</p>
         </div>
       </header>
@@ -116,7 +116,7 @@ export default function TeamClient() {
           <strong>
             {data
               ? {
-                  owner: "Administración",
+                  owner: "Dueño / administración",
                   reception: "Recepción",
                   gate: "Terminal de ingreso",
                   player: "Jugador de pádel",
@@ -145,7 +145,7 @@ export default function TeamClient() {
         <>
           <section className="panel">
             <div className="panel-heading">
-              <h2>Personal del club</h2>
+              <h2>Accesos del club</h2>
               <button
                 className="button gold small"
                 onClick={() => {
@@ -159,7 +159,8 @@ export default function TeamClient() {
             </div>
             <p className="muted">
               Creá una cuenta del personal en /crear-cuenta, confirmá su correo y copiá el identificador de /cuenta.
-              Agregala aquí como Recepción. Los socios se cargan en Gimnasio, sin cuenta.
+              Agregala aquí con el rol correspondiente. Los dueños comparten toda la gestión del club y pueden consultar los informes por sede.
+              Los socios se cargan en Gimnasio, sin cuenta.
               Una cuenta de recepción puede abrirse en varias computadoras a la vez.
               Para el molinete, abrí Terminal de ingreso con tu sesión actual: no necesita otro correo ni otra cuenta.
             </p>
@@ -168,36 +169,35 @@ export default function TeamClient() {
                 <div>
                   <strong>{m.name}</strong>
                   <p className="muted">
-                    {m.role === "reception"
-                      ? "Recepción"
-                      : m.role === "player"
-                        ? "Jugador de pádel"
-                        : "Terminal de ingreso"}{" "}
+                    {{ owner: "Dueño / administración", reception: "Recepción", player: "Jugador de pádel", gate: "Terminal de ingreso" }[m.role]}{" "}
                     · {m.status === "active" ? "Activo" : "Desactivado"}
                   </p>
                 </div>
                 <button
                   className="button small"
+                  disabled={m.user_id === data.userId}
                   onClick={() => {
                     setSelected(m);
                     setError("");
                     setOpen(true);
                   }}
                 >
-                  Editar acceso de {m.name}
+                  {m.user_id === data.userId ? "Tu acceso" : `Editar acceso de ${m.name}`}
                 </button>
               </div>
             ))}
             {!data.members.length && (
-              <p className="empty">Todavía no agregaste personal.</p>
+              <p className="empty">Todavía no agregaste otras cuentas.</p>
             )}
           </section>
           <section className="panel">
             <h2>Qué puede hacer cada rol</h2>
             <div className="list-row">
-              <strong>Administración</strong>
+              <strong>Dueño / administración</strong>
               <p>
                 Gestión completa, precios, equipo, importación y exportación.
+                Cada dueño usa su propia cuenta y comparte los mismos datos de todas las sedes.
+                Los informes conservan el filtro por sede.
               </p>
             </div>
             <div className="list-row">
@@ -275,6 +275,7 @@ function StaffForm({
             value={role}
             onChange={(v) => setRole(v as Staff["role"])}
           >
+            <Option value="owner">Dueño / administración</Option>
             <Option value="reception">Recepción</Option>
             <Option value="gate">Terminal de ingreso</Option>
 
@@ -291,8 +292,9 @@ function StaffForm({
         </Field>
       </div>
       <p className="muted" style={{ marginTop: 18 }}>
+        {role === "owner" && "El rol de dueño otorga gestión completa y permite habilitar otras cuentas. "}
         Revisá el identificador y el rol antes de confirmar. Desactivar corta el
-        acceso del personal al club.
+        acceso de esa cuenta al club. No podés modificar tu propio acceso.
       </p>
       <div className="form-actions">
         <SaveButton busy={busy}>Confirmar acceso</SaveButton>

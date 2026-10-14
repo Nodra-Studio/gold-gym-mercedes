@@ -25,6 +25,7 @@ type Entry = {
   day: string;
   created_at: string;
   actor: string | null;
+  revision: number;
   reversed: boolean;
   reverses: string | null;
 };
@@ -36,6 +37,15 @@ type ProductChange = {
   created_at: string;
   actor: string;
   name: string;
+};
+type EntryChange = {
+  id: string;
+  cash_entry_id: string;
+  before_state: string;
+  after_state: string;
+  reason: string;
+  created_at: string;
+  actor: string;
 };
 type Breakdown = {
   venue: string | null;
@@ -49,6 +59,7 @@ type Data = {
   byVenue: Breakdown[];
   byMethod: Breakdown[];
   productChanges: ProductChange[];
+  entryChanges: EntryChange[];
   role: string;
   products: Product[];
   stock: { product_id: string; venue: string; quantity: number }[];
@@ -74,6 +85,8 @@ type Data = {
 type Action =
   | "sale"
   | "expense"
+  | "income"
+  | "editEntry"
   | "receive"
   | "product"
   | "reverse"
@@ -255,7 +268,7 @@ export function CashClient() {
       <WorkspaceHeader
         active="caja"
         title="Caja y stock"
-        subtitle="Cobros, gastos y productos de las cuatro sedes."
+        subtitle="Ingresos, cobros, gastos y productos de las cuatro sedes."
       />
       <div className="cash-actions">
         <button
@@ -271,6 +284,13 @@ export function CashClient() {
           disabled={!data}
         >
           Cargar gasto
+        </button>
+        <button
+          className="button outline"
+          onClick={() => open("income")}
+          disabled={!data}
+        >
+          Cargar ingreso
         </button>
         <button
           className="button outline"
@@ -320,6 +340,8 @@ export function CashClient() {
                 {
                   sale: "Venta de productos",
                   expense: "Nuevo gasto",
+                  income: "Ingreso de caja",
+                  editEntry: "Corregir movimiento",
                   receive: "Ingreso de mercadería",
                   product: "Nuevo producto",
                   reverse: "Anular movimiento",
@@ -401,7 +423,7 @@ export function CashClient() {
               }}
             >
               <option value="">Todas las categorías</option>
-              {["Cuotas", "Pádel", "Productos", ...expenseCategories].map(
+              {["Cuotas", "Pádel", "Productos", "Otros ingresos", ...expenseCategories].map(
                 (c) => (
                   <option key={c}>{c}</option>
                 ),
@@ -426,9 +448,10 @@ export function CashClient() {
             </div>
             <p className="muted cash-help">
               Importes en pesos argentinos. Incluye cuotas, pádel, ventas,
-              gastos y anulaciones. El neto refleja los movimientos registrados;
+              ingresos, gastos y anulaciones. El neto refleja los movimientos registrados;
               no es un arqueo de efectivo. Las anulaciones se registran en la
-              fecha actual.
+              fecha actual. Las correcciones conservan el detalle anterior en
+              el historial de cambios.
             </p>
             <CashReconciliation
               key={`${from}:${to}:${venue}:${category}`}
@@ -488,6 +511,7 @@ export function CashClient() {
                       <td>
                         {e.concept}
                         <small>{e.category}</small>
+                        {e.revision > 1 && <small>Corregido · versión {e.revision}</small>}
                         {e.actor && (
                           <small title={e.actor}>Operador: {e.actor}</small>
                         )}
@@ -506,13 +530,23 @@ export function CashClient() {
                         ) : e.kind === "reversal" ? (
                           "Anulación"
                         ) : data.role === "owner" &&
-                          ["sale", "expense"].includes(e.kind) ? (
-                          <button
-                            className="text-link"
-                            onClick={() => open("reverse", e)}
-                          >
-                            Anular
-                          </button>
+                          ["sale", "expense", "income"].includes(e.kind) ? (
+                          <>
+                            {["expense", "income"].includes(e.kind) && (
+                              <button
+                                className="text-link"
+                                onClick={() => open("editEntry", e)}
+                              >
+                                Corregir
+                              </button>
+                            )}
+                            <button
+                              className="text-link"
+                              onClick={() => open("reverse", e)}
+                            >
+                              Anular
+                            </button>
+                          </>
                         ) : (
                           "Registrado"
                         )}
@@ -544,6 +578,39 @@ export function CashClient() {
                 Siguiente
               </button>
             </div>
+            <details>
+              <summary>Últimas 50 correcciones de ingresos y gastos</summary>
+              <div className="cash-table">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Fecha / operador</th>
+                      <th>Antes</th>
+                      <th>Después</th>
+                      <th>Motivo</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {data.entryChanges.map((change) => (
+                      <tr key={change.id}>
+                        <td>
+                          {new Date(change.created_at).toLocaleString("es-AR", {
+                            timeZone: "America/Argentina/Buenos_Aires",
+                          })}
+                          <small>{change.actor}</small>
+                        </td>
+                        <td>{describeEntry(change.before_state)}</td>
+                        <td>{describeEntry(change.after_state)}</td>
+                        <td>{change.reason}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                {!data.entryChanges.length && (
+                  <p className="cash-empty">No hay correcciones registradas.</p>
+                )}
+              </div>
+            </details>
           </>
         )}
       </section>
@@ -736,6 +803,14 @@ function describeProduct(raw: string) {
     return "Detalle no disponible";
   }
 }
+function describeEntry(raw: string) {
+  try {
+    const entry = JSON.parse(raw) as Entry;
+    return `${entry.day} · ${branchName(entry.venue)} · ${entry.category} · ${entry.concept} · ${money(entry.amount)} · ${entry.method} · versión ${entry.revision}`;
+  } catch {
+    return "Detalle no disponible";
+  }
+}
 function CashForm({
   action,
   data,
@@ -757,7 +832,9 @@ function CashForm({
     [selectedProduct, setSelectedProduct] = useState<Product | null>(null),
     [destination, setDestination] = useState(""),
     [units, setUnits] = useState(1),
-    [branch, setBranch] = useState(defaultVenue);
+    [branch, setBranch] = useState(
+      action === "editEntry" ? target?.venue ?? defaultVenue : defaultVenue,
+    );
   const product = selectedProduct,
     stock =
       data.stock.find((s) => s.product_id === productId && s.venue === branch)
@@ -773,7 +850,10 @@ function CashForm({
             ? Number(v)
             : v;
         if (action === "sale") p.expectedPrice = product?.price;
-        if (action === "reverse") p.id = target?.id;
+        if (["reverse", "editEntry"].includes(action)) {
+          p.id = target?.id;
+          p.expectedRevision = target?.revision;
+        }
         if (action === "editProduct") {
           p.productId = editing?.id;
           p.expectedRevision = editing?.revision;
@@ -783,7 +863,7 @@ function CashForm({
     >
       <fieldset disabled={busy}>
         <div className="cash-filters">
-          {["sale", "receive", "expense", "transfer", "adjust"].includes(
+          {["sale", "receive", "expense", "income", "editEntry", "transfer", "adjust"].includes(
             action,
           ) && (
             <Field
@@ -917,18 +997,23 @@ function CashForm({
               </select>
             </Field>
           )}
-          {action === "expense" && (
+          {["expense", "income", "editEntry"].includes(action) && (
             <>
-              <Field label="Categoría">
-                <select name="category" required>
-                  {expenseCategories.map((c) => (
-                    <option key={c}>{c}</option>
-                  ))}
-                </select>
-              </Field>
+              {action !== "income" && (
+                <Field label="Categoría">
+                  <select name="category" defaultValue={target?.category} required>
+                    {(target?.kind === "income"
+                      ? ["Otros ingresos"]
+                      : expenseCategories).map((c) => (
+                      <option key={c}>{c}</option>
+                    ))}
+                  </select>
+                </Field>
+              )}
               <Field label="Concepto / comprobante">
                 <input
                   name="concept"
+                  defaultValue={target?.concept}
                   minLength={3}
                   maxLength={300}
                   placeholder="Ej. Limpieza · factura 0001-123"
@@ -938,6 +1023,7 @@ function CashForm({
               <Field label="Importe (ARS)">
                 <input
                   name="amount"
+                  defaultValue={target ? Math.abs(target.amount) : undefined}
                   type="number"
                   min="1"
                   max="10000000"
@@ -945,20 +1031,20 @@ function CashForm({
                   required
                 />
               </Field>
-              <Field label="Fecha del gasto">
+              <Field label="Fecha del movimiento">
                 <input
                   name="day"
                   type="date"
-                  defaultValue={localDay()}
+                  defaultValue={target?.day ?? localDay()}
                   max={localDay()}
                   required
                 />
               </Field>
             </>
           )}
-          {["sale", "expense"].includes(action) && (
+          {["sale", "expense", "income", "editEntry"].includes(action) && (
             <Field label="Medio de pago">
-              <select name="method">
+              <select name="method" defaultValue={target?.method}>
                 {methods.map((m) => (
                   <option key={m}>{m}</option>
                 ))}
@@ -984,8 +1070,8 @@ function CashForm({
               />
             </Field>
           )}
-          {action === "reverse" && (
-            <Field label="Motivo de anulación">
+          {["reverse", "editEntry"].includes(action) && (
+            <Field label={action === "reverse" ? "Motivo de anulación" : "Motivo de corrección"}>
               <input name="reason" minLength={3} maxLength={300} required />
             </Field>
           )}
@@ -1008,6 +1094,19 @@ function CashForm({
             El nuevo precio se usará en ventas futuras. Las ventas anteriores
             conservan su importe. Desactivar conserva el historial y las
             existencias.
+          </p>
+        )}
+        {action === "income" && (
+          <p className="notice">
+            Registrá aportes o ingresos que no sean cuotas, pádel ni ventas.
+            Los cobros de esas actividades se registran desde su formulario.
+          </p>
+        )}
+        {action === "editEntry" && target && (
+          <p className="notice">
+            Se corregirá este {target.kind === "expense" ? "gasto" : "ingreso"}
+            {" "}y la conciliación usará los nuevos datos. El historial conservará
+            el importe, sede, fecha y medio anteriores con el motivo y operador.
           </p>
         )}
         {action === "reverse" && target && (

@@ -1,5 +1,5 @@
 "use client";
-import { branches } from "@/lib/branches";
+import { branches, branchName } from "@/lib/branches";
 import PadelRequests from "@/components/padel-requests";
 import MemberMemberships from "@/components/member-memberships";
 import { apiFetch } from "@/lib/api-fetch";
@@ -320,11 +320,12 @@ export function SaveButton({
 }
 function downloadCsv(data: ClubData) {
   const lines = [
-    ["Nombre", "DNI", "Teléfono", "Plan", "Estado", "Vencimiento"],
+    ["Nombre", "DNI", "Teléfono", "Sede", "Plan", "Estado", "Vencimiento"],
     ...data.members.map((m) => [
       m.name,
       m.dni,
       m.phone,
+      m.home_branch ? branchName(m.home_branch) : "",
       m.plan_name,
       m.status,
       m.expires,
@@ -344,6 +345,7 @@ export default function ClubDashboard() {
     { data, error, busy, loading, refresh, mutate, setError } = club;
   const [tab, setTab] = useState("resumen"),
     [search, setSearch] = useState(""),
+    [homeBranch, setHomeBranch] = useState("all"),
     [modal, setModal] = useState<
       | "memberships"
       | "member"
@@ -465,10 +467,12 @@ export default function ClubDashboard() {
       ) ?? [],
     members =
       data?.members.filter((m) =>
+        (homeBranch === "all" ||
+          (homeBranch === "unassigned" ? !m.home_branch : m.home_branch === homeBranch)) &&
         [m.name, m.dni, ...memberPlans(m).map((x) => x.plan_name)]
           .join(" ")
           .toLowerCase()
-          .includes(search.toLowerCase()),
+          .includes(search.trim().toLowerCase()),
       ) ?? [];
   return (
     <main className="workspace">
@@ -703,7 +707,9 @@ export default function ClubDashboard() {
                 <div className="panel-heading">
                   <h2>
                     Socios{" "}
-                    <span className="muted">/ {data.members.length}</span>
+                    <span className="muted">
+                      / {members.length} de {data.members.length}
+                    </span>
                   </h2>
                   <div>
                     {data.role === "owner" && (
@@ -722,6 +728,21 @@ export default function ClubDashboard() {
                     </button>
                   </div>
                 </div>
+                <Field label="Filtrar por sede de pertenencia">
+                  <SelectField value={homeBranch} onChange={setHomeBranch}>
+                    <Option value="all">Todas las sedes</Option>
+                    {branches.map((b) => (
+                      <Option key={b.id} value={b.id}>
+                        {b.name}
+                      </Option>
+                    ))}
+                    <Option value="unassigned">Sin sede registrada</Option>
+                  </SelectField>
+                </Field>
+                <p className="muted" style={{ marginBottom: 16 }}>
+                  La sede de pertenencia se registra en la ficha del socio. Los
+                  cobros y los ingresos conservan su propia sede.
+                </p>
                 <div className="toolbar">
                   <Search size={19} className="search-icon" />
                   <input
@@ -743,6 +764,7 @@ export default function ClubDashboard() {
                     <TableRow>
                       {[
                         "Socio",
+                        "Sede de pertenencia",
                         "Plan",
                         "Vencimiento",
                         "Estado",
@@ -760,6 +782,7 @@ export default function ClubDashboard() {
                           <br />
                           <span className="muted">DNI {m.dni}</span>
                         </TableCell>
+                        <TableCell>{branchName(m.home_branch)}</TableCell>
                         <TableCell>
                           <div className="membership-pills">
                             <span
@@ -1153,6 +1176,7 @@ function MemberForm({
   const [name, setName] = useState(member?.name ?? ""),
     [dni, setDni] = useState(member?.dni ?? ""),
     [phone, setPhone] = useState(member?.phone ?? ""),
+    [homeBranch, setHomeBranch] = useState(member?.home_branch ?? ""),
     [planId, setPlan] = useState(member?.plan_id ?? data.plans[0]?.id ?? ""),
     [expires, setExpires] = useState(member?.expires ?? data.today),
     [status, setStatus] = useState(member?.status ?? "active");
@@ -1172,6 +1196,7 @@ function MemberForm({
           name,
           dni,
           phone,
+          homeBranch: homeBranch || null,
           planId,
           expires,
           status,
@@ -1219,6 +1244,25 @@ function MemberForm({
               </Option>
             ))}
           </SelectField>
+        </Field>
+        <Field label="Sede de pertenencia" full>
+          <SelectField
+            value={homeBranch}
+            onChange={setHomeBranch}
+            required={!member}
+          >
+            <Option value="">
+              {member ? "Sin sede registrada" : "Elegí una sede"}
+            </Option>
+            {branches.map((b) => (
+              <Option key={b.id} value={b.id}>
+                {b.name}
+              </Option>
+            ))}
+          </SelectField>
+          <small className="muted">
+            Sede a la que pertenece el socio; puede cobrar o entrenar en otra.
+          </small>
         </Field>
         <Field label="Vigente hasta">
           <input
@@ -1373,7 +1417,16 @@ function PlanForm({
   const [name, setName] = useState(""),
     [price, setPrice] = useState(""),
     [days, setDays] = useState("30"),
-    [accessScope, setAccessScope] = useState("gym");
+    [accessScope, setAccessScope] = useState("gym"),
+    [preset, setPreset] = useState("");
+  const presets = [
+    { id: "gym-member", name: "Musculación · socios", scope: "gym" },
+    { id: "gym-nonmember", name: "Musculación · no socios", scope: "gym" },
+    { id: "gym-sportclub", name: "Musculación · Sport Club", scope: "gym" },
+    { id: "pilates-member", name: "Pilates · socios", scope: "pilates" },
+    { id: "pilates-nonmember", name: "Pilates · no socios", scope: "pilates" },
+    { id: "pilates-sportclub", name: "Pilates · Sport Club", scope: "pilates" },
+  ];
   return (
     <form
       onSubmit={(e) => {
@@ -1388,8 +1441,37 @@ function PlanForm({
       }}
     >
       <div className="form-grid">
+        <Field label="Modelo de plan (opcional)" full>
+          <SelectField
+            value={preset}
+            onChange={(value) => {
+              setPreset(value);
+              const model = presets.find((p) => p.id === value);
+              if (model) {
+                setName(model.name);
+                setAccessScope(model.scope);
+              }
+            }}
+          >
+            <Option value="">Personalizado</Option>
+            {presets.map((p) => (
+              <Option key={p.id} value={p.id}>
+                {p.name}
+              </Option>
+            ))}
+          </SelectField>
+          <small className="muted">
+            Completá el precio definitivo antes de guardar.
+          </small>
+        </Field>
         <Field label="Acceso incluido" full>
-          <SelectField value={accessScope} onChange={setAccessScope}>
+          <SelectField
+            value={accessScope}
+            onChange={(value) => {
+              setAccessScope(value);
+              setPreset("");
+            }}
+          >
             <option value="gym">Gimnasios (sin Pilates)</option>
             <option value="pilates">Solo Pilates</option>
             <option value="all">Gimnasios y Pilates</option>
@@ -1401,7 +1483,10 @@ function PlanForm({
             minLength={2}
             maxLength={80}
             value={name}
-            onChange={(e) => setName(e.target.value)}
+            onChange={(e) => {
+              setName(e.target.value);
+              setPreset("");
+            }}
           />
         </Field>
         <Field label="Precio por período (ARS)">

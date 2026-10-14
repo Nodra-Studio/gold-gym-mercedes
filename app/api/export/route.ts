@@ -1,4 +1,5 @@
 import { principal, permit, database, ClubError } from "@/lib/server";
+import { backupTables } from "@/lib/backup";
 export const dynamic = "force-dynamic";
 
 // One transaction gives the owner a consistent, portable copy of all records.
@@ -8,23 +9,7 @@ export async function GET() {
     permit(context, ["owner"]);
     const owner = context.owner;
     const db = database();
-    const tables = [
-      "plans",
-      "members",
-      "member_memberships",
-      "payments",
-      "accesses",
-      "bookings",
-      "booking_payments",
-      "sessions",
-      "enrollments",
-      "audit",
-      "products",
-      "cash_entries",
-      "stock_moves",
-      "product_changes",
-      "booking_requests",
-    ] as const;
+    const tables = backupTables;
     const results = await db.batch<Record<string, unknown>>([
       ...tables.map((table) =>
         db.prepare(`SELECT * FROM ${table} WHERE owner=?`).bind(owner),
@@ -48,7 +33,7 @@ export async function GET() {
     return new Response(
       JSON.stringify(
         {
-          schemaVersion: 6,
+          schemaVersion: 7,
           configuration: results[tables.length].results[0] ?? {
             padel_price: 24000,
             booking_days: 30,
@@ -57,6 +42,8 @@ export async function GET() {
           fieldNotes: {
             "bookings.deposit":
               "Total pagado acumulado. booking_payments detalla cobros registrados desde la incorporación del historial; los pagos anteriores pueden no tener detalle.",
+            "cash_entry_changes":
+              "Cada corrección conserva antes, después, motivo y operador. Las revisiones forman una cadena completa hasta el estado actual del ingreso o gasto manual.",
           },
           exportedAt: new Date().toISOString(),
           records,
