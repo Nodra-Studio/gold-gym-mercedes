@@ -34,6 +34,7 @@ export function SiteHeader() {
           className="gg-brand"
           href="/"
           aria-label="Gold Gym Mercedes, inicio"
+          onClick={() => setOpen(false)}
         >
           <img src="/images/logo.webp" alt="" width={52} height={52} />
           <span>
@@ -42,13 +43,14 @@ export function SiteHeader() {
         </Link>
         <button
           ref={toggle}
+          type="button"
           className="gg-menu"
           aria-label={open ? "Cerrar menú" : "Abrir menú"}
           aria-controls="gold-navigation"
           aria-expanded={open}
-          onClick={() => setOpen(!open)}
+          onClick={() => setOpen((current) => !current)}
         >
-          {open ? <X /> : <Menu />}
+          {open ? <X aria-hidden="true" /> : <Menu aria-hidden="true" />}
         </button>
         <nav
           id="gold-navigation"
@@ -61,13 +63,25 @@ export function SiteHeader() {
           <Link href="/#sedes" onClick={() => setOpen(false)}>
             Sedes
           </Link>
-          <Link href="/pilates" aria-current={path === "/pilates" ? "page" : undefined} onClick={() => setOpen(false)}>
+          <Link
+            href="/pilates"
+            aria-current={path === "/pilates" ? "page" : undefined}
+            onClick={() => setOpen(false)}
+          >
             Pilates
           </Link>
-          <Link href="/padel" aria-current={path === "/padel" ? "page" : undefined} onClick={() => setOpen(false)}>
+          <Link
+            href="/padel"
+            aria-current={path === "/padel" ? "page" : undefined}
+            onClick={() => setOpen(false)}
+          >
             Pádel
           </Link>
-          <Link href="/club" aria-current={path === "/club" ? "page" : undefined} onClick={() => setOpen(false)}>
+          <Link
+            href="/club"
+            aria-current={path === "/club" ? "page" : undefined}
+            onClick={() => setOpen(false)}
+          >
             Cómo sumarte
           </Link>
           <a
@@ -75,6 +89,7 @@ export function SiteHeader() {
             href={brand.contact}
             target="_blank"
             rel="noopener noreferrer"
+            onClick={() => setOpen(false)}
           >
             <BrandIcon name="whatsapp" /> Empezá hoy
           </a>

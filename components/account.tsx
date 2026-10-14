@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Copy, Check, LogOut, ScanLine, ArrowUpRight, ShieldCheck, Clock3 } from "lucide-react";
 import { AdminShell } from "@/components/admin-shell";
 import { portalForRole } from "@/lib/auth/navigation";
+import { clearTerminalOffline, readTerminalOffline } from "@/lib/terminal-offline";
 
 type AccountData = { userId: string; role: string };
 const roleLabels: Record<string, string> = {
@@ -52,6 +53,10 @@ export default function Account() {
   }, [copied]);
   async function logout() {
     if (busy) return;
+    try {
+      const pending = readTerminalOffline()?.events.length ?? 0;
+      if (pending && !confirm(`Hay ${pending} consultas offline sin sincronizar. Conectá la terminal para guardarlas antes de salir. Si cerrás sesión ahora, se borrarán de este dispositivo. ¿Cerrar sesión?`)) return;
+    } catch { /* Closing the session remains available when storage is blocked. */ }
     setBusy(true); setError("");
     try {
       const response = await apiFetch("/api/auth", {
@@ -59,6 +64,7 @@ export default function Account() {
         body: JSON.stringify({ action: "logout" }),
       });
       if (!response.ok) throw new Error("No pudimos cerrar sesión. Volvé a intentar.");
+      await clearTerminalOffline().catch(() => undefined);
       location.replace("/acceso");
     } catch (e) { setError((e as Error).message); setBusy(false); }
   }
@@ -85,6 +91,7 @@ export default function Account() {
       </section>
       {!active ? <section className="panel"><h2>Código de habilitación</h2>{identifier}<p className="muted">Identifica tu cuenta. No es una contraseña.</p></section> : <details className="panel account-details"><summary>Identificador de la cuenta</summary><p className="muted">Conservalo por si la administración necesita revisar tus permisos.</p>{identifier}</details>}
       {administrative && <section className="panel"><h2>Pantalla de ingreso por DNI</h2><p className="muted">Abrila en otra pestaña y movela al monitor de la entrada. Usa esta misma sesión; no necesita un correo ni una cuenta adicional.</p><Link className="button gold" href="/ingreso" target="_blank" rel="noopener noreferrer"><ScanLine size={18} />Abrir terminal<ArrowUpRight size={16} /></Link></section>}
+      {active && account.role !== 'player' && <section className="panel"><h2>Seguridad de tu acceso</h2><p className="muted">Protegé las herramientas del club con una aplicación autenticadora gratuita.</p><Link className="button" href="/verificar?next=/cuenta"><ShieldCheck size={18} />Verificación en dos pasos</Link></section>}
       <section className="panel account-session"><div><h2>Sesión de este navegador</h2><p className="muted">Cerrar sesión también cierra el acceso de las otras pestañas, incluida la terminal.</p></div><button className="button" onClick={logout} disabled={busy}><LogOut size={17} />{busy ? "Cerrando…" : "Cerrar sesión"}</button></section>
     </>}
   </main>;

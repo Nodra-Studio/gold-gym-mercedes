@@ -13,6 +13,7 @@ import { join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { createRequire } from "node:module";
 import ts from "typescript";
+import { nicoRegressions } from './nico-regressions.mjs';
 const require = createRequire(import.meta.url),
   folder = mkdtempSync(join(tmpdir(), "gold-gym-test-"));
 const compile = (file, replacements) => {
@@ -33,6 +34,9 @@ writeFileSync(
   `export const env={}; export const supportsSitesIdentity=true; export async function independentUserId(){return null} export function ownerAccount(){return false} export let currentUser=null; export function setUser(id){currentUser=id?{userId:id}:null} export async function getChatGPTUser(){return currentUser}`,
 );
 writeFileSync(join(folder, "club.mjs"), compile("lib/club.ts", []));
+writeFileSync(join(folder, "branches.mjs"), compile("lib/branches.ts", []));
+writeFileSync(join(folder, "fiscal-lib.mjs"), compile("lib/fiscal-settings.ts", [["'zod'",JSON.stringify(pathToFileURL(require.resolve('zod')).href)],["@/lib/branches","./branches.mjs"]]));
+writeFileSync(join(folder, "terminal-offline.mjs"), compile("lib/terminal-offline.ts", [["@/lib/club", "./club.mjs"]]));
 writeFileSync(
   join(folder, "server.mjs"),
   compile("lib/server.ts", [
@@ -50,7 +54,7 @@ writeFileSync(
 );
 writeFileSync(
   join(folder, "export.mjs"),
-  compile("app/api/export/route.ts", [["@/lib/server", "./server.mjs"]]),
+  compile("app/api/export/route.ts", [["@/lib/server", "./server.mjs"],["@/lib/backup","./backup-lib.mjs"]]),
 );
 writeFileSync(
   join(folder, "backup-lib.mjs"),
@@ -71,6 +75,8 @@ for (const endpoint of [
   "player",
   "settings",
   "booking-payments",
+  "offline-access",
+  "fiscal-settings",
 ])
   writeFileSync(
     join(folder, endpoint + ".mjs"),
@@ -81,6 +87,8 @@ for (const endpoint of [
       ["@/lib/club", "./club.mjs"],
       ["@/lib/backup", "./backup-lib.mjs"],
       ["@/lib/padel-settings", "./padel-settings.mjs"],
+      ["@/lib/terminal-offline", "./terminal-offline.mjs"],
+      ["@/lib/fiscal-settings", "./fiscal-lib.mjs"],
     ]),
   );
 writeFileSync(join(folder, "safe-csv.mjs"), compile("lib/csv.ts", []));
@@ -95,6 +103,9 @@ writeFileSync(
 const reportsApi = await import(pathToFileURL(join(folder, "reports.mjs"))),
   safeCsv = await import(pathToFileURL(join(folder, "safe-csv.mjs")));
 const bookingPaymentsApi=await import(pathToFileURL(join(folder,"booking-payments.mjs")));
+const offlineApi=await import(pathToFileURL(join(folder,"offline-access.mjs"))),
+  fiscalApi=await import(pathToFileURL(join(folder,"fiscal-settings.mjs"))),
+  terminalOffline=await import(pathToFileURL(join(folder,"terminal-offline.mjs")));
 const playerApi = await import(pathToFileURL(join(folder, "player.mjs"))),
   settingsApi = await import(pathToFileURL(join(folder, "settings.mjs")));
 const teamApi = await import(pathToFileURL(join(folder, "team.mjs"))),
@@ -148,20 +159,27 @@ class Statement {
     return { results: db.prepare(this.sql).all(...this.args) };
   }
 }
+let pendingBatch = Promise.resolve();
 runtime.env.DB = {
   prepare: (sql) => new Statement(sql),
   async batch(statements) {
-    db.exec("BEGIN");
+    const previous = pendingBatch;
+    let release;
+    pendingBatch = new Promise(resolve => { release = resolve; });
+    await previous;
     try {
-      const out = [];
-      for (const s of statements)
-        out.push(/^\s*SELECT/i.test(s.sql) ? await s.all() : await s.run());
-      db.exec("COMMIT");
-      return out;
-    } catch (e) {
-      db.exec("ROLLBACK");
-      throw e;
-    }
+      db.exec("BEGIN");
+      try {
+        const out = [];
+        for (const s of statements)
+          out.push(/^\s*SELECT/i.test(s.sql) ? await s.all() : await s.run());
+        db.exec("COMMIT");
+        return out;
+      } catch (e) {
+        db.exec("ROLLBACK");
+        throw e;
+      }
+    } finally { release(); }
   },
 };
 async function post(body, origin = "https://test.local") {
@@ -1280,7 +1298,7 @@ try {
       runtime.setUser("player-a");assert.equal((await bookingPaymentsApi.GET(new Request("https://test.local/api/booking-payments?bookingId="+booking.id))).status,403);
     });
     await t.test("Respaldo v2 conserva cobros de pádel; v1 no inventa historial",async()=>{
-      runtime.setUser("ledger-owner");const snapshot=await(await exporter.GET()).json();assert.equal(snapshot.schemaVersion,6);assert.equal(snapshot.records.booking_payments.length,2);
+      runtime.setUser("ledger-owner");const snapshot=await(await exporter.GET()).json();assert.equal(snapshot.schemaVersion,7);assert.equal(snapshot.records.booking_payments.length,2);
       runtime.setUser("ledger-restored");assert.equal((await call(backupApi,{action:"restore",requestKey:key(),backup:snapshot})).status,200);
       const restored=await(await exporter.GET()).json();assert.equal(restored.records.booking_payments.length,2);assert.ok(restored.records.booking_payments.every(p=>restored.records.bookings.some(b=>b.id===p.booking_id)));
       const missing=structuredClone(snapshot);delete missing.records.booking_payments;assert.equal((await call(backupApi,{action:"check",requestKey:key(),backup:missing})).status,400);
@@ -1380,6 +1398,13 @@ try {
         ).allowed,
         true,
       );
+    });
+    await nicoRegressions(t, {
+      api, team:teamApi, reports:reportsApi, exporter, offline:offlineApi, fiscal:fiscalApi,
+      terminal:terminalOffline, logic, db:runtime.env.DB, runtime,
+      post:call,
+      async get(endpoint) { const r=await endpoint.GET(new Request('https://test.local/api/test'));return {status:r.status,...await r.json()}; },
+      owner:'owner-a',
     });
   });
 } finally {

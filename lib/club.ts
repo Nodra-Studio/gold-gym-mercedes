@@ -21,6 +21,7 @@ export type Member = {
   name: string;
   dni: string;
   phone: string;
+  home_branch: "calle30" | "calle23" | "velez" | "pilates" | null;
   plan_id: string;
   status: string;
   expires: string;

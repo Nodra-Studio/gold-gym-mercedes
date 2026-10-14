@@ -66,7 +66,7 @@ export default function DataClient() {
   }
   function template() {
     const text =
-      "Nombre;DNI;Teléfono;Plan;Estado;Vencimiento\nPersona de ejemplo;99888777;;Musculación libre;activo;2026-12-31\n";
+      "Nombre;DNI;Teléfono;Plan;Estado;Vencimiento;Sede\nPersona de ejemplo;99888777;;Musculación libre;activo;2026-12-31;\n";
     const url = URL.createObjectURL(
       new Blob(["\ufeff" + text], { type: "text/csv;charset=utf-8" }),
     );
@@ -120,7 +120,8 @@ export default function DataClient() {
         </div>
         <p className="muted">
           Hasta 200 socios por lote. Columnas: Nombre, DNI, Teléfono, Plan,
-          Estado, Vencimiento. El plan debe existir y el vencimiento debe tener
+          Estado, Vencimiento y Sede opcional. Si no conocés la sede, dejala vacía.
+          El plan debe existir y el vencimiento debe tener
           formato AAAA-MM-DD. Se agregan socios nuevos; no se reemplazan los
           existentes.
         </p>

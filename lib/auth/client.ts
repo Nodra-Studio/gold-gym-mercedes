@@ -1,6 +1,7 @@
 import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 import { authConfigured } from './config';
+import { sessionMfaState } from './mfa';
 export async function authClient() {
   if (!authConfigured()) throw new Error('Authentication is not configured');
   const store = await cookies();
@@ -23,5 +24,11 @@ export async function independentUserId(): Promise<string | null> {
   if (!authConfigured()) return null;
   const client = await authClient();
   const { data, error } = await client.auth.getUser();
-  return error || !data.user?.email_confirmed_at ? null : data.user.id;
+  if (error || !data.user?.email_confirmed_at) return null;
+  if ((await sessionMfaState(client, data.user)).requiresVerification) {
+    const required = new Error('MFA required') as Error & { code: string };
+    required.code = 'MFA_REQUIRED';
+    throw required;
+  }
+  return data.user.id;
 }

@@ -30,6 +30,7 @@ const links = [
     owner: true,
   },
   { href: "/datos", label: "Datos y respaldos", icon: Database, owner: true },
+  { href: "/datos-fiscales", label: "Datos fiscales", icon: Wallet, owner: true },
   {
     href: "/configuracion",
     label: "Configuración",

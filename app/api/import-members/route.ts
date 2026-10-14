@@ -21,6 +21,7 @@ const rowSchema = z
     plan: z.string().trim().min(2).max(80),
     status: z.enum(["active", "paused"]),
     expires: z.string().refine(isValidDay),
+    homeBranch: z.enum(['calle30', 'calle23', 'velez', 'pilates']).nullable().default(null),
   })
   .strict();
 const schema = z
@@ -125,7 +126,7 @@ export async function POST(req: Request) {
       statements.push(
         db
           .prepare(
-            `INSERT INTO members(id,owner,name,dni,phone,plan_id,status,expires,created_at) VALUES ${chunk.map(() => "(?,?,?,?,?,?,?,?,?)").join(",")}`,
+            `INSERT INTO members(id,owner,name,dni,phone,plan_id,status,expires,created_at,home_branch) VALUES ${chunk.map(() => "(?,?,?,?,?,?,?,?,?,?)").join(",")}`,
           )
           .bind(
             ...chunk.flatMap((r) => [
@@ -138,6 +139,7 @@ export async function POST(req: Request) {
               r.status,
               r.expires,
               now,
+              r.homeBranch,
             ]),
           ),
       );

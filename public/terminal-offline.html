@@ -1,0 +1,8 @@
+<!doctype html>
+<html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex,nofollow"><title>Gold Gym · Terminal sin conexión</title><link rel="stylesheet" href="/terminal-offline.css"><script src="/terminal-offline.js" defer></script></head>
+<body><main><header><img src="/images/logo.webp" alt="Gold Gym" width="46" height="46"><strong id="venue">Terminal de ingreso</strong><a href="/ingreso">Volver a conectar</a></header>
+<aside role="status"><strong>SIN CONEXIÓN · Control manual en recepción</strong><p id="copy-status">Revisando la copia del dispositivo…</p><p id="pending"></p></aside>
+<section class="signal" aria-live="polite" aria-atomic="true"><h1 id="title">Ingresá tu DNI</h1><p id="detail">Esta copia es histórica. Recepción debe confirmar el ingreso manualmente; no abre el molinete.</p></section>
+<form id="form"><label class="sr-only" for="dni">Número de DNI</label><input id="dni" inputmode="numeric" pattern="[0-9]{7,8}" maxlength="8" required autocomplete="off" placeholder="Tu DNI"><button id="check" type="submit">Consultar copia</button></form>
+<p id="notice" role="status"></p><footer><button id="forget" type="button">Borrar datos de este dispositivo</button><p>La copia dura 8 horas desde su preparación. Altas, bajas y pagos posteriores requieren conexión para actualizarse.</p></footer>
+</main></body></html>

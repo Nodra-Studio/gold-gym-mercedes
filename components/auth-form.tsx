@@ -3,6 +3,7 @@ import { apiFetch } from "@/lib/api-fetch";
 import { useState, type FormEvent } from "react";
 import Link from "next/link";
 import { Eye, EyeOff } from "lucide-react";
+import { clearTerminalOffline } from "@/lib/terminal-offline";
 type Mode = "login" | "signup" | "recover" | "password";
 const content: Record<Mode, { title: string; intro: string; button: string }> =
   {
@@ -70,7 +71,10 @@ export default function AuthForm({
       };
       if (!response.ok)
         throw new Error(result.error ?? "No pudimos completar la solicitud.");
-      if (result.next) location.assign(result.next);
+      if (result.next) {
+        await clearTerminalOffline().catch(() => undefined);
+        location.assign(result.next);
+      }
       else setMessage(result.message ?? "Solicitud completada.");
     } catch (e) {
       setError(

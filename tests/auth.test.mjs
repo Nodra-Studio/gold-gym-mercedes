@@ -8,8 +8,8 @@ import { createRequire } from 'node:module';
 import ts from 'typescript';
 const require=createRequire(import.meta.url), folder=mkdtempSync(join(tmpdir(),'gold-auth-'));
 function compile(file,name,pairs){let source=readFileSync(file,'utf8');for(const [a,b] of pairs)source=source.replaceAll(a,b);writeFileSync(join(folder,name+'.mjs'),ts.transpileModule(source,{compilerOptions:{module:ts.ModuleKind.ES2022,target:ts.ScriptTarget.ES2022}}).outputText);}
-writeFileSync(join(folder,'mock.mjs'), `export let configured=true, allowed=true, failed=false, signedIn=true, calls=[];
-export function state(s={}){configured=s.configured??true;allowed=s.allowed??true;failed=s.failed??false;signedIn=s.signedIn??true;calls=[]}
+writeFileSync(join(folder,'mock.mjs'), `export let configured=true, allowed=true, failed=false, signedIn=true, calls=[], factors=[], assuranceLevel='aal1', assuranceError=false, assuranceMissing=false, assuranceCalls=0;
+export function state(s={}){configured=s.configured??true;allowed=s.allowed??true;failed=s.failed??false;signedIn=s.signedIn??true;factors=s.factors??[];assuranceLevel=s.assuranceLevel??'aal1';assuranceError=s.assuranceError??false;assuranceMissing=s.assuranceMissing??false;assuranceCalls=0;calls=[]}
 export const authConfigured=()=>configured;
 export const allowAuthAttempt=async()=>allowed;
 export const env={};export const supportsSitesIdentity=false;export const ownerAccount=()=>false;export const independentUserId=async()=>null;export const getChatGPTUser=async()=>null;
@@ -17,19 +17,22 @@ export const authClient=async()=>({auth:{
  signInWithPassword:async()=>({error:failed?{}:null}),
  signUp:async input=>{calls.push(['signup',input]);return {error:null}},
  resetPasswordForEmail:async()=>({error:failed?{}:null}),
- getUser:async()=>({data:{user:signedIn?{id:'user'}:null},error:signedIn?null:{status:401}}),
+ getUser:async()=>({data:{user:signedIn?{id:'user',email:'test@example.test',factors}:null},error:signedIn?null:{status:401}}),
+ mfa:{getAuthenticatorAssuranceLevel:async()=>{assuranceCalls++;return {data:assuranceMissing?null:{currentLevel:assuranceLevel,nextLevel:factors.some(f=>f.status==='verified')?'aal2':'aal1'},error:assuranceError?{message:'provider failed'}:null}}},
  updateUser:async()=>{calls.push(['password']);return {error:null}},
  signOut:async input=>{calls.push(['logout',input]);return {error:null}}
 }});`);
 compile('lib/auth/config.ts','config',[]);
+compile('lib/auth/mfa.ts','mfa',[["'./config'","'./config.mjs'"]]);
 compile('lib/auth/navigation.ts','navigation',[["'./config'","'./config.mjs'"]]);
 compile('lib/api-fetch.ts','api-fetch',[]);
 compile('lib/server.ts','server',[['@club/runtime','./mock.mjs'],['@/app/chatgpt-auth','./mock.mjs']]);
-compile('app/api/auth/route.ts','route',[["'zod'",JSON.stringify(pathToFileURL(require.resolve('zod')).href)],["import { authConfigured } from '@/lib/auth/config';","import { authConfigured } from './mock.mjs';"],['@/lib/auth/navigation','./navigation.mjs'],['@/lib/auth/client','./mock.mjs'],['@/lib/auth/rate-limit','./mock.mjs'],['@/lib/server','./server.mjs']]);
+compile('app/api/auth/route.ts','route',[["'zod'",JSON.stringify(pathToFileURL(require.resolve('zod')).href)],["import { authConfigured } from '@/lib/auth/config';","import { authConfigured } from './mock.mjs';"],['@/lib/auth/navigation','./navigation.mjs'],['@/lib/auth/mfa','./mfa.mjs'],['@/lib/auth/client','./mock.mjs'],['@/lib/auth/rate-limit','./mock.mjs'],['@/lib/server','./server.mjs']]);
 const mock=await import(pathToFileURL(join(folder,'mock.mjs'))), api=await import(pathToFileURL(join(folder,'route.mjs')));
 const previous=process.env.APP_URL;process.env.APP_URL='https://club.example';
 async function call(payload,origin='https://club.example') {const r=await api.POST(new Request('https://club.example/api/auth',{method:'POST',headers:{'content-type':'application/json',...(origin?{origin}:{})},body:JSON.stringify(payload)}));return {status:r.status,...await r.json(),cache:r.headers.get('cache-control')};}
 const login={action:'login',email:'test@example.test',password:'test-password-123'};
+const verifiedFactor={id:'totp-factor',factor_type:'totp',status:'verified'};
 try{
  await test('Own authentication request boundary',async t=>{
   await t.test('Missing configuration keeps access closed',async()=>{mock.state({configured:false});assert.equal((await call(login)).status,503)});
@@ -41,6 +44,34 @@ try{
     assert.equal((await call(login)).next,'/portal');
     assert.equal((await call({...login,returnTo:'/cuenta'})).next,'/portal');
     assert.equal((await call({...login,returnTo:'/ingreso'})).next,'/ingreso');
+    assert.equal(mock.assuranceCalls,0);
+  });
+  await t.test('Login with a verified factor routes to verification and preserves the terminal destination',async()=>{
+    mock.state({factors:[verifiedFactor]});
+    const r=await call({...login,returnTo:'/ingreso?sede=calle30'});
+    assert.equal(r.status,200);
+    assert.equal(r.next,'/verificar?next=%2Fingreso%3Fsede%3Dcalle30');
+    assert.match(r.cache,/private, no-store/);
+    assert.equal(mock.assuranceCalls,1);
+  });
+  await t.test('Verified factors permit login at assurance level two; unverified enrollment does not block',async()=>{
+    mock.state({factors:[verifiedFactor],assuranceLevel:'aal2'});
+    assert.equal((await call({...login,returnTo:'/ingreso'})).next,'/ingreso');
+    assert.equal(mock.assuranceCalls,1);
+    mock.state({factors:[{...verifiedFactor,status:'unverified'}]});
+    assert.equal((await call(login)).next,'/portal');
+    assert.equal(mock.assuranceCalls,0);
+  });
+  await t.test('Login remains closed if the session or MFA assurance cannot be checked',async()=>{
+    mock.state({signedIn:false});
+    assert.equal((await call(login)).status,503);
+    for(const failure of [{assuranceError:true},{assuranceMissing:true}]) {
+      mock.state({factors:[verifiedFactor],...failure});
+      const r=await call(login);
+      assert.equal(r.status,503);
+      assert.equal(r.next,undefined);
+      assert.match(r.cache,/no-store/);
+    }
   });
   await t.test('Portal destinations respect each role',async()=>{
     const {portalForRole}=await import(pathToFileURL(join(folder,'navigation.mjs')));
@@ -57,6 +88,23 @@ try{
   });
   await t.test('Recovery answer does not disclose existence or delivery outcome',async()=>{mock.state();const a=await call({action:'recover',email:login.email});mock.state({failed:true});const b=await call({action:'recover',email:login.email});assert.equal(a.message,b.message)});
   await t.test('Password changes require a session and sign out all sessions',async()=>{mock.state({signedIn:false});assert.equal((await call({action:'password',password:login.password})).status,401);mock.state();assert.equal((await call({action:'password',password:login.password})).status,200);assert.deepEqual(mock.calls,[['password'],['logout',{scope:'global'}]])});
+  await t.test('A verified factor requires assurance level two before changing the password',async()=>{
+    mock.state({factors:[verifiedFactor]});
+    const blocked=await call({action:'password',password:login.password});
+    assert.equal(blocked.status,403);
+    assert.match(blocked.error,/verificación/);
+    assert.deepEqual(mock.calls,[]);
+    mock.state({factors:[verifiedFactor],assuranceLevel:'aal2'});
+    assert.equal((await call({action:'password',password:login.password})).status,200);
+    assert.deepEqual(mock.calls,[['password'],['logout',{scope:'global'}]]);
+  });
+  await t.test('Assurance errors keep password changes closed without updating credentials or signing out',async()=>{
+    for(const failure of [{assuranceError:true},{assuranceMissing:true}]) {
+      mock.state({factors:[verifiedFactor],...failure});
+      assert.equal((await call({action:'password',password:login.password})).status,503);
+      assert.deepEqual(mock.calls,[]);
+    }
+  });
   await t.test('Logout closes the current session',async()=>{mock.state();const r=await call({action:'logout'});assert.equal(r.next,'/acceso');assert.deepEqual(mock.calls,[['logout',{scope:'local'}]])});
   await t.test('Logout works with an expired or missing session',async()=>{mock.state({signedIn:false});const r=await call({action:'logout'});assert.equal(r.status,200);assert.equal(r.next,'/acceso');assert.deepEqual(mock.calls,[['logout',{scope:'local'}]])});
   await t.test('Logout still rejects cross-origin requests without a session',async()=>{mock.state({signedIn:false});assert.equal((await call({action:'logout'},'https://other.example')).status,403);assert.deepEqual(mock.calls,[])});

@@ -10,6 +10,21 @@ const id = z.string().min(1).max(200),
     .max(30)
     .regex(/^[+\d\s()-]*$/);
 const venue = z.enum(["calle30", "calle23", "velez", "pilates"]);
+const cashAmount = z.number().int().min(-10000000).max(10000000).refine((n) => n !== 0);
+const cashState = z.object({
+  venue,
+  kind: z.enum(["expense", "income"]),
+  category: name,
+  concept: z.string().min(1).max(400),
+  amount: cashAmount,
+  method: z.enum(["Efectivo", "Transferencia", "Tarjeta"]),
+  day,
+  revision: z.number().int().min(1),
+}).strict().refine((entry) => entry.kind === "expense" ? entry.amount < 0 : entry.amount > 0 && entry.category === "Otros ingresos");
+const cashStateText = z.string().max(2500).refine((raw) => {
+  try { return cashState.safeParse(JSON.parse(raw)).success; }
+  catch { return false; }
+});
 const cashCommon = {
   id,
   request_key: id,
@@ -37,6 +52,31 @@ const stateText = z
     }
   });
 const row = {
+  cash_entry_changes: z.object({
+    ...cashCommon,
+    actor: id.refine((value) => value.trim().length > 0),
+    cash_entry_id: id,
+    before_state: cashStateText,
+    after_state: cashStateText,
+    reason: z.string().trim().min(3).max(300),
+  }).strict(),
+  issuer_settings: z.object({
+    id: z.string().uuid(),
+    venue,
+    legal_name: z.string().trim().min(2).max(200),
+    tax_id: z.string().regex(/^(20|23|24|27|30|33|34)\d{9}$/).refine((value) => {
+      const factors = [5, 4, 3, 2, 7, 6, 5, 4, 3, 2];
+      const remainder = 11 - factors.reduce((sum, factor, index) => sum + Number(value[index]) * factor, 0) % 11;
+      const digit = remainder === 11 ? 0 : remainder === 10 ? 9 : remainder;
+      return Number(value[10]) === digit;
+    }),
+    fiscal_address: z.string().trim().min(5).max(300),
+    tax_condition: z.enum(["registered", "monotributo", "exempt"]),
+    point_of_sale: z.number().int().min(1).max(99999),
+    updated_at: stamp,
+    actor: id.refine((value) => value.trim().length > 0),
+    revision: z.number().int().min(1),
+  }).strict(),
   product_changes: z
     .object({
       ...cashCommon,
@@ -59,20 +99,16 @@ const row = {
     .object({
       ...cashCommon,
       venue,
-      kind: z.enum(["sale", "expense", "reversal"]),
+      kind: z.enum(["sale", "expense", "income", "reversal"]),
       category: name,
       concept: z.string().min(1).max(400),
-      amount: z
-        .number()
-        .int()
-        .min(-10000000)
-        .max(10000000)
-        .refine((n) => n !== 0),
+      amount: cashAmount,
       method: z.enum(["Efectivo", "Transferencia", "Tarjeta"]),
       day,
       product_id: id.nullable(),
       quantity: z.number().int().min(1).max(10000).nullable(),
       reverses: id.nullable(),
+      revision: z.number().int().min(1).optional(),
     })
     .strict(),
   stock_moves: z
@@ -142,6 +178,7 @@ const row = {
       dni: z.string().regex(/^\d{7,8}$/),
       phone,
       plan_id: id,
+      home_branch: venue.nullable().default(null),
       status: z.enum(["active", "paused"]),
       expires: day,
       created_at: stamp,
@@ -235,9 +272,11 @@ export const backupTables = [
   "audit",
   "products",
   "cash_entries",
+  "cash_entry_changes",
   "stock_moves",
   "product_changes",
   "booking_requests",
+  "issuer_settings",
 ] as const;
 export const backupSchema = z
   .object({
@@ -248,6 +287,7 @@ export const backupSchema = z
       z.literal(4),
       z.literal(5),
       z.literal(6),
+      z.literal(7),
     ]),
     configuration: z
       .object({
@@ -276,7 +316,9 @@ export const backupSchema = z
         products: z.array(row.products).optional(),
         product_changes: z.array(row.product_changes).optional(),
         cash_entries: z.array(row.cash_entries).optional(),
+        cash_entry_changes: z.array(row.cash_entry_changes).optional(),
         stock_moves: z.array(row.stock_moves).optional(),
+        issuer_settings: z.array(row.issuer_settings).optional(),
       })
       .strict(),
   })
@@ -297,7 +339,12 @@ export function validateBackup(value: unknown) {
       !parsed.data.records.booking_payments)
   )
     throw Error("El respaldo versión 3 debe incluir caja y stock.");
-  if(parsed.data.schemaVersion===6&&!parsed.data.records.member_memberships)throw Error("El respaldo debe incluir las membresías adicionales.");
+  if(parsed.data.schemaVersion>=6&&!parsed.data.records.member_memberships)throw Error("El respaldo debe incluir las membresías adicionales.");
+  if (parsed.data.schemaVersion >= 7 && (
+    !parsed.data.records.cash_entry_changes ||
+    !parsed.data.records.issuer_settings ||
+    parsed.data.records.cash_entries?.some((entry) => entry.revision === undefined)
+  )) throw Error("El respaldo versión 7 debe incluir revisiones, correcciones de caja y datos fiscales.");
   if (parsed.data.schemaVersion >= 5 && !parsed.data.records.booking_requests)
     throw Error("El respaldo debe incluir las solicitudes de pádel.");
   if (parsed.data.schemaVersion >= 4 && !parsed.data.records.product_changes)
@@ -312,9 +359,11 @@ export function validateBackup(value: unknown) {
         member_memberships:parsed.data.records.member_memberships??[],
         products: parsed.data.records.products ?? [],
         product_changes: parsed.data.records.product_changes ?? [],
-        cash_entries: parsed.data.records.cash_entries ?? [],
+        cash_entries: (parsed.data.records.cash_entries ?? []).map((entry) => ({...entry, revision: entry.revision ?? 1})),
+        cash_entry_changes: parsed.data.records.cash_entry_changes ?? [],
         stock_moves: parsed.data.records.stock_moves ?? [],
         booking_payments: parsed.data.records.booking_payments ?? [],
+        issuer_settings: parsed.data.records.issuer_settings ?? [],
       },
     },
     ids = new Set<string>();
@@ -374,6 +423,7 @@ export function validateBackup(value: unknown) {
       .map((b) => `${b.day}:${b.court}:${b.start}`),
   );
   unique(b.records.enrollments.map((e) => `${e.session_id}:${e.member_id}`));
+  unique(b.records.issuer_settings.map((issuer) => issuer.venue));
   for (const [id, capacity] of sessions)
     if (
       b.records.enrollments.filter((e) => e.session_id === id).length > capacity
@@ -395,6 +445,10 @@ export function validateBackup(value: unknown) {
       (c.amount >= 0 || c.product_id || c.quantity || c.reverses)
     )
       throw Error("Gasto inválido.");
+    if (c.kind === "income" && (c.amount <= 0 || c.product_id || c.quantity || c.reverses || c.category !== "Otros ingresos"))
+      throw Error("Ingreso de caja inválido.");
+    if (!["expense", "income"].includes(c.kind) && c.revision !== 1)
+      throw Error("Una venta o anulación no admite correcciones manuales.");
     if (c.kind === "reversal") {
       const original = cash.get(c.reverses ?? "");
       if (
@@ -404,10 +458,40 @@ export function validateBackup(value: unknown) {
         c.venue !== original.venue ||
         c.product_id !== original.product_id ||
         c.quantity !== original.quantity ||
-        c.method !== original.method
+        c.method !== original.method ||
+        c.category !== original.category
       )
         throw Error("Anulación inconsistente.");
     }
+  }
+  const correctionChains = new Map<string, typeof b.records.cash_entry_changes>();
+  for (const change of b.records.cash_entry_changes) {
+    const entry = cash.get(change.cash_entry_id);
+    if (!entry || !["expense", "income"].includes(entry.kind))
+      throw Error("Corrección de caja sin un ingreso o gasto manual.");
+    const corrections = correctionChains.get(entry.id) ?? [];
+    corrections.push(change);
+    correctionChains.set(entry.id, corrections);
+  }
+  for (const entry of b.records.cash_entries) {
+    const corrections = correctionChains.get(entry.id) ?? [];
+    corrections.sort((a, b) => JSON.parse(a.after_state).revision - JSON.parse(b.after_state).revision);
+    if (corrections.length !== entry.revision - 1)
+      throw Error("El historial de correcciones de caja está incompleto.");
+    let previous: z.infer<typeof cashState> | undefined;
+    let previousTime = Date.parse(entry.created_at);
+    const reversal = b.records.cash_entries.find((other) => other.reverses === entry.id);
+    for (const change of corrections) {
+      const before = cashState.parse(JSON.parse(change.before_state));
+      const after = cashState.parse(JSON.parse(change.after_state));
+      const time = Date.parse(change.created_at);
+      if (before.revision !== (previous?.revision ?? 1) || after.revision !== before.revision + 1 || before.kind !== entry.kind || after.kind !== entry.kind || (previous && !sameCashState(before, previous)) || time < previousTime || (reversal && time > Date.parse(reversal.created_at)))
+        throw Error("La cadena de correcciones de caja es inconsistente.");
+      previous = after;
+      previousTime = time;
+    }
+    if (previous && !sameCashState(previous, entry))
+      throw Error("La última corrección no coincide con el movimiento actual.");
   }
   const transfers = new Map<string, typeof b.records.stock_moves>();
   for (const m of b.records.stock_moves) {
@@ -485,9 +569,13 @@ export function validateBackup(value: unknown) {
   for (const rows of [
     b.records.products,
     b.records.cash_entries,
+    b.records.cash_entry_changes,
     b.records.stock_moves,
     b.records.product_changes,
   ])
     unique(rows.map((r) => r.request_key));
   return b;
+}
+function sameCashState(a: z.infer<typeof cashState>, b: { venue: string; kind: string; category: string; concept: string; amount: number; method: string; day: string; revision: number }) {
+  return a.venue === b.venue && a.kind === b.kind && a.category === b.category && a.concept === b.concept && a.amount === b.amount && a.method === b.method && a.day === b.day && a.revision === b.revision;
 }

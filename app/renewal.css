@@ -78,15 +78,18 @@ summary {
   margin-top: 0;
 }
 .gg-header {
-  max-width: 1440px;
-  margin: auto;
+  width: 100%;
   min-height: 100px;
-  padding: 20px 5%;
+  padding: 20px clamp(24px, 5vw, 96px);
   display: flex;
   align-items: center;
   justify-content: space-between;
   border-bottom: 1px solid #ffffff20;
-  gap: 24px;
+  gap: clamp(24px, 3vw, 56px);
+}
+.gg-brand {
+  flex-shrink: 0;
+  white-space: nowrap;
 }
 .gg-brand,
 .gg-footer-brand {
@@ -110,13 +113,22 @@ summary {
 }
 .gg-nav {
   display: flex;
+  flex: 1;
   align-items: center;
-  gap: 30px;
-  font-size: 13px;
+  justify-content: space-between;
+  gap: clamp(16px, 1.8vw, 32px);
+  font-size: 14px;
   font-weight: 600;
 }
 .gg-nav a {
   padding: 12px 0;
+  white-space: nowrap;
+}
+.gg-nav a[aria-current="page"] {
+  color: #d3b36b;
+  text-decoration: underline;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 8px;
 }
 .gg-nav a:hover {
   color: #d3b36b;
@@ -1256,7 +1268,7 @@ body:has(.admin-shell) [data-slot="dialog-description"] {
     grid-template-columns: repeat(2, 1fr);
   }
 }
-@media (max-width: 760px) {
+@media (max-width: 1024px) {
   .gg-header {
     min-height: 80px;
     padding: 14px 6%;
@@ -1279,6 +1291,7 @@ body:has(.admin-shell) [data-slot="dialog-description"] {
   }
   .gg-nav {
     display: none;
+    flex: 0 0 100%;
     width: 100%;
     flex-direction: column;
     align-items: stretch;
@@ -1295,6 +1308,8 @@ body:has(.admin-shell) [data-slot="dialog-description"] {
   .gg-nav .gg-nav-cta {
     justify-content: space-between;
   }
+}
+@media (max-width: 760px) {
   .gg-hero {
     grid-template-columns: 1fr;
     padding: 40px 6%;
@@ -1935,7 +1950,7 @@ body:has(.admin-shell) [data-slot="dialog-content"] .muted {
   scroll-margin-top: 116px;
 }
 .marketing .gg-header .gg-nav a {
-  font-size: 14px;
+  font-size: clamp(14px, 1.1vw, 16px);
 }
 .marketing .gg-hero-note,
 .marketing .gg-art-caption {
@@ -2041,17 +2056,11 @@ body:has(.admin-shell) [data-slot="dialog-content"] .muted {
   will-change: auto;
 }
 @media (max-width: 1100px) {
-  .marketing .gg-nav {
-    gap: 16px;
-  }
-  .marketing .gg-header .gg-nav a {
-    font-size: 12px;
-  }
   .marketing .gg-footer-main {
     flex-wrap: wrap;
   }
 }
-@media (max-width: 760px) {
+@media (max-width: 1024px) {
   .marketing .gg-header {
     max-height: 100svh;
     overflow-y: auto;
@@ -2063,6 +2072,8 @@ body:has(.admin-shell) [data-slot="dialog-content"] .muted {
   .marketing .gg-club-band {
     scroll-margin-top: 90px;
   }
+}
+@media (max-width: 760px) {
   .marketing .gg-hero-note {
     font-size: 9px;
   }

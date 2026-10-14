@@ -6,6 +6,7 @@ import {
   index,
 } from "drizzle-orm/sqlite-core";
 import { sql } from "drizzle-orm";
+export * from "./offline-schema";
 export const plans = sqliteTable("plans", {
   id: text("id").primaryKey(),
   owner: text("owner").notNull(),
@@ -23,6 +24,7 @@ export const members = sqliteTable(
     name: text("name").notNull(),
     dni: text("dni").notNull(),
     phone: text("phone").notNull().default(""),
+    homeBranch: text("home_branch"),
     planId: text("plan_id")
       .notNull()
       .references(() => plans.id),
@@ -33,6 +35,7 @@ export const members = sqliteTable(
   (t) => [
     uniqueIndex("members_owner_dni").on(t.owner, t.dni),
     index("members_owner_expiry").on(t.owner, t.expires),
+    index("members_owner_home_branch").on(t.owner, t.homeBranch),
   ],
 );
 export const memberMemberships = sqliteTable(
@@ -253,6 +256,7 @@ export const cashEntries = sqliteTable(
     productId: text("product_id").references(() => products.id),
     quantity: integer("quantity"),
     reverses: text("reverses"),
+    revision: integer("revision").notNull().default(1),
   },
   (t) => [
     uniqueIndex("cash_entries_owner_request").on(t.owner, t.requestKey),
@@ -278,6 +282,40 @@ export const stockMoves = sqliteTable(
     uniqueIndex("stock_moves_owner_request").on(t.owner, t.requestKey),
     index("stock_moves_owner_product").on(t.owner, t.productId, t.venue),
   ],
+);
+
+export const cashEntryChanges = sqliteTable(
+  "cash_entry_changes",
+  {
+    ...cashCommon(),
+    cashEntryId: text("cash_entry_id").notNull().references(() => cashEntries.id),
+    beforeState: text("before_state").notNull(),
+    afterState: text("after_state").notNull(),
+    reason: text("reason").notNull(),
+  },
+  (t) => [
+    uniqueIndex("cash_entry_changes_owner_request").on(t.owner, t.requestKey),
+    index("cash_entry_changes_owner_entry").on(t.owner, t.cashEntryId, t.createdAt),
+    index("cash_entry_changes_owner_created").on(t.owner, t.createdAt, t.id),
+  ],
+);
+
+export const issuerSettings = sqliteTable(
+  "issuer_settings",
+  {
+    id: text("id").primaryKey(),
+    owner: text("owner").notNull(),
+    venue: text("venue").notNull(),
+    legalName: text("legal_name").notNull(),
+    taxId: text("tax_id").notNull(),
+    fiscalAddress: text("fiscal_address").notNull(),
+    taxCondition: text("tax_condition").notNull(),
+    pointOfSale: integer("point_of_sale").notNull(),
+    updatedAt: text("updated_at").notNull(),
+    actor: text("actor").notNull(),
+    revision: integer("revision").notNull().default(1),
+  },
+  (t) => [uniqueIndex("issuer_settings_owner_venue").on(t.owner, t.venue)],
 );
 
 export const productChanges = sqliteTable(
