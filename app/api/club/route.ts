@@ -619,7 +619,7 @@ export async function POST(req: Request) {
       case "payment": {
         const duplicate = await db
           .prepare(
-            "SELECT id,member_id,membership_id,amount,method FROM payments WHERE owner=? AND request_key=?",
+            "SELECT id,member_id,membership_id,amount,method,venue FROM payments WHERE owner=? AND request_key=?",
           )
           .bind(owner, input.requestKey)
           .first();
@@ -629,7 +629,8 @@ export async function POST(req: Request) {
             (duplicate.membership_id ?? null) !==
               (input.membershipId ?? null) ||
             duplicate.amount !== input.expectedPrice ||
-            duplicate.method !== input.method
+            duplicate.method !== input.method ||
+            duplicate.venue !== input.venue
           )
             throw new ClubError(
               "Ese cobro ya fue registrado con otros datos. Cerrá el formulario y revisá el historial.",

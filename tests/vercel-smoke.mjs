@@ -17,7 +17,7 @@ try {
     await delay(500);
   }
   assert.ok(ready, `Next server did not start: ${logs}`);
-  for (const path of ['/', '/club', '/padel', '/propuesta', '/acceso', '/recuperar', '/crear-cuenta', '/actualizar-clave']) {
+  for (const path of ['/', '/club', '/padel', '/pilates', '/turnos', '/propuesta', '/acceso', '/recuperar', '/crear-cuenta', '/actualizar-clave']) {
     const res = await fetch(base + path);
     assert.equal(res.status, 200, path);
     assert.match(await res.text(), /Gold Gym/);
@@ -37,6 +37,9 @@ try {
     }
   }
   assert.equal((await fetch(base + '/favicon.jpg')).status, 200);
+  const navigationStyles = await fetch(base + '/styles/site-navigation-noscript.css');
+  assert.equal(navigationStyles.status, 200);
+  assert.match(navigationStyles.headers.get('content-type') ?? '', /text\/css/);
   console.log('Vercel smoke passed: public pages, private routes, API denial, spoofed headers and asset.');
 } finally {
   server.kill('SIGTERM');

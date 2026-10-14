@@ -1860,7 +1860,7 @@ body:has(.admin-shell) [data-slot="dialog-content"] .muted {
   color: #000;
 }
 .marketing .gg-final h2 span {
-  color: #fff;
+  color: #000;
 }
 .marketing .gg-final > p:last-child {
   font-size: 14px;

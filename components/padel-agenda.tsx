@@ -41,21 +41,22 @@ export default function PadelAgenda() {
       court: number;
       start: number;
     } | null>(null),
-    [detail, setDetail] = useState<Booking | null>(null),
+    [detailId, setDetailId] = useState(""),
     [notice, setNotice] = useState(""),
     [cancelId, setCancelId] = useState(""),
     [method, setMethod] = useState("Efectivo");
   const bookings =
       data?.bookings.filter((b) => b.day === day && b.status === "confirmed") ??
       [],
-    played = bookings.filter((b) => b.kind === "booking");
+    played = bookings.filter((b) => b.kind === "booking"),
+    detail = data?.bookings.find((b) => b.id === detailId) ?? null;
   const open = (court: number, start: number) => {
     const b = bookings.find((b) => b.court === court && b.start === start);
     setError("");
     setNotice("");
     setCancelId("");
     setMethod("Efectivo");
-    if (b) setDetail(b);
+    if (b) setDetailId(b.id);
     else setSlot({ court, start });
   };
   async function save(p: Record<string, unknown>) {
@@ -222,7 +223,7 @@ export default function PadelAgenda() {
                   setError("");
                   setCancelId("");
                   setMethod("Efectivo");
-                  setDetail(b);
+                  setDetailId(b.id);
                 }}
               >
                 Ver reserva <ArrowUpRight size={14} />
@@ -286,7 +287,7 @@ export default function PadelAgenda() {
       <FormModal
         open={!!detail}
         onClose={() => {
-          if (!busy) setDetail(null);
+          if (!busy) setDetailId("");
         }}
         title={
           detail?.kind === "block"
@@ -303,6 +304,13 @@ export default function PadelAgenda() {
         {detail && (
           <>
             <h3>{detail.name}</h3>
+            {detail.status === "cancelled" && (
+              <p className="notice" role="status">
+                {detail.kind === "block"
+                  ? "Este bloqueo ya fue cancelado."
+                  : "Esta reserva fue cancelada."}
+              </p>
+            )}
             {detail.kind === "booking" && (
               <>
                 <p>{detail.phone || "Sin teléfono registrado"}</p>
@@ -313,7 +321,11 @@ export default function PadelAgenda() {
                   <br />
                   Pendiente: {money(detail.amount - detail.deposit)}
                 </div>
-                <BookingPaymentHistory key={detail.id} bookingId={detail.id} />
+                <BookingPaymentHistory
+                  key={detail.id}
+                  bookingId={detail.id}
+                  totalPaid={detail.deposit}
+                />
               </>
             )}
             {detail.status === "confirmed" &&
@@ -331,7 +343,7 @@ export default function PadelAgenda() {
                         expectedDeposit: detail.deposit,
                         method,
                       });
-                      setDetail(null);
+                      setDetailId("");
                       setNotice("Saldo registrado. La reserva quedó pagada.");
                     } catch {}
                   }}
@@ -355,7 +367,7 @@ export default function PadelAgenda() {
                   </div>
                 </form>
               )}
-            {cancelId === detail.id ? (
+            {detail.status === "confirmed" && cancelId === detail.id ? (
               <section
                 className="notice"
                 aria-label="Confirmación de cancelación"
@@ -397,7 +409,7 @@ export default function PadelAgenda() {
                           action: "cancelBooking",
                           id: detail.id,
                         });
-                        setDetail(null);
+                        setDetailId("");
                         setCancelId("");
                         setNotice(
                           "Turno cancelado. El horario volvió a quedar libre.",
@@ -414,7 +426,7 @@ export default function PadelAgenda() {
                 <button
                   className="button small"
                   disabled={busy}
-                  onClick={() => setDetail(null)}
+                  onClick={() => setDetailId("")}
                 >
                   Volver
                 </button>

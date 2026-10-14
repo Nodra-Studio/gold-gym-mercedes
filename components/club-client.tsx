@@ -277,9 +277,22 @@ export function FormModal({
   description: string;
   children: React.ReactNode;
 }) {
+  const returnFocus = useRef<HTMLElement | null>(null);
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
-      <DialogContent>
+      <DialogContent
+        onOpenAutoFocus={() => {
+          returnFocus.current = document.activeElement instanceof HTMLElement
+            ? document.activeElement
+            : null;
+        }}
+        onCloseAutoFocus={(event) => {
+          if (returnFocus.current?.isConnected) {
+            event.preventDefault();
+            returnFocus.current.focus();
+          }
+        }}
+      >
         <DialogTitle>{title}</DialogTitle>
         <DialogDescription>{description}</DialogDescription>
         {children}

@@ -25,6 +25,10 @@ export function SiteHeader() {
       <a className="skip-link" href="#contenido">
         Saltar al contenido
       </a>
+      <noscript>
+        {/* eslint-disable-next-line @next/next/no-css-tags -- This fallback must load only when JavaScript is disabled. */}
+        <link rel="stylesheet" href="/styles/site-navigation-noscript.css" />
+      </noscript>
       <header className="gg-header">
         <Link
           className="gg-brand"

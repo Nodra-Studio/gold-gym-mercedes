@@ -15,6 +15,11 @@ import {
 } from "lucide-react";
 import { apiFetch } from "@/lib/api-fetch";
 import {
+  isPublicPhone,
+  normalizePublicPhone,
+  publicPhoneMessage,
+} from "@/lib/public-padel-validation";
+import {
   addDays,
   dateLabel,
   localDay,
@@ -51,6 +56,22 @@ type Weather = {
   }[];
 };
 type Choice = { court: number; start: number };
+type Submission = Choice & {
+  day: string;
+  name: string;
+  phone: string;
+  expectedPrice: number;
+  expectedRevision: number;
+  paymentMethod: "Transferencia";
+  requestKey: string;
+  receipt: string;
+  receiptType: string;
+  website: FormDataEntryValue | "";
+};
+type SubmissionSnapshot = {
+  body: Submission;
+  quote: { amount: number; deposit: number; paymentAlias: string };
+};
 const courtNumbers = [1, 2, 3, 4];
 function shortDate(day: string, option: "weekday" | "month") {
   return new Date(day + "T12:00:00-03:00").toLocaleDateString("es-AR", {
@@ -71,21 +92,24 @@ export default function PublicPadel() {
     [slot, setSlot] = useState<Choice | null>(null);
   const [review, setReview] = useState(false),
     [busy, setBusy] = useState(false);
+  const [uncertain, setUncertain] = useState(false);
   const [done, setDone] = useState("");
   const [quoted, setQuoted] = useState<{
     amount: number;
     deposit: number;
   } | null>(null);
+  const [pendingQuote, setPendingQuote] = useState<SubmissionSnapshot["quote"] | null>(null);
   const [copied, setCopied] = useState(false),
     [weather, setWeather] = useState<Weather>({ periods: [] });
   const [refresh, setRefresh] = useState(0),
-    [clock, setClock] = useState(Date.now());
+    [clock, setClock] = useState(() => Date.now());
   const [name, setName] = useState(""),
     [phone, setPhone] = useState("");
   const receiptInput = useRef<HTMLInputElement>(null);
   const availabilityPending = useRef(false);
   const sending = useRef(false),
     key = useRef(""),
+    lastSubmission = useRef<SubmissionSnapshot | null>(null),
     heading = useRef<HTMLHeadingElement>(null);
   const paymentMethod = "Transferencia";
   const venue = venues.find((v) => v.name === "Club Unión")!;
@@ -112,6 +136,8 @@ export default function PublicPadel() {
   useEffect(() => {
     if (done) return;
     const c = new AbortController();
+    // Loading belongs to the lifecycle of this remote availability request.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setLoading(true);
     availabilityPending.current = true;
     apiFetch("/api/public-padel?day=" + day, {
@@ -175,10 +201,11 @@ export default function PublicPadel() {
   const availableSlots = slots.filter((start) => available(court, start));
   const validSlot =
     !availabilityError && !!slot && available(slot.court, slot.start);
-  const price = currentData?.settings.padel_price ?? 0;
-  const deposit = Math.round(
+  const price = pendingQuote?.amount ?? currentData?.settings.padel_price ?? 0;
+  const deposit = pendingQuote?.deposit ?? Math.round(
     (price * (currentData?.settings.deposit_percent ?? 0)) / 100,
   );
+  const paymentAlias = pendingQuote?.paymentAlias ?? currentData?.settings.payment_alias ?? "";
   const instant = slot
     ? new Date(`${day}T${timeLabel(slot.start)}:00-03:00`).getTime()
     : 0;
@@ -223,47 +250,74 @@ export default function PublicPadel() {
   }
   async function submit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    if (sending.current || !slot || !currentData || !validSlot || loading)
+    // A retry must reach the API even if reception confirmed the original turn
+    // or its start time passed while the response was lost.
+    if (
+      sending.current ||
+      (!lastSubmission.current &&
+        (!slot || !currentData || !validSlot || loading))
+    )
       return;
+    const form = e.currentTarget;
+    if (!lastSubmission.current && !isPublicPhone(phone)) {
+      const input = form.elements.namedItem("phone");
+      if (input instanceof HTMLInputElement) {
+        input.setCustomValidity(publicPhoneMessage);
+        input.reportValidity();
+      }
+      return;
+    }
     sending.current = true;
     setBusy(true);
     setError("");
+    let sent = false,
+      rejected = false;
     try {
-      const values = new FormData(e.currentTarget),
-        file = receiptFile;
-      let receipt = "",
-        receiptType = "";
-      if (paymentMethod === "Transferencia" && file?.size) {
-        if (
-          file.size > 1048576 ||
-          !["image/jpeg", "image/png", "application/pdf"].includes(file.type)
-        )
-          throw Error("Adjuntá un JPG, PNG o PDF de hasta 1 MB.");
-        receiptType = file.type;
-        receipt = await new Promise<string>((resolve, reject) => {
-          const reader = new FileReader();
-          reader.onload = () => resolve(String(reader.result).split(",")[1]);
-          reader.onerror = () => reject(Error("No pudimos leer el archivo."));
-          reader.readAsDataURL(file);
-        });
+      let snapshot = lastSubmission.current;
+      if (!snapshot) {
+        const values = new FormData(form),
+          file = receiptFile;
+        let receipt = "",
+          receiptType = "";
+        if (paymentMethod === "Transferencia" && file?.size) {
+          if (
+            file.size > 1048576 ||
+            !["image/jpeg", "image/png", "application/pdf"].includes(file.type)
+          )
+            throw Error("Adjuntá un JPG, PNG o PDF de hasta 1 MB.");
+          receiptType = file.type;
+          receipt = await new Promise<string>((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(String(reader.result).split(",")[1]);
+            reader.onerror = () => reject(Error("No pudimos leer el archivo."));
+            reader.readAsDataURL(file);
+          });
+        }
+        if (!key.current) key.current = requestId();
+        snapshot = {
+          body: {
+            day,
+            ...slot!,
+            name: name.trim(),
+            phone: normalizePublicPhone(phone),
+            expectedPrice: price,
+            expectedRevision: currentData!.settings.revision,
+            paymentMethod,
+            requestKey: key.current,
+            receipt,
+            receiptType,
+            website: values.get("website") || "",
+          },
+          quote: { amount: price, deposit, paymentAlias },
+        };
+        lastSubmission.current = snapshot;
       }
-      if (!key.current) key.current = requestId();
+      setPendingQuote(snapshot.quote);
+      sent = true;
       const r = await apiFetch("/api/public-padel", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          day,
-          ...slot,
-          name,
-          phone: phone.replace(/[\s()-]/g, ""),
-          expectedPrice: price,
-          expectedRevision: currentData.settings.revision,
-          paymentMethod,
-          requestKey: key.current,
-          receipt,
-          receiptType,
-          website: values.get("website") || "",
-        }),
+        body: JSON.stringify(snapshot.body),
       });
       const j = (await r.json()) as {
         error?: string;
@@ -271,10 +325,22 @@ export default function PublicPadel() {
         amount: number;
         deposit_expected: number;
       };
-      if (!r.ok) throw Error(j.error);
+      if (!r.ok) {
+        rejected = true;
+        throw Error(j.error);
+      }
       setQuoted({ amount: j.amount, deposit: j.deposit_expected });
       setDone(j.id);
+      lastSubmission.current = null;
+      setPendingQuote(null);
+      setUncertain(false);
     } catch (e) {
+      setUncertain(sent && !rejected);
+      if (!sent || rejected) {
+        lastSubmission.current = null;
+        setPendingQuote(null);
+        key.current = "";
+      }
       setError(
         e instanceof Error ? e.message : "No pudimos enviar la solicitud.",
       );
@@ -600,7 +666,11 @@ export default function PublicPadel() {
         </div>
       ) : (
         <>
-          <button className={s.back} onClick={editChoice} disabled={busy}>
+          <button
+            className={s.back}
+            onClick={editChoice}
+            disabled={busy || uncertain}
+          >
             <ArrowLeft size={18} />
             Cambiar día, cancha u horario
           </button>
@@ -614,7 +684,7 @@ export default function PublicPadel() {
                 <p className={s.subtle}>
                   Usaremos tu WhatsApp para coordinar el turno.
                 </p>
-                <fieldset className={s.contacts} disabled={busy}>
+                <fieldset className={s.contacts} disabled={busy || uncertain}>
                   <label>
                     Nombre y apellido
                     <input
@@ -633,12 +703,18 @@ export default function PublicPadel() {
                       name="phone"
                       type="tel"
                       required
-                      pattern="\+?[0-9 \(\)\-]{8,22}"
-                      maxLength={22}
+                      maxLength={40}
                       placeholder="5492324123456"
                       autoComplete="tel"
                       value={phone}
-                      onChange={(e) => setPhone(e.target.value)}
+                      onChange={(e) => {
+                        setPhone(e.target.value);
+                        e.target.setCustomValidity(
+                          !e.target.value || isPublicPhone(e.target.value)
+                            ? ""
+                            : publicPhoneMessage,
+                        );
+                      }}
                     />
                   </label>
                 </fieldset>
@@ -652,16 +728,16 @@ export default function PublicPadel() {
                 </p>
                 {paymentMethod === "Transferencia" && (
                   <div className={s.transfer}>
-                    {currentData?.settings.payment_alias && (
+                    {paymentAlias && (
                       <p>
                         Alias / CBU:{" "}
-                        <strong>{currentData.settings.payment_alias}</strong>
+                        <strong>{paymentAlias}</strong>
                       </p>
                     )}
                     <label>
                       Comprobante de seña <span>(opcional)</span>
                       <input
-                        disabled={busy}
+                        disabled={busy || uncertain}
                         ref={receiptInput}
                         name="receipt"
                         type="file"
@@ -699,7 +775,7 @@ export default function PublicPadel() {
                         </span>
                         <button
                           type="button"
-                          disabled={busy}
+                          disabled={busy || uncertain}
                           onClick={() => {
                             setReceiptFile(null);
                             if (receiptInput.current)
@@ -792,7 +868,13 @@ export default function PublicPadel() {
                   La solicitud no bloquea la cancha. Recepción verificará el
                   turno y la seña antes de confirmarlo.
                 </p>
-                {currentData && !availabilityError && !validSlot && (
+                {uncertain && (
+                  <p role="status">
+                    El envío pudo haber quedado registrado. Reintentá para
+                    recuperar la confirmación con los mismos datos.
+                  </p>
+                )}
+                {!uncertain && currentData && !availabilityError && !validSlot && (
                   <p className={s.error} role="alert">
                     Este horario ya no está disponible. Elegí otro turno.
                   </p>
@@ -800,13 +882,15 @@ export default function PublicPadel() {
                 {(error || availabilityError) && (
                   <div className={s.error} role="alert">
                     {error || availabilityError}
-                    <button
-                      type="button"
-                      disabled={loading || busy}
-                      onClick={() => setRefresh((n) => n + 1)}
-                    >
-                      Actualizar disponibilidad y precio
-                    </button>
+                    {!uncertain && (
+                      <button
+                        type="button"
+                        disabled={loading || busy}
+                        onClick={() => setRefresh((n) => n + 1)}
+                      >
+                        Actualizar disponibilidad y precio
+                      </button>
+                    )}
                   </div>
                 )}
                 <label className={s.trap} aria-hidden="true">
@@ -816,10 +900,12 @@ export default function PublicPadel() {
                 <button
                   className={s.primary}
                   type="submit"
-                  disabled={busy || loading || !validSlot}
+                  disabled={busy || (!uncertain && (loading || !validSlot))}
                 >
                   {busy
                     ? "Enviando solicitud…"
+                    : uncertain
+                      ? "Reintentar mi solicitud"
                     : loading
                       ? "Verificando disponibilidad…"
                       : "Solicitar este turno"}
