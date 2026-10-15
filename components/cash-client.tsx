@@ -1,4 +1,5 @@
 "use client";
+import { OwnerAction } from "@/components/owner-action";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { apiFetch } from "@/lib/api-fetch";
 import { branches, branchName, expenseCategories } from "@/lib/branches";
@@ -299,10 +300,10 @@ export function CashClient() {
         >
           Ingresar stock
         </button>
-        {data?.role === "owner" && (
-          <button className="button outline" onClick={() => open("product")}>
+        {data && (
+          <OwnerAction role={data.role} onClick={() => open("product")}>
             Nuevo producto
-          </button>
+          </OwnerAction>
         )}
         <button
           className="button outline"
@@ -311,10 +312,10 @@ export function CashClient() {
         >
           Trasladar stock
         </button>
-        {data?.role === "owner" && (
-          <button className="button outline" onClick={() => open("adjust")}>
+        {data && (
+          <OwnerAction role={data.role} onClick={() => open("adjust")}>
             Ajustar stock
-          </button>
+          </OwnerAction>
         )}
       </div>
       {error && (
@@ -529,23 +530,22 @@ export function CashClient() {
                           "Anulado"
                         ) : e.kind === "reversal" ? (
                           "Anulación"
-                        ) : data.role === "owner" &&
-                          ["sale", "expense", "income"].includes(e.kind) ? (
+                        ) : ["sale", "expense", "income"].includes(e.kind) ? (
                           <>
                             {["expense", "income"].includes(e.kind) && (
-                              <button
+                              <OwnerAction role={data.role} compact
                                 className="text-link"
                                 onClick={() => open("editEntry", e)}
                               >
                                 Corregir
-                              </button>
+                              </OwnerAction>
                             )}
-                            <button
+                            <OwnerAction role={data.role} compact
                               className="text-link"
                               onClick={() => open("reverse", e)}
                             >
                               Anular
-                            </button>
+                            </OwnerAction>
                           </>
                         ) : (
                           "Registrado"
@@ -643,14 +643,14 @@ export function CashClient() {
                     <td>
                       {money(p.price)}
                       <small>{p.active === 1 ? "Activo" : "Inactivo"}</small>
-                      {data.role === "owner" && (
-                        <button
-                          className="text-link"
-                          onClick={() => open("editProduct", null, p)}
-                        >
-                          Editar
-                        </button>
-                      )}
+                      <OwnerAction
+                        role={data.role}
+                        compact
+                        className="text-link"
+                        onClick={() => open("editProduct", null, p)}
+                      >
+                        Editar
+                      </OwnerAction>
                     </td>
                     {branches.map((b) => (
                       <td key={b.id}>

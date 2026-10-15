@@ -14,6 +14,7 @@ import { pathToFileURL } from "node:url";
 import { createRequire } from "node:module";
 import ts from "typescript";
 import { nicoRegressions } from './nico-regressions.mjs';
+import { planSelfServeRegressions } from './plan-selfserve-regressions.mjs';
 const require = createRequire(import.meta.url),
   folder = mkdtempSync(join(tmpdir(), "gold-gym-test-"));
 const compile = (file, replacements) => {
@@ -45,11 +46,16 @@ writeFileSync(
   ]),
 );
 writeFileSync(
+  join(folder, "plan-management.mjs"),
+  compile("lib/plan-management.ts", [["@/lib/server", "./server.mjs"]]),
+);
+writeFileSync(
   join(folder, "route.mjs"),
   compile("app/api/club/route.ts", [
     ["'zod'", JSON.stringify(pathToFileURL(require.resolve("zod")).href)],
     ["@/lib/server", "./server.mjs"],
     ["@/lib/club", "./club.mjs"],
+    ["@/lib/plan-management", "./plan-management.mjs"],
   ]),
 );
 writeFileSync(
@@ -77,6 +83,7 @@ for (const endpoint of [
   "booking-payments",
   "offline-access",
   "fiscal-settings",
+  "tariffs",
 ])
   writeFileSync(
     join(folder, endpoint + ".mjs"),
@@ -89,6 +96,7 @@ for (const endpoint of [
       ["@/lib/padel-settings", "./padel-settings.mjs"],
       ["@/lib/terminal-offline", "./terminal-offline.mjs"],
       ["@/lib/fiscal-settings", "./fiscal-lib.mjs"],
+      ["@/lib/plan-management", "./plan-management.mjs"],
     ]),
   );
 writeFileSync(join(folder, "safe-csv.mjs"), compile("lib/csv.ts", []));
@@ -103,6 +111,7 @@ writeFileSync(
 const reportsApi = await import(pathToFileURL(join(folder, "reports.mjs"))),
   safeCsv = await import(pathToFileURL(join(folder, "safe-csv.mjs")));
 const bookingPaymentsApi=await import(pathToFileURL(join(folder,"booking-payments.mjs")));
+const tariffsApi=await import(pathToFileURL(join(folder,"tariffs.mjs")));
 const offlineApi=await import(pathToFileURL(join(folder,"offline-access.mjs"))),
   fiscalApi=await import(pathToFileURL(join(folder,"fiscal-settings.mjs"))),
   terminalOffline=await import(pathToFileURL(join(folder,"terminal-offline.mjs")));
@@ -614,12 +623,12 @@ try {
           (
             await post({
               action: "plan",
-              name: "Prohibido",
+              name: "Creado por recepción",
               price: 1,
               days: 30,
             })
           ).status,
-          403,
+          200,
         );
         assert.equal((await exporter.GET()).status, 403);
         assert.equal(
@@ -1403,6 +1412,11 @@ try {
       api, team:teamApi, reports:reportsApi, exporter, offline:offlineApi, fiscal:fiscalApi,
       terminal:terminalOffline, logic, db:runtime.env.DB, runtime,
       post:call,
+      async get(endpoint) { const r=await endpoint.GET(new Request('https://test.local/api/test'));return {status:r.status,...await r.json()}; },
+      owner:'owner-a',
+    });
+    await planSelfServeRegressions(t, {
+      api, tariffs:tariffsApi, team:teamApi, runtime, db:runtime.env.DB, post:call,
       async get(endpoint) { const r=await endpoint.GET(new Request('https://test.local/api/test'));return {status:r.status,...await r.json()}; },
       owner:'owner-a',
     });

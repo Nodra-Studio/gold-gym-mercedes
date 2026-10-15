@@ -2,6 +2,8 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState, useRef, useEffect } from "react";
+import { navigationFeatures, isFeatureRestricted } from "@/lib/features";
+import "@/app/permissions.css";
 import {
   Users,
   CalendarDays,
@@ -16,28 +18,9 @@ import {
   UserRound,
   Menu,
   X,
+  LockKeyhole,
 } from "lucide-react";
-const links = [
-  { href: "/tarifas", label: "Planes y tarifas", icon: Tags },
-  { href: "/gestion", label: "Socios y gimnasio", icon: Users },
-  { href: "/reservas", label: "Agenda de pádel", icon: CalendarDays },
-  { href: "/caja", label: "Caja y stock", icon: Wallet },
-  { href: "/reportes", label: "Informes", icon: BarChart3, owner: true },
-  {
-    href: "/equipo",
-    label: "Equipo y permisos",
-    icon: ShieldCheck,
-    owner: true,
-  },
-  { href: "/datos", label: "Datos y respaldos", icon: Database, owner: true },
-  { href: "/datos-fiscales", label: "Datos fiscales", icon: Wallet, owner: true },
-  {
-    href: "/configuracion",
-    label: "Configuración",
-    icon: Settings,
-    owner: true,
-  },
-];
+const icons = { plans: Tags, members: Users, calendar: CalendarDays, cash: Wallet, reports: BarChart3, team: ShieldCheck, data: Database, fiscal: Wallet, settings: Settings };
 export function AdminShell({
   role,
   children,
@@ -76,19 +59,26 @@ export function AdminShell({
         </Link>
         <p className="admin-nav-label">TU ESPACIO DE TRABAJO</p>
         <nav aria-label="Gestión del club">
-          {links
-            .filter((l) => !l.owner || role === "owner")
-            .map(({ href, label, icon: Icon }) => (
+          {navigationFeatures(role).map((feature) => {
+            const { href, label, icon } = feature;
+            const Icon = icons[icon];
+            const restricted = isFeatureRestricted(role, feature);
+            return (
               <Link
                 key={href}
                 href={href}
                 aria-current={path === href ? "page" : undefined}
+                className={restricted ? "admin-nav-restricted" : undefined}
+                aria-label={restricted ? `${label}. Solo dueños` : undefined}
+                title={restricted ? "Solo dueños" : undefined}
                 onClick={() => setOpen(false)}
               >
-                <Icon size={19} />
-                <span>{label}</span>
+                <Icon size={19} className="admin-nav-icon" aria-hidden="true" />
+                <span className="admin-nav-text">{label}</span>
+                {restricted && <LockKeyhole size={15} className="admin-nav-lock" aria-hidden="true" />}
               </Link>
-            ))}
+            );
+          })}
         </nav>
         <div className="admin-sidebar-bottom">
           <Link href="/ingreso" target="_blank" rel="noopener noreferrer">
@@ -118,7 +108,7 @@ export function AdminShell({
           </span>
           <Link href="/cuenta">
             <UserRound size={17} />
-            {role === "owner" ? "Administración" : "Recepción"}
+            {role === "owner" ? "Dueño" : role === "reception" ? "Recepción" : "Mi cuenta"}
             <ArrowUpRight size={14} />
           </Link>
         </header>

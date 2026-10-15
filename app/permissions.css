@@ -1,0 +1,33 @@
+.admin-sidebar nav a .admin-nav-lock { margin-left: auto; flex-shrink: 0; opacity: .8; }
+.owner-only-action { opacity: .65; cursor: not-allowed; }
+.owner-only-action.text-link { display: inline-flex; align-items: center; gap: 5px; margin-right: 10px; }
+.owner-action-caption { font-size: 11px; font-weight: 500; }
+.admin-sidebar nav a .admin-nav-icon { flex-shrink: 0; }
+.admin-sidebar nav a .admin-nav-text { flex: 1; }
+.admin-sidebar nav a.admin-nav-restricted:not([aria-current="page"]) { color: #c0c7b8; }
+.restricted-panel { position: relative; isolation: isolate; overflow: hidden; border: 1px solid #dce0d5; border-radius: 16px; background: #fff; min-height: 440px; display: grid; place-items: center; }
+.restricted-preview { position: absolute; inset: 28px; z-index: -1; opacity: .5; pointer-events: none; display: flex; flex-direction: column; gap: 26px; }
+.restricted-preview i { display: block; background: #dce0d5; border-radius: 6px; }
+.restricted-preview-toolbar { display: flex; justify-content: space-between; gap: 24px; }
+.restricted-preview-toolbar i { width: 140px; height: 28px; }
+.restricted-preview-toolbar i:last-child { width: 100px; }
+.restricted-preview-summary { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+.restricted-preview-summary i { height: 80px; }
+.restricted-preview-rows { display: grid; gap: 20px; }
+.restricted-preview-rows i { height: 18px; }
+.restricted-preview-rows i:nth-child(even) { width: 85%; }
+.restricted-preview--team .restricted-preview-summary i { height: 100px; border-radius: 12px; }
+.restricted-preview--data .restricted-preview-summary { grid-template-columns: repeat(2, 1fr); }
+.restricted-preview--data .restricted-preview-summary i:last-child { display: none; }
+.restricted-preview--fiscal .restricted-preview-summary, .restricted-preview--settings .restricted-preview-summary { grid-template-columns: 1fr; }
+.restricted-preview--fiscal .restricted-preview-summary i, .restricted-preview--settings .restricted-preview-summary i { height: 34px; width: 65%; }
+.restricted-explanation { margin: 36px; max-width: 580px; padding: 34px; background: #fffffff5; border: 1px solid #dce0d5; border-radius: 14px; box-shadow: 0 14px 44px #252b2310; }
+.restricted-explanation h2 { font-size: clamp(20px, 3vw, 27px); line-height: 1.2; margin: 18px 0 14px; }
+.restricted-explanation p { line-height: 1.65; }
+.restricted-explanation .form-actions { margin-top: 24px; }
+.restricted-badge { display: inline-flex; align-items: center; gap: 7px; background: #ede9dc; color: #67501d; border-radius: 999px; padding: 7px 11px; font-size: 12px; font-weight: 700; }
+@media (max-width: 600px) {
+  .restricted-explanation { margin: 20px; padding: 24px; }
+  .restricted-explanation .form-actions { align-items: stretch; flex-direction: column; }
+  .restricted-preview { inset: 18px; }
+}

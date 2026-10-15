@@ -37,13 +37,13 @@ try {
     assert.match(await res.text(), /Gold Gym/);
   }
   const spoofed = { 'oai-authenticated-user-id': 'owner', 'oai-authenticated-user-email': 'owner@example.test' };
-  for (const path of ['/gestion', '/ingreso', '/reservas', '/jugar', '/configuracion', '/equipo', '/datos', '/datos-fiscales', '/verificar', '/reportes', '/signin-with-chatgpt']) {
+  for (const path of ['/gestion', '/tarifas', '/ingreso', '/reservas', '/jugar', '/configuracion', '/equipo', '/datos', '/datos-fiscales', '/verificar', '/reportes', '/signin-with-chatgpt']) {
     const res = await fetch(base + path, { headers: spoofed });
     assertSecurity(res);
     assert.match(await res.text(), /La gestión todavía no está habilitada/);
     assert.match(res.headers.get('x-robots-tag') ?? '', /noindex/);
   }
-  for (const path of ['auth', 'mfa', 'offline-access', 'fiscal-settings', 'club', 'cash', 'backup', 'booking-payments', 'export', 'import-members', 'player', 'reports', 'settings', 'team']) {
+  for (const path of ['auth', 'mfa', 'offline-access', 'fiscal-settings', 'club', 'tariffs', 'cash', 'backup', 'booking-payments', 'export', 'import-members', 'player', 'reports', 'settings', 'team']) {
     for (const method of ['GET', 'POST']) {
       const res = await fetch(`${base}/api/${path}`, { method, headers: spoofed });
       assertSecurity(res);
