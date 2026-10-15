@@ -1,6 +1,7 @@
 import { slotPassed } from "@/lib/club";
 import { z } from "zod";
 import { principal, permit, database, body, ClubError } from "@/lib/server";
+import { createManagedPlan, livePlanActor } from "@/lib/plan-management";
 import {
   localDay,
   addDays,
@@ -38,6 +39,8 @@ const schema = z.discriminatedUnion("action", [
     name,
     price: z.number().int().min(0).max(10000000),
     days: z.number().int().min(1).max(366),
+    requestKey: key.optional(),
+    published: z.boolean().default(false),
   }),
   z.object({
     action: z.literal("planPrice"),
@@ -228,7 +231,7 @@ export async function POST(req: Request) {
     const allowed =
       input.action === "access"
         ? (["owner", "reception", "gate"] as const)
-        : ["plan", "planPrice", "seed"].includes(input.action)
+        : input.action === "seed"
           ? (["owner"] as const)
           : (["owner", "reception"] as const);
     permit(context, [...allowed]);
@@ -359,48 +362,44 @@ export async function POST(req: Request) {
         return reply({ ok: true });
       }
       case "plan": {
-        await db.batch([
-          db
-            .prepare(
-              "INSERT INTO plans (id,owner,name,price,days,access_scope) VALUES (?,?,?,?,?,?)",
-            )
-            .bind(
-              crypto.randomUUID(),
-              owner,
-              input.name,
-              input.price,
-              input.days,
-              input.accessScope ??
-                (/pilates/i.test(input.name) ? "pilates" : "gym"),
-            ),
-          log("Plan creado", input.name),
-        ]);
-        break;
+        return reply(await createManagedPlan(db, context, {
+          requestKey: input.requestKey ?? crypto.randomUUID(),
+          name: input.name,
+          price: input.price,
+          days: input.days,
+          accessScope: input.accessScope ?? (/pilates/i.test(input.name) ? "pilates" : "gym"),
+          published: input.published,
+        }));
       }
       case "planPrice": {
         const p = await owned("plans", input.id);
+        const actor = livePlanActor(context), audit = crypto.randomUUID();
         // Conditional audit and update share a transaction; stale forms cannot overwrite a newer price.
         const result = await db.batch([
           db
             .prepare(
-              "INSERT INTO audit (id,owner,action,detail,created_at) SELECT ?,?,?,?,? WHERE EXISTS (SELECT 1 FROM plans WHERE id=? AND owner=? AND price=?)",
+              `INSERT INTO audit (id,owner,action,detail,created_at) SELECT ?,?,?,?,? WHERE ${actor.sql} AND EXISTS (SELECT 1 FROM plans WHERE id=? AND owner=? AND price=?)`,
             )
             .bind(
-              crypto.randomUUID(),
+              audit,
               owner,
               "Precio actualizado",
               `${p.name} · ${input.expectedPrice} → ${input.price} ARS. Aplica a próximos cobros. · operador ${context.userId}`,
               now,
+              ...actor.args,
               input.id,
               owner,
               input.expectedPrice,
             ),
           db
             .prepare(
-              "UPDATE plans SET price=? WHERE id=? AND owner=? AND price=?",
+              "UPDATE plans SET price=? WHERE id=? AND owner=? AND price=? AND EXISTS(SELECT 1 FROM audit WHERE id=? AND owner=?)",
             )
-            .bind(input.price, input.id, owner, input.expectedPrice),
+            .bind(input.price, input.id, owner, input.expectedPrice, audit, owner),
+          db.prepare(`SELECT 1 AS allowed WHERE ${actor.sql}`).bind(...actor.args),
         ]);
+        if (!result[2].results.length)
+          throw new ClubError("Tu acceso cambió. Volvé a cargar la pantalla antes de continuar.", 403);
         if (!result[1].meta.changes)
           throw new ClubError(
             "El precio cambió desde que abriste el formulario. Actualizá la página antes de continuar.",

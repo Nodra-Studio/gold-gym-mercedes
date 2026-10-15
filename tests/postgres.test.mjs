@@ -8,17 +8,18 @@ import { join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { createRequire } from 'node:module';
 import { nicoRegressions } from './nico-regressions.mjs';
+import { planSelfServeRegressions } from './plan-selfserve-regressions.mjs';
 const folder = mkdtempSync(join(tmpdir(), 'gold-postgres-')), require = createRequire(import.meta.url);
 function compile(file, name, replacements = []) {
   let source = readFileSync(file, 'utf8');
-  const pairs = [...replacements, ['@club/runtime', './runtime.mjs'], ['@/app/chatgpt-auth', './runtime.mjs'], ['@/lib/server', './server.mjs'], ['@/lib/club', './club.mjs'], ['@/lib/backup', './backup.mjs'], ['@/lib/padel-settings', './padel-settings.mjs'], ['@/lib/csv', './csv.mjs'], ['@/lib/branches','./branches.mjs'], ['@/lib/terminal-offline','./terminal-offline.mjs'], ['@/lib/fiscal-settings','./fiscal-lib.mjs'], ['@/lib/public-padel-validation','./public-padel-validation.mjs'], ['@/lib/public-padel','./public-padel.mjs']];
+  const pairs = [...replacements, ['@club/runtime', './runtime.mjs'], ['@/app/chatgpt-auth', './runtime.mjs'], ['@/lib/server', './server.mjs'], ['@/lib/club', './club.mjs'], ['@/lib/backup', './backup.mjs'], ['@/lib/padel-settings', './padel-settings.mjs'], ['@/lib/csv', './csv.mjs'], ['@/lib/branches','./branches.mjs'], ['@/lib/terminal-offline','./terminal-offline.mjs'], ['@/lib/fiscal-settings','./fiscal-lib.mjs'], ['@/lib/public-padel-validation','./public-padel-validation.mjs'], ['@/lib/public-padel','./public-padel.mjs'], ['@/lib/plan-management','./plan-management.mjs']];
   for (const [from, to] of pairs) source = source.replaceAll(from, to);
   source = source.replaceAll("'zod'", '"zod"').replaceAll('"zod"', JSON.stringify(pathToFileURL(require.resolve('zod')).href));
   writeFileSync(join(folder, name + '.mjs'), ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.ES2022, target: ts.ScriptTarget.ES2022 } }).outputText);
 }
 writeFileSync(join(folder, 'runtime.mjs'), `export const env={}; export const supportsSitesIdentity=false; export let user=null; export let owner='owner-a'; export let identityError=null; export const setIdentityError=x=>identityError=x; export const setUser=x=>user=x; export const setOwner=x=>owner=x; export async function independentUserId(){if(identityError)throw identityError;return user}; export function ownerAccount(id){return id===owner}; export async function getChatGPTUser(){throw Error('Untrusted Sites identity used')}`);
 for (const [file, name, replacements] of [
-  ['lib/public-padel.ts','public-padel'], ['lib/public-padel-validation.ts','public-padel-validation'], ['lib/branches.ts','branches'], ['lib/server.ts','server'], ['lib/club.ts','club'], ['lib/terminal-offline.ts','terminal-offline'], ['lib/fiscal-settings.ts','fiscal-lib'], ['lib/backup.ts','backup',[['./club','./club.mjs']]], ['lib/padel-settings.ts','padel-settings'], ['lib/csv.ts','csv'], ['lib/postgres/adapter.ts','adapter'], ['lib/auth/return-to.ts','return-to'], ['lib/auth/config.ts','auth-config',[["'./return-to'","'./return-to.mjs'"]]],
+  ['lib/public-padel.ts','public-padel'], ['lib/public-padel-validation.ts','public-padel-validation'], ['lib/branches.ts','branches'], ['lib/server.ts','server'], ['lib/club.ts','club'], ['lib/plan-management.ts','plan-management'], ['lib/terminal-offline.ts','terminal-offline'], ['lib/fiscal-settings.ts','fiscal-lib'], ['lib/backup.ts','backup',[['./club','./club.mjs']]], ['lib/padel-settings.ts','padel-settings'], ['lib/csv.ts','csv'], ['lib/postgres/adapter.ts','adapter'], ['lib/auth/return-to.ts','return-to'], ['lib/auth/config.ts','auth-config',[["'./return-to'","'./return-to.mjs'"]]],
   ...['tariffs','public-prices','public-padel','padel-requests','club','team','player','settings','booking-payments','reports','export','backup','cash','offline-access','fiscal-settings'].map(x=>[`app/api/${x}/route.ts`, x+'-api']),
 ]) compile(file, name, replacements);
 const load = name => import(pathToFileURL(join(folder, name+'.mjs')));
@@ -284,7 +285,7 @@ try {
     });
     await t.test('Owner grants, restricts and revokes staff access',async()=>{
       assert.equal((await post(team,{userId:'reception',name:'Recepción',role:'reception',status:'active'})).status,200);
-      runtime.setUser('reception');assert.equal((await get()).status,200);assert.equal((await post(api,{action:'plan',name:'Forbidden',price:1,days:30})).status,403);
+      runtime.setUser('reception');assert.equal((await get()).status,200);assert.equal((await post(api,{action:'plan',name:'Reception self-service',price:1,days:30})).status,200);
       runtime.setUser('owner-a');await post(team,{userId:'reception',name:'Recepción',role:'reception',status:'revoked'});
       runtime.setUser('reception');assert.equal((await get()).status,403);runtime.setUser('owner-a');
     });
@@ -464,6 +465,9 @@ try {
       // Fixture time travel uses the harness administrator; the app role cannot
       // rewrite a signed server copy's preparation or expiration timestamps.
       fixtureSnapshotDates:(id,preparedAt,expiresAt)=>pg.query('UPDATE club.offline_snapshots SET prepared_at=$1,expires_at=$2 WHERE id=$3 AND owner=$4',[preparedAt,expiresAt,id,'owner-a']),
+    });
+    await planSelfServeRegressions(t, {api,tariffs:await load('tariffs-api'),team,runtime,db:runtime.env.DB,post,get,owner:'owner-a',
+      useOwner(id) { clubOwner=id;runtime.setOwner(id);runtime.setUser(id); },
     });
     await t.test('JSON backup retains numeric fields and relations',async()=>{
       const response=await exporter.GET();assert.equal(response.status,200);snapshot=await response.json();assert.equal(snapshot.schemaVersion,7);

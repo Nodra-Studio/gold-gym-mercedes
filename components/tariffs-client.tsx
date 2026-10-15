@@ -1,246 +1,125 @@
 "use client";
-import { useEffect, useState } from "react";
-import { apiFetch } from "@/lib/api-fetch";
-type Plan = {
-  id: string;
-  name: string;
-  days: number;
-  price: number;
-  published: number;
-  access_scope: "gym" | "pilates" | "all";
-};
-type Padel = {
-  padel_price: number;
-  deposit_percent: number;
-  payment_alias: string;
-  whatsapp: string;
-  revision: number;
-};
-export default function Tariffs() {
-  const [data, setData] = useState<{
-      role: string;
-      plans: Plan[];
-      padel: Padel;
-    } | null>(null),
+import { useCallback, useEffect, useRef, useState } from "react";
+import { Plus, LockKeyhole } from "lucide-react";
+import { ApiError, apiFetch } from "@/lib/api-fetch";
+import {
+  CreatePlanEditor,
+  ExistingPlanEditor,
+  PadelEditor,
+  type SaveOutcome,
+  type TariffData,
+} from "@/components/plan-editor";
+import "@/app/tariffs-self-service.css";
+
+export function useTariffs() {
+  const [data, setData] = useState<TariffData | null>(null),
     [error, setError] = useState(""),
     [busy, setBusy] = useState(false),
+    [loading, setLoading] = useState(true),
     [notice, setNotice] = useState("");
-  async function load() {
+  const alive = useRef(true), busyRef = useRef(false), read = useRef<AbortController | null>(null), version = useRef(0);
+
+  const load = useCallback(async (afterSave = false): Promise<TariffData | null> => {
+    if (busyRef.current && !afterSave) return null;
+    const current = ++version.current, controller = new AbortController();
+    read.current?.abort();
+    read.current = controller;
+    if (alive.current) { setError(""); setLoading(true); }
     try {
-      const r = await apiFetch("/api/tariffs"),
-        j = (await r.json()) as NonNullable<typeof data> & { error?: string };
-      if (!r.ok) throw Error(j.error);
-      setData(j);
-    } catch (e) {
-      setError(
-        e instanceof Error ? e.message : "No pudimos cargar las tarifas.",
-      );
-    }
-  }
-  useEffect(() => {
-    void load();
-  }, []);
-  async function save(value: Record<string, unknown>) {
-    if (busy) return;
-    setBusy(true);
-    setError("");
-    setNotice("");
-    try {
-      const r = await apiFetch("/api/tariffs", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(value),
-        }),
-        j = (await r.json()) as { error?: string };
-      if (!r.ok) throw Error(j.error);
-      await load();
-      setNotice(
-        "Tarifa actualizada. Ya se aplica a nuevas consultas, reservas y cobros. Los importes anteriores se conservan.",
-      );
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "No pudimos guardar.");
+      const response = await apiFetch("/api/tariffs", { signal: controller.signal }),
+        result = await response.json() as TariffData & { error?: string };
+      if (!response.ok) throw new Error(result.error || "No pudimos cargar los planes.");
+      if (!Array.isArray(result.plans) || !result.padel || typeof result.role !== "string") throw new Error("No pudimos leer los datos de planes y tarifas.");
+      if (!alive.current || current !== version.current || controller.signal.aborted) return null;
+      setData(result);
+      return result;
+    } catch (cause) {
+      if (alive.current && current === version.current && !controller.signal.aborted)
+        setError(cause instanceof Error ? cause.message : "No pudimos cargar los planes.");
+      return null;
     } finally {
-      setBusy(false);
+      if (alive.current && current === version.current) setLoading(false);
+      if (read.current === controller) read.current = null;
     }
-  }
+  }, []);
+
+  const cancelReads = useCallback(() => { ++version.current; read.current?.abort(); }, []);
+  useEffect(() => {
+    let active = true;
+    alive.current = true;
+    queueMicrotask(() => { if (active) void load(); });
+    return () => { active = false; alive.current = false; cancelReads(); };
+  }, [load, cancelReads]);
+
+  const save = useCallback(async (value: Record<string, unknown>): Promise<SaveOutcome> => {
+    if (busyRef.current) return { ok: false, uncertain: false };
+    busyRef.current = true;
+    ++version.current;
+    read.current?.abort();
+    if (alive.current) { setBusy(true); setLoading(false); setError(""); setNotice(""); }
+    let definiteRejection = false;
+    try {
+      const response = await apiFetch("/api/tariffs", {
+        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(value),
+      });
+      if (!response.ok) definiteRejection = response.status < 500;
+      const result = await response.json() as { ok?: boolean; id?: string; planId?: string; error?: string };
+      if (!response.ok || result.ok !== true) throw new Error(result.error || "No pudimos confirmar el guardado.");
+      const fresh = await load(true);
+      if (!fresh) {
+        if (alive.current) setError("El cambio quedó guardado, pero no pudimos actualizar la pantalla. Volvé a cargar los datos. Si estabas creando un plan, podés reintentar el mismo guardado sin duplicarlo.");
+        return { ok: false, uncertain: true };
+      }
+      if (alive.current) setNotice(value.kind === "createPlan"
+        ? "Plan creado. Ya podés usarlo al registrar una membresía. Podés cambiar su precio y publicación desde esta pantalla."
+        : value.kind === "padel"
+          ? "Tarifa de pádel guardada. Se aplica a las nuevas consultas y reservas. Los importes ya registrados no cambian."
+          : "Plan actualizado. El precio y la vigencia se aplican a los próximos cobros y renovaciones. Los pagos registrados y las fechas de vencimiento no cambian.");
+      return { ok: true, data: fresh, createdId: result.id ?? result.planId };
+    } catch (cause) {
+      if (alive.current) setError(cause instanceof Error ? cause.message : "No pudimos guardar.");
+      return { ok: false, uncertain: !definiteRejection && !(cause instanceof ApiError && cause.status === 401) };
+    } finally {
+      busyRef.current = false;
+      if (alive.current) setBusy(false);
+    }
+  }, [load]);
+  return { data, error, busy, loading, notice, load, save };
+}
+
+export default function Tariffs({ initialCreate = false }: { initialCreate?: boolean }) {
+  const { data, error, busy, loading, notice, load, save } = useTariffs();
+  const [creating, setCreating] = useState(initialCreate), [createdId, setCreatedId] = useState<string | undefined>();
+  useEffect(() => {
+    if (createdId && data?.plans.some((plan) => plan.id === createdId))
+      document.getElementById(`plan-${createdId}`)?.focus();
+  }, [createdId, data]);
+  const owner = data?.role === "owner";
   return (
-    <main className="workspace">
+    <main className="workspace tariffs-workspace">
       <header className="work-header">
         <div>
-          <p className="eyebrow">ADMINISTRACIÓN / TARIFAS</p>
-          <h1>Un precio. En todo el club.</h1>
-          <p className="muted">
-            Cambios para el sitio, los turnos y los próximos cobros. Las
-            reservas y pagos ya registrados mantienen su importe.
-          </p>
+          <p className="eyebrow">ADMINISTRACIÓN / PLANES Y TARIFAS</p>
+          <h1>Planes y membresías</h1>
+          <p className="muted">Creá planes y mantené sus precios desde el sistema. Los precios y la vigencia se aplican a los próximos cobros y renovaciones. Los pagos registrados y las fechas de vencimiento no cambian.</p>
         </div>
       </header>
-      {error && (
-        <p role="alert" className="error-box">
-          {error}{" "}
-          <button
-            className="button small"
-            onClick={() => {
-              setError("");
-              void load();
-            }}
-          >
-            Actualizar
-          </button>
-        </p>
-      )}
-      {notice && (
-        <p role="status" className="success-box">
-          {notice}
-        </p>
-      )}
-      {!data && !error && <p>Cargando tarifas…</p>}
-      {data && (
-        <>
-          <section className="panel">
-            <h2>Planes y membresías</h2>
-            <p className="muted">
-              Revisá las tarifas de demostración antes de publicarlas. Activá
-              “Mostrar en el sitio” para que cada precio aparezca en su sección.
-            </p>
-            {data.plans.map((p) => (
-              <form
-                className="tariff-row"
-                key={[p.id, p.price, p.published, p.access_scope].join(":")}
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  const f = new FormData(e.currentTarget);
-                  void save({
-                    kind: "plan",
-                    id: p.id,
-                    price: Number(f.get("price")),
-                    published: f.has("published"),
-                    accessScope: f.get("scope") ?? p.access_scope,
-                    expectedPrice: p.price,
-                    expectedPublished: p.published,
-                    expectedScope: p.access_scope,
-                  });
-                }}
-              >
-                <div>
-                  <strong>{p.name}</strong>
-                  <p>{p.days} días de vigencia</p>
-                </div>
-                <label>
-                  Precio (ARS)
-                  <input
-                    name="price"
-                    type="number"
-                    min="0"
-                    max="10000000"
-                    step="1"
-                    required
-                    defaultValue={p.price}
-                    disabled={busy}
-                  />
-                </label>
-                <label>
-                  Acceso incluido
-                  <select
-                    name="scope"
-                    defaultValue={p.access_scope}
-                    disabled={busy || data.role !== "owner"}
-                  >
-                    <option value="gym">Gimnasios</option>
-                    <option value="pilates">Pilates</option>
-                    <option value="all">Gimnasios y Pilates</option>
-                  </select>
-                </label>
-                <label className="tariff-check">
-                  <input
-                    name="published"
-                    type="checkbox"
-                    defaultChecked={!!p.published}
-                    disabled={busy}
-                  />
-                  Mostrar en el sitio
-                </label>
-                <button className="button gold" disabled={busy}>
-                  Guardar
-                </button>
-              </form>
-            ))}
-          </section>
-          <form
-            key={data.padel.revision}
-            className="panel"
-            onSubmit={(e) => {
-              e.preventDefault();
-              const f = new FormData(e.currentTarget);
-              void save({
-                kind: "padel",
-                price: Number(f.get("price")),
-                depositPercent: Number(f.get("depositPercent")),
-                alias: f.get("alias"),
-                whatsapp: String(f.get("whatsapp")).replace(/\D/g, ""),
-                expectedRevision: data.padel.revision,
-              });
-            }}
-          >
-            <h2>Turnos de pádel</h2>
-            <p className="muted">
-              El precio por cancha se publica al guardar. La seña se calcula
-              como porcentaje de esa tarifa.
-            </p>
-            <fieldset disabled={busy} className="tariff-fields">
-              <label>
-                Turno de 90 minutos (ARS)
-                <input
-                  name="price"
-                  type="number"
-                  required
-                  min="0"
-                  max="10000000"
-                  step="1"
-                  defaultValue={data.padel.padel_price}
-                />
-              </label>
-              <label>
-                Seña (%)
-                <input
-                  name="depositPercent"
-                  type="number"
-                  required
-                  min="0"
-                  max="100"
-                  step="1"
-                  defaultValue={data.padel.deposit_percent}
-                />
-                <small>0: sin seña establecida.</small>
-              </label>
-              <label>
-                Alias o CBU para transferencias
-                <input
-                  name="alias"
-                  maxLength={100}
-                  defaultValue={data.padel.payment_alias}
-                />
-              </label>
-              <label>
-                WhatsApp de recepción
-                <input
-                  name="whatsapp"
-                  type="tel"
-                  placeholder="5492324123456"
-                  defaultValue={data.padel.whatsapp}
-                />
-                <small>
-                  Con código de país. Se usa para enviar el turno y el
-                  comprobante.
-                </small>
-              </label>
-            </fieldset>
-            <button className="button gold" disabled={busy}>
-              Guardar tarifa de pádel
-            </button>
-          </form>
-        </>
-      )}
+      {error && <p role="alert" className="error-box">{error}{" "}<button className="button small" disabled={busy || loading} onClick={() => void load()}>Actualizar datos</button></p>}
+      {notice && <p role="status" className="success-box">{notice}</p>}
+      {!data && loading && <p role="status">Cargando planes y tarifas…</p>}
+      {data && <>
+        <section className="panel" aria-labelledby="plans-heading">
+          <div className="tariffs-toolbar">
+            <div><h2 id="plans-heading">Planes disponibles</h2><p className="muted">Dueños y recepción pueden crear planes, ajustar precios y decidir cuáles se muestran en el sitio.</p></div>
+            {!creating && <button className="button gold" disabled={busy} onClick={() => setCreating(true)}><Plus size={18} aria-hidden="true" /> Crear plan</button>}
+          </div>
+          <p className="tariffs-role-note"><LockKeyhole size={16} aria-hidden="true" /> {owner ? "Como dueño, también podés cambiar el nombre, la vigencia y los accesos de los planes existentes." : "Solo los dueños pueden cambiar el nombre, la vigencia y los accesos de los planes existentes. Esas opciones aparecen con un candado."}</p>
+          {creating && <CreatePlanEditor busy={busy} save={save} onCancel={() => setCreating(false)} onCreated={(id) => { setCreating(false); setCreatedId(id); }} />}
+          {!data.plans.length && !creating && <div className="tariffs-empty"><h3>Todavía no hay planes</h3><p>Creá el primer plan con el nombre, precio y vigencia que usa el club. Después estará disponible para registrar las membresías.</p></div>}
+          {data.plans.map((plan) => <ExistingPlanEditor key={plan.id} plan={plan} owner={owner} busy={busy} save={save} />)}
+        </section>
+        <PadelEditor padel={data.padel} owner={owner} busy={busy} save={save} />
+      </>}
     </main>
   );
 }

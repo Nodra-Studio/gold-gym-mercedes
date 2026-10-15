@@ -8,7 +8,6 @@ import { requestId } from "@/lib/club";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import {
-  ArrowLeft,
   LoaderCircle,
   Plus,
   RefreshCw,
@@ -24,6 +23,7 @@ import {
   Settings,
   ShieldCheck,
   Database,
+  LockKeyhole,
 } from "lucide-react";
 import {
   Dialog,
@@ -46,7 +46,6 @@ import {
 } from "@/components/ui/native-select";
 import {
   type ClubData,
-  type Plan,
   type Member,
   type Session,
   localDay,
@@ -350,8 +349,6 @@ export default function ClubDashboard() {
       | "memberships"
       | "member"
       | "payment"
-      | "plan"
-      | "price"
       | "session"
       | "enroll"
       | null
@@ -359,7 +356,6 @@ export default function ClubDashboard() {
     [selected, setSelected] = useState<Member | null>(null),
     [session, setSession] = useState<Session | null>(null),
     [success, setSuccess] = useState("");
-  const [pricePlan, setPricePlan] = useState<Plan | null>(null);
   const open = (m: typeof modal, member: Member | null = null) => {
     setSelected(member);
     setError("");
@@ -565,20 +561,9 @@ export default function ClubDashboard() {
               <PadelRequests onChange={refresh} limit={3} />
               {!data.plans.length && (
                 <div className="panel empty">
-                  <h3>Prepará tu primera demostración</h3>
-                  <p>
-                    Cargá socios ficticios, planes de ejemplo y una reserva para
-                    recorrer el sistema.
-                  </p>
-                  <button
-                    disabled={busy}
-                    className="button gold"
-                    onClick={() =>
-                      void mutate({ action: "seed" }).catch(() => {})
-                    }
-                  >
-                    {busy ? "Preparando…" : "Cargar ejemplos"}
-                  </button>
+                  <h3>Creá el primer plan del club</h3>
+                  <p>Definí el nombre, el precio y la vigencia. Después podés registrar socios con ese plan.</p>
+                  <Link className="button gold" href="/tarifas?crear=1"><Plus size={17} aria-hidden="true" /> Crear primer plan</Link>
                 </div>
               )}
               <div className="dashboard-grid">
@@ -607,26 +592,14 @@ export default function ClubDashboard() {
                       </div>
                       <CreditCard size={22} />
                     </button>
-                    {data.role === "owner" && (
-                      <Link href="/reportes" className="quick-action">
-                        <div>
-                          <h3>Informes de administración</h3>
-                          <p>
-                            Cobros por período, vencimientos y saldos de pádel.
-                          </p>
-                        </div>
-                        <BarChart3 size={22} />
-                      </Link>
-                    )}
-                    {data.role === "owner" && (
-                      <Link href="/configuracion" className="quick-action">
-                        <div>
-                          <h3>Configuración del club</h3>
-                          <p>Reglas de pádel, cuenta y terminal de ingreso.</p>
-                        </div>
-                        <Settings size={22} />
-                      </Link>
-                    )}
+                    <Link href="/reportes" className="quick-action" title={data.role !== "owner" ? "Solo dueños" : undefined}>
+                      <div><h3>Informes de administración</h3><p>Cobros por período, vencimientos y saldos de pádel.{data.role !== "owner" && " · Solo dueños"}</p></div>
+                      {data.role === "owner" ? <BarChart3 size={22} /> : <LockKeyhole size={22} aria-hidden="true" />}
+                    </Link>
+                    <Link href="/configuracion" className="quick-action" title={data.role !== "owner" ? "Solo dueños" : undefined}>
+                      <div><h3>Configuración del club</h3><p>Reglas de pádel, cuenta y terminal de ingreso.{data.role !== "owner" && " · Solo dueños"}</p></div>
+                      {data.role === "owner" ? <Settings size={22} /> : <LockKeyhole size={22} aria-hidden="true" />}
+                    </Link>
                     <Link
                       href="/ingreso"
                       className="quick-action"
@@ -648,22 +621,14 @@ export default function ClubDashboard() {
                       </div>
                       <CalendarDays size={22} />
                     </Link>
-                    <Link href="/equipo" className="quick-action">
-                      <div>
-                        <h3>Equipo y permisos</h3>
-                        <p>Cuentas y permisos del personal.</p>
-                      </div>
-                      <ShieldCheck size={22} />
+                    <Link href="/equipo" className="quick-action" title={data.role !== "owner" ? "Solo dueños" : undefined}>
+                      <div><h3>Equipo y permisos</h3><p>Cuentas y permisos del personal.{data.role !== "owner" && " · Solo dueños"}</p></div>
+                      {data.role === "owner" ? <ShieldCheck size={22} /> : <LockKeyhole size={22} aria-hidden="true" />}
                     </Link>
-                    {data.role === "owner" && (
-                      <Link href="/datos" className="quick-action">
-                        <div>
-                          <h3>Importación y respaldos</h3>
-                          <p>Importá socios y guardá copias de los datos.</p>
-                        </div>
-                        <Database size={22} />
-                      </Link>
-                    )}
+                    <Link href="/datos" className="quick-action" title={data.role !== "owner" ? "Solo dueños" : undefined}>
+                      <div><h3>Importación y respaldos</h3><p>Importá socios y guardá copias de los datos.{data.role !== "owner" && " · Solo dueños"}</p></div>
+                      {data.role === "owner" ? <Database size={22} /> : <LockKeyhole size={22} aria-hidden="true" />}
+                    </Link>
                   </div>
                 </div>
                 <div className="panel">
@@ -712,14 +677,9 @@ export default function ClubDashboard() {
                     </span>
                   </h2>
                   <div>
-                    {data.role === "owner" && (
-                      <button
-                        className="button small"
-                        onClick={() => downloadCsv(data)}
-                      >
-                        <Download size={16} /> Exportar
-                      </button>
-                    )}
+                    <button className="button small" disabled={data.role !== "owner"} title={data.role !== "owner" ? "Solo dueños" : undefined} onClick={data.role === "owner" ? () => downloadCsv(data) : undefined}>
+                      {data.role === "owner" ? <Download size={16} /> : <LockKeyhole size={16} aria-hidden="true" />} Exportar{data.role !== "owner" && " · Solo dueños"}
+                    </button>
                     <button
                       className="button gold small"
                       onClick={() => open("member")}
@@ -997,17 +957,10 @@ export default function ClubDashboard() {
               <section className="panel">
                 <div className="panel-heading">
                   <h2>Planes del gimnasio</h2>
-                  <button
-                    disabled={data.role !== "owner"}
-                    className="button gold small"
-                    onClick={() => open("plan")}
-                  >
-                    <Plus size={17} /> Crear plan
-                  </button>
+                  <Link className="button gold small" href="/tarifas?crear=1"><Plus size={17} aria-hidden="true" /> Crear plan</Link>
                 </div>
                 <p className="muted">
-                  Los importes de ejemplo no son las tarifas de Gold Gym. Cada
-                  cobro extiende el vencimiento la cantidad de días del plan.
+                  Creá y editá los planes desde Planes y membresías. Cada cobro extiende el vencimiento la cantidad de días del plan.
                 </p>
                 {data.plans.map((p) => (
                   <div className="list-row" key={p.id}>
@@ -1033,7 +986,8 @@ export default function ClubDashboard() {
                 ))}
                 {!data.plans.length && (
                   <div className="empty">
-                    Creá el primer plan para registrar socios.
+                    <p>Creá el primer plan para registrar socios.</p>
+                    <Link className="button gold small" href="/tarifas?crear=1">Crear primer plan</Link>
                   </div>
                 )}
               </section>
@@ -1068,11 +1022,7 @@ export default function ClubDashboard() {
                 <section className="panel">
                   <div className="panel-heading">
                     <h2>Registro de cambios</h2>
-                    {data.role === "owner" && (
-                      <a className="button small" href="/api/export" download>
-                        Descargar todos los datos
-                      </a>
-                    )}
+                    {data.role === "owner" ? <a className="button small" href="/api/export" download>Descargar todos los datos</a> : <button className="button small" disabled title="Solo dueños"><LockKeyhole size={16} aria-hidden="true" /> Descargar todos los datos · Solo dueños</button>}
                   </div>
                   {data.audit.map((a) => (
                     <div className="list-row" key={a.id}>
@@ -1108,8 +1058,6 @@ export default function ClubDashboard() {
             memberships: "Membresías del socio",
             member: selected ? "Editar socio" : "Nuevo socio",
             payment: "Registrar cobro",
-            plan: "Crear plan",
-            price: "Actualizar precio",
             session: "Nueva clase",
             enroll: "Inscribir a una clase",
           }[modal ?? "member"]
@@ -1117,7 +1065,7 @@ export default function ClubDashboard() {
         description={
           modal === "payment"
             ? "Confirmá el medio de pago. El vencimiento se extiende desde hoy o desde el vencimiento vigente, lo que sea posterior."
-            : "Completá los datos. Los cambios se guardan en el espacio de presentación."
+            : "Completá los datos. Los cambios se guardan en el sistema del club."
         }
       >
         <ErrorNotice error={error} />
@@ -1145,10 +1093,6 @@ export default function ClubDashboard() {
             submit={submit}
           />
         )}{" "}
-        {modal === "price" && pricePlan && (
-          <PriceForm plan={pricePlan} busy={busy} submit={submit} />
-        )}{" "}
-        {modal === "plan" && <PlanForm busy={busy} submit={submit} />}{" "}
         {modal === "session" && <SessionForm busy={busy} submit={submit} />}{" "}
         {modal === "enroll" && data && session && (
           <EnrollmentForm
@@ -1182,7 +1126,7 @@ function MemberForm({
     [status, setStatus] = useState(member?.status ?? "active");
   return !data.plans.length ? (
     <p>
-      Primero creá un plan en la sección Planes. Los socios se registran aquí
+      Primero <Link href="/tarifas?crear=1">creá un plan</Link>. Los socios se registran aquí
       con su DNI; no necesitan cuenta, correo ni contraseña.
     </p>
   ) : (
@@ -1407,116 +1351,6 @@ function PaymentForm({
     </form>
   );
 }
-function PlanForm({
-  busy,
-  submit,
-}: {
-  busy: boolean;
-  submit: (p: Record<string, unknown>) => void;
-}) {
-  const [name, setName] = useState(""),
-    [price, setPrice] = useState(""),
-    [days, setDays] = useState("30"),
-    [accessScope, setAccessScope] = useState("gym"),
-    [preset, setPreset] = useState("");
-  const presets = [
-    { id: "gym-member", name: "Musculación · socios", scope: "gym" },
-    { id: "gym-nonmember", name: "Musculación · no socios", scope: "gym" },
-    { id: "gym-sportclub", name: "Musculación · Sport Club", scope: "gym" },
-    { id: "pilates-member", name: "Pilates · socios", scope: "pilates" },
-    { id: "pilates-nonmember", name: "Pilates · no socios", scope: "pilates" },
-    { id: "pilates-sportclub", name: "Pilates · Sport Club", scope: "pilates" },
-  ];
-  return (
-    <form
-      onSubmit={(e) => {
-        e.preventDefault();
-        submit({
-          action: "plan",
-          accessScope,
-          name,
-          price: Number(price),
-          days: Number(days),
-        });
-      }}
-    >
-      <div className="form-grid">
-        <Field label="Modelo de plan (opcional)" full>
-          <SelectField
-            value={preset}
-            onChange={(value) => {
-              setPreset(value);
-              const model = presets.find((p) => p.id === value);
-              if (model) {
-                setName(model.name);
-                setAccessScope(model.scope);
-              }
-            }}
-          >
-            <Option value="">Personalizado</Option>
-            {presets.map((p) => (
-              <Option key={p.id} value={p.id}>
-                {p.name}
-              </Option>
-            ))}
-          </SelectField>
-          <small className="muted">
-            Completá el precio definitivo antes de guardar.
-          </small>
-        </Field>
-        <Field label="Acceso incluido" full>
-          <SelectField
-            value={accessScope}
-            onChange={(value) => {
-              setAccessScope(value);
-              setPreset("");
-            }}
-          >
-            <option value="gym">Gimnasios (sin Pilates)</option>
-            <option value="pilates">Solo Pilates</option>
-            <option value="all">Gimnasios y Pilates</option>
-          </SelectField>
-        </Field>
-        <Field label="Nombre del plan" full>
-          <input
-            required
-            minLength={2}
-            maxLength={80}
-            value={name}
-            onChange={(e) => {
-              setName(e.target.value);
-              setPreset("");
-            }}
-          />
-        </Field>
-        <Field label="Precio por período (ARS)">
-          <input
-            type="number"
-            min="0"
-            max="10000000"
-            step="1"
-            required
-            value={price}
-            onChange={(e) => setPrice(e.target.value)}
-          />
-        </Field>
-        <Field label="Días de vigencia">
-          <input
-            type="number"
-            min="1"
-            max="366"
-            required
-            value={days}
-            onChange={(e) => setDays(e.target.value)}
-          />
-        </Field>
-      </div>
-      <div className="form-actions">
-        <SaveButton busy={busy} />
-      </div>
-    </form>
-  );
-}
 function SessionForm({
   busy,
   submit,
@@ -1635,51 +1469,6 @@ function EnrollmentForm({
       </Field>
       <div className="form-actions">
         <SaveButton busy={busy}>Confirmar inscripción</SaveButton>
-      </div>
-    </form>
-  );
-}
-
-function PriceForm({
-  plan,
-  busy,
-  submit,
-}: {
-  plan: Plan;
-  busy: boolean;
-  submit: (p: Record<string, unknown>) => void;
-}) {
-  const [price, setPrice] = useState(String(plan.price));
-  return (
-    <form
-      onSubmit={(e) => {
-        e.preventDefault();
-        submit({
-          action: "planPrice",
-          id: plan.id,
-          price: Number(price),
-          expectedPrice: plan.price,
-        });
-      }}
-    >
-      <p className="muted" style={{ marginBottom: 20 }}>
-        {plan.name} · Precio actual: {money(plan.price)}. El nuevo precio se
-        aplica a los próximos cobros de los socios de este plan. Los pagos
-        anteriores y las fechas de vencimiento se conservan.
-      </p>
-      <Field label="Nuevo precio (ARS)">
-        <input
-          type="number"
-          required
-          min="0"
-          max="10000000"
-          step="1"
-          value={price}
-          onChange={(e) => setPrice(e.target.value)}
-        />
-      </Field>
-      <div className="form-actions">
-        <SaveButton busy={busy}>Confirmar nuevo precio</SaveButton>
       </div>
     </form>
   );

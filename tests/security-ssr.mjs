@@ -48,10 +48,12 @@ try {
     assert.doesNotMatch(html,/chosen-by-visitor/);
   }
   assert.equal(new Set(nonces).size,nonces.length,'A fresh nonce is generated for every response');
-  const denied = await fetch(base + '/caja', {redirect:'manual',headers:{'oai-authenticated-user-id':'owner'}});
-  assert.equal(denied.status,307);
-  assert.match(denied.headers.get('location'),/\/acceso\?/);
-  assert.match(denied.headers.get('cache-control'),/private/);
-  assert.match(denied.headers.get('cache-control'),/no-store/);
-  console.log('Security SSR passed: fresh nonces, matching framework scripts, cache protection and unauthorized cash redirect.');
+  for (const path of ['/caja','/tarifas?crear=1','/reportes','/equipo','/datos','/datos-fiscales','/configuracion']) {
+    const denied = await fetch(base + path, {redirect:'manual',headers:{'oai-authenticated-user-id':'owner'}});
+    assert.equal(denied.status,307,path);
+    assert.match(denied.headers.get('location'),/\/acceso\?/);
+    assert.match(denied.headers.get('cache-control'),/private/);
+    assert.match(denied.headers.get('cache-control'),/no-store/);
+  }
+  console.log('Security SSR passed: fresh nonces, matching framework scripts, cache protection and unauthorized management redirects.');
 } finally { server.kill('SIGTERM'); }
