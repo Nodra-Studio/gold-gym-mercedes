@@ -30,70 +30,74 @@ export function SiteHeader() {
         <link rel="stylesheet" href="/styles/site-navigation-noscript.css" />
       </noscript>
       <header className="gg-header">
-        <Link
-          className="gg-brand"
-          href="/"
-          aria-label="Gold Gym Mercedes, inicio"
-          onClick={() => setOpen(false)}
-        >
-          <img src="/images/logo.webp" alt="" width={52} height={52} />
-          <span>
-            GOLD GYM<small>MERCEDES</small>
-          </span>
-        </Link>
-        <button
-          ref={toggle}
-          type="button"
-          className="gg-menu"
-          aria-label={open ? "Cerrar menú" : "Abrir menú"}
-          aria-controls="gold-navigation"
-          aria-expanded={open}
-          onClick={() => setOpen((current) => !current)}
-        >
-          {open ? <X aria-hidden="true" /> : <Menu aria-hidden="true" />}
-        </button>
-        <nav
-          id="gold-navigation"
-          className={open ? "gg-nav is-open" : "gg-nav"}
-          aria-label="Principal"
-        >
-          <Link href="/#actividades" onClick={() => setOpen(false)}>
-            Actividades
-          </Link>
-          <Link href="/#sedes" onClick={() => setOpen(false)}>
-            Sedes
-          </Link>
+        <div className="gg-header-inner">
           <Link
-            href="/pilates"
-            aria-current={path === "/pilates" ? "page" : undefined}
+            className="gg-brand"
+            href="/"
+            aria-label="Gold Gym Mercedes, inicio"
             onClick={() => setOpen(false)}
           >
-            Pilates
+            <img src="/images/logo.webp" alt="" width={48} height={48} />
+            <span>
+              GOLD GYM<small>MERCEDES</small>
+            </span>
           </Link>
-          <Link
-            href="/padel"
-            aria-current={path === "/padel" ? "page" : undefined}
-            onClick={() => setOpen(false)}
+          <button
+            ref={toggle}
+            type="button"
+            className="gg-menu"
+            aria-label={open ? "Cerrar menú" : "Abrir menú"}
+            aria-controls="gold-navigation"
+            aria-expanded={open}
+            onClick={() => setOpen((current) => !current)}
           >
-            Pádel
-          </Link>
-          <Link
-            href="/club"
-            aria-current={path === "/club" ? "page" : undefined}
-            onClick={() => setOpen(false)}
+            {open ? <X aria-hidden="true" /> : <Menu aria-hidden="true" />}
+          </button>
+          <nav
+            id="gold-navigation"
+            className={open ? "gg-nav is-open" : "gg-nav"}
+            aria-label="Principal"
           >
-            Cómo sumarte
-          </Link>
-          <a
-            className="gg-button gg-nav-cta"
-            href={brand.contact}
-            target="_blank"
-            rel="noopener noreferrer"
-            onClick={() => setOpen(false)}
-          >
-            <BrandIcon name="whatsapp" /> Empezá hoy
-          </a>
-        </nav>
+            <div className="gg-nav-links">
+              <Link href="/#actividades" onClick={() => setOpen(false)}>
+                Actividades
+              </Link>
+              <Link href="/#sedes" onClick={() => setOpen(false)}>
+                Sedes
+              </Link>
+              <Link
+                href="/pilates"
+                aria-current={path === "/pilates" ? "page" : undefined}
+                onClick={() => setOpen(false)}
+              >
+                Pilates
+              </Link>
+              <Link
+                href="/padel"
+                aria-current={path === "/padel" ? "page" : undefined}
+                onClick={() => setOpen(false)}
+              >
+                Pádel
+              </Link>
+              <Link
+                href="/club"
+                aria-current={path === "/club" ? "page" : undefined}
+                onClick={() => setOpen(false)}
+              >
+                Cómo sumarte
+              </Link>
+            </div>
+            <a
+              className="gg-button gg-nav-cta"
+              href={brand.contact}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={() => setOpen(false)}
+            >
+              <BrandIcon name="whatsapp" /> Empezá hoy
+            </a>
+          </nav>
+        </div>
       </header>
     </>
   );

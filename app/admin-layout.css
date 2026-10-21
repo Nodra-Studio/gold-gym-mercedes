@@ -1,0 +1,57 @@
+/* Keep every navigation destination reachable on short desktop windows. */
+.admin-sidebar {
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+}
+.admin-sidebar > *,
+.admin-sidebar nav {
+  flex-shrink: 0;
+}
+.admin-main {
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+}
+.admin-topbar {
+  flex-shrink: 0;
+}
+.admin-topbar > a {
+  white-space: nowrap;
+}
+#admin-content {
+  flex: 1;
+  min-width: 0;
+}
+.admin-shell .work-header {
+  flex-wrap: wrap;
+}
+.admin-shell .work-header > div {
+  min-width: 0;
+}
+.admin-shell .work-header > .button {
+  max-width: 100%;
+  white-space: normal;
+}
+.admin-footer {
+  flex-wrap: wrap;
+}
+.admin-shell .form-grid,
+body:has(.admin-shell) .form-modal .form-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.admin-shell .field,
+body:has(.admin-shell) .form-modal .field {
+  min-width: 0;
+}
+.admin-shell [data-slot="native-select-wrapper"],
+body:has(.admin-shell) .form-modal [data-slot="native-select-wrapper"] {
+  width: 100%;
+  min-width: 0;
+}
+@media (max-width: 760px) {
+  .admin-shell .form-grid,
+  body:has(.admin-shell) .form-modal .form-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

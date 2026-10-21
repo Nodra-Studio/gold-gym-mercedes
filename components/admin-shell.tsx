@@ -4,6 +4,7 @@ import { usePathname } from "next/navigation";
 import { useState, useRef, useEffect } from "react";
 import { navigationFeatures, isFeatureRestricted } from "@/lib/features";
 import "@/app/permissions.css";
+import "@/app/admin-layout.css";
 import {
   Users,
   CalendarDays,
@@ -94,6 +95,7 @@ export function AdminShell({
       <div className="admin-main">
         <header className="admin-topbar">
           <button
+            type="button"
             ref={toggle}
             className="admin-menu"
             onClick={() => setOpen(!open)}
@@ -112,7 +114,7 @@ export function AdminShell({
             <ArrowUpRight size={14} />
           </Link>
         </header>
-        <div id="admin-content">{children}</div>
+        <div id="admin-content" tabIndex={-1}>{children}</div>
         <footer className="admin-footer">
           Gold Gym Mercedes <span>Gestión de las cuatro sedes</span>
         </footer>

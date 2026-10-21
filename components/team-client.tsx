@@ -203,8 +203,11 @@ export default function TeamClient() {
             <div className="list-row">
               <strong>Recepción</strong>
               <p>
-                Socios, cuotas, clases, agenda e ingresos. Sin modificar
-                precios, equipo o respaldos. La misma cuenta puede usarse en varias recepciones a la vez; los cambios se guardan en la misma base.
+                Socios, cuotas, clases, reservas y caja diaria. Puede crear
+                planes y actualizar sus precios y publicación. Los permisos,
+                respaldos y ajustes financieros sensibles quedan para los dueños.
+                Su cuenta puede usarse en varias recepciones a la vez y comparte
+                la información del club.
               </p>
             </div>
             <div className="list-row">
@@ -223,7 +226,7 @@ export default function TeamClient() {
           if (!busy) setOpen(false);
         }}
         title={selected ? "Editar acceso" : "Agregar persona"}
-        description="Usá el identificador que la persona ve en esta misma página con su cuenta."
+        description="Usá el identificador que la persona encuentra en Mi cuenta al ingresar con su propia cuenta."
       >
         <ErrorNotice error={error} />
         {open && <StaffForm staff={selected} busy={busy} submit={save} />}

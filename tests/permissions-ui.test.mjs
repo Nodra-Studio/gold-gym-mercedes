@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, readFileSync, writeFileSync, rmSync } from 'node:fs';
+import { mkdtempSync, readFileSync, writeFileSync, rmSync, existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -65,6 +65,10 @@ const pagePairs = [...basePairs,['@/components/admin-shell','./admin-shell.mjs']
 for (const name of ['reports-client','team-client','data-client','fiscal-settings','settings-client','tariffs-client']) pagePairs.push([`@/components/${name}`,`./${name}.mjs`]);
 const pages = [['reportes','reports'],['equipo','team'],['datos','data'],['datos-fiscales','fiscal'],['configuracion','settings']];
 for (const [path] of pages) compile(`app/${path}/page.tsx`,path,pagePairs);
+// Render the route's real wrappers as well as its page. Page-only tests miss
+// duplicated shells and a layout that blocks Reception before the safe preview.
+const routeLayouts = pages.map(([path])=>path).filter(path=>existsSync(`app/${path}/layout.tsx`));
+for (const path of routeLayouts) compile(`app/${path}/layout.tsx`,path+'-layout',pagePairs);
 compile('app/tarifas/page.tsx','tarifas',pagePairs);
 compile('components/club-client.tsx','club-client',[
   ...basePairs,['@/lib/branches','./branches.mjs'],['@/components/padel-requests','./empty-client.mjs'],['@/components/member-memberships','./empty-client.mjs'],['@/lib/api-fetch','./mock.mjs'],['@/lib/csv','./mock.mjs'],['@/lib/club','./mock.mjs'],
@@ -76,8 +80,28 @@ compile('components/club-client.tsx','club-client',[
 const mock=await import(pathToFileURL(join(folder,'mock.mjs'))), features=await import(pathToFileURL(join(folder,'features.mjs'))), shell=await import(pathToFileURL(join(folder,'admin-shell.mjs'))), restricted=await import(pathToFileURL(join(folder,'restricted-feature.mjs'))), club=await import(pathToFileURL(join(folder,'club-client.mjs')));
 const {OwnerAction}=await import(pathToFileURL(join(folder,'owner-action.mjs')));
 const pageModules=new Map(await Promise.all([...pages,['tarifas']].map(async([name])=>[name,await import(pathToFileURL(join(folder,name+'.mjs')))])));
+const layoutModules=new Map(await Promise.all(routeLayouts.map(async name=>[name,await import(pathToFileURL(join(folder,name+'-layout.mjs')))])));
 
 try {
+  await test('Full administrative routes render one navigation shell for owners and safe previews for Reception',async()=>{
+    for(const role of ['owner','reception']) {
+      for(const [path] of pages) {
+        mock.reset(role,'/'+path);
+        let tree=await pageModules.get(path).default();
+        if(layoutModules.has(path)) tree=await layoutModules.get(path).default({children:tree});
+        const html=renderToStaticMarkup(tree);
+        assert.equal((html.match(/class="admin-shell"/g)||[]).length,1,role+' '+path+' shell');
+        assert.equal((html.match(/id="admin-navigation"/g)||[]).length,1,role+' '+path+' navigation');
+        assert.equal((html.match(/id="admin-content"/g)||[]).length,1,role+' '+path+' content');
+        assert.equal((html.match(/PANEL DEL CLUB/g)||[]).length,1,role+' '+path+' topbar');
+        if(role==='reception') {
+          assert.match(html,/Esta función requiere permiso de dueño/);
+          assert.deepEqual(mock.state.dbCalls,[]);
+          assert.deepEqual(mock.state.ownerCalls,[]);
+        }
+      }
+    }
+  });
   test('Owner actions remain visible for reception without an enabled click handler',()=>{
     let calls=0;
     const onClick=()=>calls++;

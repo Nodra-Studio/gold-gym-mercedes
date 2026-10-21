@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { apiFetch, ApiError } from '@/lib/api-fetch';
 import { clearTerminalOffline } from '@/lib/terminal-offline';
+import '@/app/account-security.css';
 type Factor = { id: string; type: string; status: string; label: string };
 type Security = { requiresVerification: boolean; smsEnrollmentEnabled: boolean; authenticatorEnrollmentEnabled: boolean; factors: Factor[] };
 export default function TwoStepVerification({ next }: { next: string }) {
@@ -55,8 +56,8 @@ export default function TwoStepVerification({ next }: { next: string }) {
     } catch (e) { setError(e instanceof Error ? e.message : 'No pudimos enviar el código.'); }
     finally { saving.current = false; setBusy(false); }
   }
-  return <main className="account-page"><section className="workspace" style={{ maxWidth: 640, margin: 'auto' }}>
-    <p className="eyebrow">SEGURIDAD DE TU CUENTA</p><h1>Verificación en dos pasos</h1>
+  return <main className="account-page"><section className="workspace account-home account-security" aria-labelledby="security-title">
+    <p className="eyebrow">SEGURIDAD DE TU CUENTA</p><h1 id="security-title">Verificación en dos pasos</h1>
     <p>Además de la contraseña, confirmá tu acceso con el código de una aplicación autenticadora gratuita. Funciona sin conexión y no requiere SMS.</p>
     {error && <div className="error-box" role="alert"><p>{error}</p>{!data && <button className="button" onClick={() => setRefresh(n => n + 1)}>Volver a cargar</button>}</div>}
     {notice && <p className="success-box" role="status">{notice}</p>}
@@ -73,12 +74,12 @@ export default function TwoStepVerification({ next }: { next: string }) {
       {!factorId && method === 'phone' && <label className="field">Teléfono con código de país<input type="tel" autoComplete="tel" placeholder="+5492324123456" maxLength={24} value={phone} disabled={busy || !data.smsEnrollmentEnabled} onChange={e => setPhone(e.target.value)} /></label>}
       {!factorId && method === 'phone' && !data.smsEnrollmentEnabled && <p className="notice">La verificación por SMS todavía no está disponible. Administración debe habilitar el envío para este club.</p>}
       <button className="button gold" type="button" disabled={busy || (!factorId && (method === 'phone' ? !phone || !data.smsEnrollmentEnabled : !data.authenticatorEnrollmentEnabled))} onClick={() => void send()}>{busy ? 'Procesando…' : (selected?.type ?? method) === 'totp' ? selected?.status === 'verified' ? 'Ingresar código' : challengeId ? 'Preparar otra verificación' : 'Configurar aplicación' : challengeId ? 'Enviar otro código' : 'Enviar código por SMS'}</button>
-      {totpSetup && <section aria-label="Configurar aplicación autenticadora">
+      {totpSetup && <section className="security-setup" aria-label="Configurar aplicación autenticadora">
         <p>Escaneá este código con tu aplicación. También podés ingresar la clave manualmente.</p>
         {(totpSetup.qr.startsWith('data:image/svg+xml;') || totpSetup.qr.startsWith('<svg')) && <img width={200} height={200} alt="Código QR para agregar Gold Gym a tu aplicación autenticadora" src={totpSetup.qr.startsWith('<svg') ? 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(totpSetup.qr) : totpSetup.qr} />}
         <p>Clave de configuración: <code>{totpSetup.secret}</code></p>
       </section>}
-      {challengeId && <form onSubmit={async e => {
+      {challengeId && <form className="security-code-form" onSubmit={async e => {
         e.preventDefault(); if (saving.current) return; saving.current = true; setBusy(true); setError('');
         try {
           const result = await post({ action: 'verify', factorId, challengeId, code });
