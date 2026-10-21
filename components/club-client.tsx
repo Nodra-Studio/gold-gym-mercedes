@@ -280,6 +280,7 @@ export function FormModal({
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
       <DialogContent
+        className="form-modal"
         onOpenAutoFocus={() => {
           returnFocus.current = document.activeElement instanceof HTMLElement
             ? document.activeElement

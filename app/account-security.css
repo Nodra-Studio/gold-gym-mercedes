@@ -1,0 +1,74 @@
+.account-home.account-security {
+  max-width: 640px;
+  padding-top: 44px;
+}
+.account-security h1 {
+  font-size: clamp(28px, 5vw, 38px);
+  line-height: 1.15;
+  letter-spacing: -.035em;
+  margin: 12px 0 20px;
+}
+.account-security p {
+  line-height: 1.7;
+}
+.account-security .panel,
+.account-security .security-code-form {
+  display: grid;
+  gap: 20px;
+}
+.account-security .panel > p,
+.account-security .notice {
+  margin: 0;
+}
+.account-security .field {
+  min-width: 0;
+  line-height: 1.5;
+  color: #49583e;
+}
+.account-security .field select {
+  background: #fff;
+  color: #293321;
+  border-color: #d3dbc9;
+  color-scheme: light;
+}
+.account-security .button {
+  justify-self: start;
+  max-width: 100%;
+  white-space: normal;
+}
+.account-security .error-box {
+  background: #fae7e1;
+  color: #873e2c;
+  border-color: #e5bfae;
+}
+.account-security .error-box p {
+  color: inherit;
+}
+.account-security .success-box {
+  background: #e7f0e0;
+  color: #3f642e;
+  border-color: #cddfc1;
+}
+.account-security .notice {
+  background: #f9f2df;
+  color: #715421;
+  border-color: #dfcf9c;
+}
+.security-setup img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  background: #fff;
+  margin: 16px 0;
+}
+.security-setup code {
+  display: block;
+  overflow-wrap: anywhere;
+  user-select: all;
+  padding: 12px;
+  margin-top: 8px;
+  border: 1px solid #d3dbc9;
+  border-radius: 6px;
+  background: #f4f6ef;
+  color: #34452b;
+}

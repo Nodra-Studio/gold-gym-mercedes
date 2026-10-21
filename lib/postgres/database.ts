@@ -1,6 +1,7 @@
 import postgres from "postgres";
 import { databaseTLS } from "./tls.mjs";
-import { createDatabase, type Query } from "./adapter";
+import { createDatabase } from "./adapter";
+import { postgresConnectionQuery } from "./query";
 let database: D1Database | undefined;
 export function getPostgresDatabase(): D1Database | undefined {
   // DATABASEURL supports the existing write-only Vercel secret. Prefer DATABASE_URL.
@@ -15,12 +16,7 @@ export function getPostgresDatabase(): D1Database | undefined {
     ssl: databaseTLS(url),
     types: { bigint: { to: 20, from: [20], serialize: String, parse: Number } },
   });
-  const run =
-    (connection: typeof client): Query =>
-    async (sql, values) => {
-      const rows = await connection.unsafe(sql, values as never[]);
-      return { rows: [...rows], count: rows.count };
-    };
+  const run = postgresConnectionQuery;
   // A small club benefits from predictable ordered writes. The lock is shared
   // by all serverless instances and held only for a batch, never a user session.
   // Single statements also need the private schema and transaction pool safety.
