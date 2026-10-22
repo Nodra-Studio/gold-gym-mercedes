@@ -29,6 +29,23 @@
 .admin-shell .work-header > div {
   min-width: 0;
 }
+.admin-shell .workspace > .text-link {
+  max-width: 100%;
+  margin-bottom: 20px;
+}
+.admin-shell .work-header .eyebrow {
+  margin: 0 0 8px;
+}
+.admin-shell .work-header h1 {
+  overflow-wrap: break-word;
+}
+.admin-shell .panel,
+.admin-shell .stat,
+.admin-shell .cash-panel,
+.admin-shell [data-slot="table-container"] {
+  min-width: 0;
+  max-width: 100%;
+}
 .admin-shell .work-header > .button {
   max-width: 100%;
   white-space: normal;
@@ -49,9 +66,22 @@ body:has(.admin-shell) .form-modal [data-slot="native-select-wrapper"] {
   width: 100%;
   min-width: 0;
 }
+.admin-shell .form-actions,
+body:has(.admin-shell) .form-modal .form-actions {
+  flex-wrap: wrap;
+}
+.admin-shell .form-actions .button,
+body:has(.admin-shell) .form-modal .form-actions .button {
+  max-width: 100%;
+  white-space: normal;
+}
 @media (max-width: 760px) {
   .admin-shell .form-grid,
   body:has(.admin-shell) .form-modal .form-grid {
     grid-template-columns: minmax(0, 1fr);
+  }
+  .admin-shell :is(input, select, textarea),
+  body:has(.admin-shell) .form-modal :is(input, select, textarea) {
+    font-size: 16px !important;
   }
 }
