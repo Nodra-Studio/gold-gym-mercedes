@@ -144,7 +144,11 @@ small {
   letter-spacing: 0.13em;
 }
 p {
-  color: #bac0b2;
+  color: var(--body-copy, #bac0b2);
+}
+/* Nested explanations keep the meaning and contrast of their message. */
+body :is(.error-box, .success-box, .notice) p {
+  color: inherit;
 }
 .muted {
   color: var(--muted-foreground);

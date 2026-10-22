@@ -738,6 +738,7 @@ body:has(.auth-layout),
 body:has(.account-home) {
   --background: #f4f4ef;
   --foreground: #252b23;
+  --body-copy: #53604a;
   --card: #fff;
   --card-foreground: #252b23;
   --popover: #fff;
@@ -908,7 +909,7 @@ body:has(.account-home) {
   color: #687260;
 }
 .admin-shell .eyebrow {
-  font-size: 9px !important;
+  font-size: 11px !important;
   letter-spacing: 0.14em;
   color: #886720 !important;
 }
@@ -960,7 +961,7 @@ body:has(.account-home) {
 }
 .admin-shell .muted,
 .account-home .muted {
-  color: #6b7563;
+  color: var(--muted-foreground);
 }
 .admin-shell .notice {
   background: #fcf5e4;
@@ -1523,6 +1524,10 @@ body:has(.admin-shell) [data-slot="dialog-description"] {
   }
   .admin-shell .work-header {
     margin-bottom: 24px;
+    align-items: stretch;
+  }
+  .admin-shell .work-header > div {
+    width: 100%;
   }
   .admin-shell .work-header h1 {
     font-size: 28px;
@@ -1677,7 +1682,7 @@ body:has(.admin-shell) [data-slot="dialog-description"] {
 .admin-shell .list-row small,
 .admin-shell .time-label,
 .admin-shell .legend {
-  color: #68765d;
+  color: var(--muted-foreground);
 }
 .admin-shell .cash-error {
   color: #843c2a;
