@@ -303,13 +303,15 @@ export function FormModal({
 }
 export function SaveButton({
   busy,
+  disabled = false,
   children = "Guardar",
 }: {
   busy: boolean;
+  disabled?: boolean;
   children?: React.ReactNode;
 }) {
   return (
-    <button className="button gold small" type="submit" disabled={busy}>
+    <button className="button gold small" type="submit" disabled={busy || disabled}>
       {busy ? (
         <LoaderCircle className="animate-spin" size={17} />
       ) : (
@@ -516,7 +518,7 @@ export default function ClubDashboard() {
         )
       ) : (
         <>
-          {data.role === "reception" && <p className="notice">Tu alcance: {scopeLabel(data)}. Los listados y las operaciones respetan estos permisos.</p>}
+          {data.role === "reception" && <p className="notice">Tu alcance: {scopeLabel(data)}. Los socios de gimnasio se comparten entre las tres sedes; tus cobros y terminales respetan las sedes asignadas.</p>}
           {!canMembers && <ScopeLocked title="Socios, cuotas y clases" />}
           {canMembers && <div className="stats">
             <div className="stat">
@@ -1214,11 +1216,12 @@ function MemberForm({
           <SelectField
             value={homeBranch}
             onChange={setHomeBranch}
-            required={!member || data.branch_scope !== "all"}
+            required={!member}
           >
             <Option value="">
-              {member && data.branch_scope === "all" ? "Sin sede registrada" : "Elegí una sede"}
+              {member ? "Sin sede registrada" : "Elegí una sede"}
             </Option>
+            {member?.home_branch&&!allowedBranches.some(b=>b.id===member.home_branch)&&<Option value={member.home_branch}>{branchName(member.home_branch)} · referencia actual</Option>}
             {allowedBranches.map((b) => (
               <Option key={b.id} value={b.id}>
                 {b.name}
@@ -1284,9 +1287,10 @@ function PaymentForm({
   );
   const chosen = extra.find((x) => x.id === membershipId) ?? m;
   const chosenPlan = data.plans.find((plan) => plan.id === chosen?.plan_id);
+  const combinedBlocked = chosenPlan?.access_scope === "all" && data.role!=="owner" && (data.activity_scope!=="all"||data.branch_scope!=="all");
   const allowedBranches = branches.filter((branch) => {
     const activity = branch.id === "pilates" ? "pilates" : "gym";
-    return allowsOperation(data, activity, branch.id) && (!chosenPlan || chosenPlan.access_scope === "all" || (chosenPlan.access_scope ?? "gym") === activity);
+    return !combinedBlocked && allowsOperation(data, activity, branch.id) && (!chosenPlan || chosenPlan.access_scope === "all" || (chosenPlan.access_scope ?? "gym") === activity);
   });
   return (
     <form
@@ -1353,6 +1357,7 @@ function PaymentForm({
           </SelectField>
         </Field>
       </div>
+      {combinedBlocked&&<p className="notice"><LockKeyhole size={16} aria-hidden="true"/> Este plan combina actividades. Para renovarlo necesitás un dueño o recepción con acceso general.</p>}
       {chosen && (
         <div className="notice" style={{ marginTop: 20 }}>
           <strong>{money(chosen.price)}</strong> · {chosen.plan_name}
@@ -1373,7 +1378,7 @@ function PaymentForm({
         </div>
       )}
       <div className="form-actions">
-        <SaveButton busy={busy}>Confirmar cobro</SaveButton>
+        <SaveButton busy={busy} disabled={combinedBlocked}>Confirmar cobro</SaveButton>
       </div>
     </form>
   );

@@ -44,7 +44,7 @@ export function memberScopeSQL(p: Principal, alias = "m") {
     const clauses: string[] = [];
     if (allowsActivity(p, "gym"))
       clauses.push(
-        `(${plan}.access_scope IN ('gym','all')${p.branch_scope === "all" ? "" : ` AND ${alias}.home_branch='${p.branch_scope}'`})`,
+        `${plan}.access_scope IN ('gym','all')`,
       );
     if (allowsActivity(p, "pilates"))
       clauses.push(`${plan}.access_scope IN ('pilates','all')`);

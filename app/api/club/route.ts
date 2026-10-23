@@ -257,7 +257,10 @@ export async function POST(req: Request) {
     if (input.action === "member") {
       const plan = await db.prepare("SELECT access_scope FROM plans WHERE owner=? AND id=?").bind(owner,input.planId).first<{access_scope:string}>();
       const activity = plan?.access_scope === "pilates" ? "pilates" : "gym";
-      if (isRestricted(context)) requireOperation(activity, activity === "pilates" ? "pilates" : input.homeBranch ?? null);
+      if (isRestricted(context)) {
+        if(!allowsActivity(context,activity))throw new ClubError("Tu acceso no incluye esa actividad.",403);
+        if(!input.id)requireOperation(activity,activity==="pilates"?"pilates":input.homeBranch??null);
+      }
       if (plan?.access_scope === "all" && isRestricted(context))
         throw new ClubError("Un plan para todas las actividades requiere recepción con acceso general o un dueño.",403);
     }
@@ -500,7 +503,7 @@ export async function POST(req: Request) {
         const ident = input.id ?? crypto.randomUUID(),
           audit = crypto.randomUUID();
         const plan = await owned("plans", input.planId);
-        if (isRestricted(context)) requireOperation(plan.access_scope === "pilates" ? "pilates" : "gym", plan.access_scope === "pilates" ? "pilates" : String(m.home_branch ?? ""));
+        if(isRestricted(context)&&(plan.access_scope==="all"||!allowsActivity(context,plan.access_scope==="pilates"?"pilates":"gym")))throw new ClubError("Tu acceso no incluye esa membresía.",403);
         if (input.id) {
           if (!input.expectedExpires || !input.expectedStatus)
             throw new ClubError(
@@ -569,7 +572,7 @@ export async function POST(req: Request) {
         break;
       }
       case "member": {
-        await owned("plans", input.planId);
+        const targetPlan = await owned("plans", input.planId);
         if (input.id) {
           const duplicatePlan = await db
             .prepare(
@@ -593,6 +596,7 @@ export async function POST(req: Request) {
           const memberBranch = input.homeBranch === undefined
             ? current.home_branch ?? null
             : input.homeBranch;
+          if(isRestricted(context)&&memberBranch!==(current.home_branch??null))requireOperation(targetPlan.access_scope==="pilates"?"pilates":"gym",memberBranch as string|null);
           const auditId = crypto.randomUUID();
           // Both statements share the database's serialized write transaction.
           // A stale snapshot inserts no audit record and cannot update the member.
@@ -702,7 +706,7 @@ export async function POST(req: Request) {
               access_scope: string;
             }>();
           if (!mm) throw new ClubError("Membresía no disponible.", 404);
-          if (isRestricted(context) && mm.access_scope !== "all" && !allowsActivity(context, mm.access_scope === "pilates" ? "pilates" : "gym"))
+          if (isRestricted(context) && (mm.access_scope === "all" || !allowsActivity(context, mm.access_scope === "pilates" ? "pilates" : "gym")))
             throw new ClubError("Tu acceso no incluye esa membresía.",403);
           if (mm.price !== input.expectedPrice)
             throw new ClubError(
@@ -765,7 +769,7 @@ export async function POST(req: Request) {
           break;
         }
         const p = await owned("plans", String(m.plan_id));
-        if (isRestricted(context) && p.access_scope !== "all" && !allowsActivity(context, p.access_scope === "pilates" ? "pilates" : "gym"))
+        if (isRestricted(context) && (p.access_scope === "all" || !allowsActivity(context, p.access_scope === "pilates" ? "pilates" : "gym")))
           throw new ClubError("Tu acceso no incluye esa membresía.",403);
         if (input.expectedPrice !== p.price)
           throw new ClubError(

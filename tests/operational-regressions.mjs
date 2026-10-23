@@ -10,9 +10,9 @@ export async function operationalRegressions(t,{api,team,cash,history,db,runtime
  const grant=async(userId,activity_scope,branch_scope='all')=>{runtime.setUser('owner-a');const r=await post(team,{userId,name:userId,role:'reception',status:'active',activity_scope,branch_scope});assert.equal(r.status,200,JSON.stringify(r));runtime.setUser(userId);};
  try {
  await t.test('Reception reads and mutations are limited by gym branch and activity',async()=>{
-  await grant('scope-gym30','gym','calle30');const data=await get();assert.equal(data.status,200);assert.ok(data.members.some(m=>m.id===ids['30']));assert.ok(data.members.every(m=>m.home_branch==='calle30'));assert.equal(data.audit.length,0);assert.equal(data.bookings.length,0);assert.equal((await get(api,'?view=padel')).status,403);
+  await grant('scope-gym30','gym','calle30');const data=await get();assert.equal(data.status,200);assert.ok(data.members.some(m=>m.id===ids['30']));assert.ok(data.members.some(m=>m.id===ids['23']));assert.ok(data.members.some(m=>m.id===ids['union']));assert.ok(!data.members.some(m=>m.id===ids['pilates']));assert.equal(data.audit.length,0);assert.equal(data.bookings.length,0);assert.equal((await get(api,'?view=padel')).status,403);
   const original=data.members.find(m=>m.id===ids['30']);const update={action:'member',id:original.id,original,name:'Nombre corregido',dni:original.dni,phone:'123456',homeBranch:'calle30',planId:original.plan_id,expires:original.expires,status:original.status,reason:'Teléfono y nombre verificados'};
-  assert.equal((await post(api,update)).status,200);assert.equal((await post(api,{...update,id:ids['23']})).status,404);assert.equal((await post(api,{...update,homeBranch:'calle23'})).status,403);
+  assert.equal((await post(api,update)).status,200);assert.equal((await post(api,{...update,id:ids['23']})).status,409);assert.equal((await post(api,{...update,homeBranch:'calle23'})).status,403);
   assert.equal((await post(api,{action:'access',dni:original.dni})).status,403);
   assert.equal((await post(api,{action:'session',name:'Clase ajena',day:'2099-12-01',time:'12:00',capacity:10,venue:'Pilates'})).status,403);
   const expense={action:'expense',venue:'calle30',activity:'gym',category:'Insumos',concept:'Insumos de prueba',amount:10,method:'Efectivo',day,requestKey:key()};assert.equal((await post(cash,expense)).status,200);assert.equal((await post(cash,{...expense,venue:'calle23',requestKey:key()})).status,403);assert.equal((await post(cash,{...expense,activity:'padel',venue:'velez',requestKey:key()})).status,403);
@@ -25,7 +25,8 @@ export async function operationalRegressions(t,{api,team,cash,history,db,runtime
  });
  await t.test('Shared gym and Pilates eligibility cannot be paused or reassigned by a scoped desk',async()=>{
   runtime.setUser('owner-a');const shared=ids['union'];await db.prepare("UPDATE members SET home_branch='calle30' WHERE id=?").bind(shared).run();await db.prepare("INSERT INTO member_memberships(id,owner,member_id,plan_id,status,expires,created_at) VALUES(?,'owner-a',?,?,'active','2099-12-31',?)").bind(key(),shared,pilates,new Date().toISOString()).run();
-  await grant('scope-gym30','gym','calle30');const member=(await get()).members.find(m=>m.id===shared);assert.equal(member.profile_locked,1);assert.equal((await post(api,{action:'member',id:member.id,original:member,name:member.name,dni:member.dni,phone:member.phone,homeBranch:'calle30',planId:gym,status:'paused',expires:member.expires,reason:'Intento de pausar una ficha compartida'})).status,403);
+  const combined=key();await db.prepare("INSERT INTO plans(id,owner,name,price,days,access_scope) VALUES(?,'owner-a','Plan combinado de prueba',800,30,'all')").bind(combined).run();
+  await grant('scope-gym30','gym','calle30');assert.equal((await post(api,{action:'membership',memberId:ids['30'],planId:combined,status:'active',expires:'2099-12-31'})).status,403);const member=(await get()).members.find(m=>m.id===shared);assert.equal(member.profile_locked,1);assert.equal((await post(api,{action:'member',id:member.id,original:member,name:member.name,dni:member.dni,phone:member.phone,homeBranch:'calle30',planId:gym,status:'paused',expires:member.expires,reason:'Intento de pausar una ficha compartida'})).status,403);
   runtime.setUser('owner-a');assert.equal((await db.prepare('SELECT status FROM members WHERE id=?').bind(shared).first()).status,'active');
  });
  await t.test('One gym membership paid at Calle 23 admits the same client at all three gyms, online and offline',async()=>{
@@ -37,7 +38,10 @@ export async function operationalRegressions(t,{api,team,cash,history,db,runtime
     const prepared=await post(offline,{action:'prepare',deviceId:key(),venue});assert.equal(prepared.status,200,JSON.stringify(prepared));
     const hash=await terminal.hashTerminalDni(prepared.snapshot.salt,member.dni);assert.equal(terminal.offlineDecision(prepared.snapshot,hash).allowed,true,venue+' offline');
   }
-  runtime.setUser('owner-a');assert.equal((await db.prepare('SELECT home_branch FROM members WHERE id=?').bind(ids['23']).first()).home_branch,'calle23');
+  await grant('travel-desk-calle30','gym','calle30');assert.ok((await get()).members.some(m=>m.id===ids['23']));
+  assert.equal((await post(api,{...payment,venue:'calle30',requestKey:key()})).status,200);
+  runtime.setUser('owner-a');const current=await db.prepare('SELECT home_branch,expires FROM members WHERE id=?').bind(ids['23']).first();assert.equal(current.home_branch,'calle23');assert.ok(current.expires>expiry);
+  const renewed=(await db.prepare("SELECT venue,activity FROM payments WHERE member_id=? AND venue='calle30'").bind(ids['23']).all()).results;assert.ok(renewed.some(p=>p.activity==='gym'));
  });
  await t.test('A membership receipt keeps its activity when its collection branch or plan later changes',async()=>{
   runtime.setUser('owner-a');const member=ids['23'];const input={action:'payment',memberId:member,venue:'pilates',method:'Efectivo',expectedPrice:500,requestKey:key()};assert.equal((await post(api,input)).status,200);
@@ -49,10 +53,10 @@ export async function operationalRegressions(t,{api,team,cash,history,db,runtime
   runtime.env.DB={prepare:originalDB.prepare.bind(originalDB),batch:async statements=>{if(!fired){fired=true;await pg.query("UPDATE club.staff SET branch_scope='calle23' WHERE user_id='scope-race'");}return originalDB.batch(statements);}};
   try {const before=await db.prepare("SELECT count(*) n FROM members WHERE owner='owner-a'").first();const r=await post(api,{action:'member',name:'No debe guardarse',dni:'98223344',phone:'',homeBranch:'calle30',planId:gym,expires:'2099-12-31',status:'active'});assert.equal(r.status,403,JSON.stringify(r));assert.equal((await db.prepare("SELECT count(*) n FROM members WHERE owner='owner-a'").first()).n,before.n);}finally{runtime.env.DB=originalDB;}
  });
- await t.test('Moving a member to another branch while a write is pending prevents the stale update',async()=>{
+ await t.test('Changing a member activity while a write is pending prevents the stale update',async()=>{
   await grant('scope-member-race','gym','calle30');const before=(await get()).members.find(m=>m.id===ids['30']);const base=runtime.env.DB;let moved=false;
-  runtime.env.DB={prepare:base.prepare.bind(base),batch:async statements=>{if(!moved){moved=true;await pg.query("UPDATE club.members SET home_branch='calle23' WHERE id=$1",[ids['30']]);}return base.batch(statements);}};
-  try {const result=await post(api,{action:'member',id:before.id,original:before,name:'No sobreescribir otra sede',dni:before.dni,phone:before.phone,homeBranch:'calle30',planId:before.plan_id,status:before.status,expires:before.expires,reason:'Cambio desde pantalla anterior'});assert.equal(result.status,403,JSON.stringify(result));}finally{runtime.env.DB=base;await pg.query("UPDATE club.members SET home_branch='calle30' WHERE id=$1",[ids['30']]);runtime.setUser('owner-a');}
+  runtime.env.DB={prepare:base.prepare.bind(base),batch:async statements=>{if(!moved){moved=true;await pg.query("UPDATE club.members SET plan_id=$2 WHERE id=$1",[ids['30'],pilates]);}return base.batch(statements);}};
+  try {const result=await post(api,{action:'member',id:before.id,original:before,name:'No sobreescribir otra sede',dni:before.dni,phone:before.phone,homeBranch:'calle30',planId:before.plan_id,status:before.status,expires:before.expires,reason:'Cambio desde pantalla anterior'});assert.equal(result.status,403,JSON.stringify(result));}finally{runtime.env.DB=base;await pg.query("UPDATE club.members SET plan_id=$2 WHERE id=$1",[ids['30'],gym]);runtime.setUser('owner-a');}
  });
  await t.test('A corrected partial settlement can be completed again without replacing the first charge',async()=>{
   runtime.setUser('owner-a');const next=new Date(Date.parse(day+'T12:00:00Z')+25*86400000).toISOString().slice(0,10);
