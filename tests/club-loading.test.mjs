@@ -44,7 +44,7 @@ function setupMembershipForm() {
   );
   const member = { id: 'member', plan_id: 'gym', name: 'Ana', plan_name: 'Gym', expires: '2026-11-01', status: 'active' };
   const data = {
-    today: '2026-10-13',
+    role:'owner',activity_scope:'all',branch_scope:'all',today: '2026-10-13',
     plans: [{ id: 'gym' }, { id: 'pilates' }, { id: 'all' }],
     memberships: [{ id: 'extra', member_id: member.id, plan_id: 'pilates', expires: '2026-11-01', status: 'active' }],
   };
@@ -144,6 +144,7 @@ test('Membership edits retain their original version across refreshed props and 
   let tree = form.render();
   formElements(tree).find(node => node.type === 'select').props.onChange({ target: { value: 'extra' } });
   tree = form.render();
+  const reason=formElements(tree).find(node=>node.type==='textarea');assert.equal(reason.props.required,true);assert.equal(reason.props.minLength,3);reason.props.onChange({target:{value:'Vigencia y estado verificados'}});
   formElements(tree).find(node => node.type === 'input').props.onChange({ target: { value: '2026-11-05' } });
   formElements(tree).filter(node => node.type === 'select')[1].props.onChange({ target: { value: 'paused' } });
 
@@ -153,7 +154,7 @@ test('Membership edits retain their original version across refreshed props and 
   assert.deepEqual(form.submit(tree), {
     action: 'membership', memberId: 'member', planId: 'pilates',
     expires: '2026-11-05', status: 'paused', id: 'extra',
-    expectedExpires: '2026-11-01', expectedStatus: 'active',
+    reason:'Vigencia y estado verificados',expectedExpires: '2026-11-01', expectedStatus: 'active',
   });
 
   formElements(tree).find(node => node.type === 'select').props.onChange({ target: { value: '' } });
@@ -164,10 +165,11 @@ test('Membership edits retain their original version across refreshed props and 
 
   formElements(tree).find(node => node.type === 'select').props.onChange({ target: { value: 'extra' } });
   tree = form.render();
+  const nextReason=formElements(tree).find(node=>node.type==='textarea');assert.equal(nextReason.props.value,'');nextReason.props.onChange({target:{value:'Nueva revisión de vigencia'}});tree=form.render();
   assert.deepEqual(form.submit(tree), {
     action: 'membership', memberId: 'member', planId: 'pilates',
     expires: '2026-12-01', status: 'paused', id: 'extra',
-    expectedExpires: '2026-12-01', expectedStatus: 'paused',
+    reason:'Nueva revisión de vigencia',expectedExpires: '2026-12-01', expectedStatus: 'paused',
   });
 });
 
