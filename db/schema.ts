@@ -67,6 +67,7 @@ export const payments = sqliteTable(
       .notNull()
       .references(() => members.id),
     membershipId: text("membership_id").references(() => memberMemberships.id),
+    activity: text("activity").notNull().default("unclassified"),
     amount: integer("amount").notNull(),
     revision: integer("revision").notNull().default(1),
     voided: integer("voided").notNull().default(0),

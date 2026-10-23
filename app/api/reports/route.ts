@@ -63,7 +63,7 @@ export async function GET(req: Request) {
     const format = query.get("format");
     if (format && format !== "csv") throw new ClubError("Formato inválido.");
     const movements =
-      "SELECT p.id,p.amount,p.method,p.created_at,m.name,'Gimnasio' AS activity,'Cuota' AS concept FROM payments p JOIN members m ON m.id=p.member_id AND m.owner=p.owner WHERE p.owner=? AND p.voided=0 AND p.created_at>=? AND p.created_at<? UNION ALL SELECT p.id,p.amount,p.method,p.created_at,b.name,'Pádel' AS activity,CASE p.kind WHEN 'deposit' THEN 'Seña' ELSE 'Saldo' END AS concept FROM booking_payments p JOIN bookings b ON b.id=p.booking_id AND b.owner=p.owner WHERE p.owner=? AND p.voided=0 AND p.created_at>=? AND p.created_at<?";
+      "SELECT p.id,p.amount,p.method,p.created_at,m.name,CASE p.activity WHEN 'gym' THEN 'Gimnasio' WHEN 'pilates' THEN 'Pilates' ELSE 'Sin actividad registrada' END AS activity,'Cuota' AS concept FROM payments p JOIN members m ON m.id=p.member_id AND m.owner=p.owner WHERE p.owner=? AND p.voided=0 AND p.created_at>=? AND p.created_at<? UNION ALL SELECT p.id,p.amount,p.method,p.created_at,b.name,'Pádel' AS activity,CASE p.kind WHEN 'deposit' THEN 'Seña' ELSE 'Saldo' END AS concept FROM booking_payments p JOIN bookings b ON b.id=p.booking_id AND b.owner=p.owner WHERE p.owner=? AND p.voided=0 AND p.created_at>=? AND p.created_at<?";
     const paymentQuery = `SELECT * FROM (${movements}) ORDER BY created_at DESC,id DESC`;
     const movementArgs = [owner, begin, end, owner, begin, end];
     if (format === "csv") {

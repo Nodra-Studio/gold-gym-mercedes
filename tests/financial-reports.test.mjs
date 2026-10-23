@@ -16,11 +16,11 @@ const {reportSelection,financialQuery,financialReport,percentageChange}=await lo
 const {GET}=await load('route'),{state}=await load('server'),{createDatabase}=await load('adapter');
 const db=new PGlite();
 try{
-await db.exec(`CREATE TABLE payments(id text,owner text,amount integer,method text,venue text,created_at text,voided integer);CREATE TABLE booking_payments(LIKE payments);CREATE TABLE cash_entries(id text,owner text,venue text,activity text,category text,kind text,amount integer,day text,reverses text);`);
+await db.exec(`CREATE TABLE payments(id text,owner text,amount integer,method text,venue text,created_at text,voided integer,activity text);CREATE TABLE booking_payments(LIKE payments);CREATE TABLE cash_entries(id text,owner text,venue text,activity text,category text,kind text,amount integer,day text,reverses text);`);
 const query=async(sql,args)=>{const r=await db.query(sql,args);return {rows:r.rows,count:r.rows.length}};
 state.db=createDatabase(query,work=>work(query));
 const insert=async(table,row)=>{const fields=Object.keys(row);await db.query(`INSERT INTO ${table}(${fields.join(',')}) VALUES(${fields.map((_,i)=>'$'+(i+1)).join(',')})`,fields.map(f=>row[f]));};
-const payment=async(id,amount,date,venue='calle30',extra={})=>insert('payments',{id,owner:'owner-a',amount,method:'Efectivo',venue,created_at:date,voided:0,...extra});
+const payment=async(id,amount,date,venue='calle30',extra={})=>insert('payments',{id,owner:'owner-a',amount,method:'Efectivo',venue,created_at:date,voided:0,activity:venue==='pilates'?'pilates':'gym',...extra});
 await payment('before',999,'2026-10-01T02:59:59.999Z');await payment('start',1000,'2026-10-01T03:00:00.000Z');await payment('last',500,'2026-11-01T02:59:59.999Z',null);await payment('after',999,'2026-11-01T03:00:00.000Z');await payment('voided',9000,'2026-10-15T12:00:00Z','calle30',{voided:1});await payment('other',9999,'2026-10-15T12:00:00Z','calle30',{owner:'owner-b'});await payment('previous',600,'2026-09-15T12:00:00Z');await payment('pilates',200,'2026-10-15T12:00:00Z','pilates');
 await insert('booking_payments',{id:'padel',owner:'owner-a',amount:300,method:'Tarjeta',venue:'velez',created_at:'2026-10-05T12:00:00Z',voided:0});
 const cash=async(id,kind,amount,day,extra={})=>insert('cash_entries',{id,owner:'owner-a',venue:'velez',activity:'padel',category:kind==='expense'?'Limpieza':'Productos',kind,amount,day,reverses:null,...extra});

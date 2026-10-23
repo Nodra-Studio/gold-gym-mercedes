@@ -68,12 +68,11 @@ export function venueScopeSQL(p: Principal, column: string) {
 }
 export function paymentScopeSQL(p: Principal, alias = "p") {
   if (!isRestricted(p)) return "1=1";
-  const venues = ["calle30", "calle23", "velez", "pilates"].filter((branch) =>
-    allowsOperation(p, branch === "pilates" ? "pilates" : "gym", branch),
-  );
-  return venues.length
-    ? `${alias}.venue IN (${venues.map((v) => `'${v}'`).join(",")})`
-    : "1=0";
+  const predicates=["gym","pilates"].flatMap(activity=>{
+    const venues=["calle30","calle23","velez","pilates"].filter(branch=>allowsOperation(p,activity as Activity,branch));
+    return venues.length?[`(${alias}.activity='${activity}' AND ${alias}.venue IN (${venues.map(v=>`'${v}'`).join(",")}))`]:[];
+  });
+  return predicates.length?`(${predicates.join(" OR ")})`:"1=0";
 }
 
 // Global profile status and the primary plan affect every activity of a member.

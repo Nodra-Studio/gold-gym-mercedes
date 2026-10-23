@@ -2,6 +2,7 @@
 ALTER TABLE club.staff ADD COLUMN activity_scope text NOT NULL DEFAULT 'all' CHECK(activity_scope IN ('all','gym','padel','pilates'));
 ALTER TABLE club.staff ADD COLUMN branch_scope text NOT NULL DEFAULT 'all' CHECK(branch_scope IN ('all','calle30','calle23','velez'));
 ALTER TABLE club.staff ADD CONSTRAINT staff_scope_compatible CHECK(activity_scope IN ('all','gym') OR branch_scope='all');
+ALTER TABLE club.payments ADD COLUMN activity text NOT NULL DEFAULT 'unclassified' CHECK(activity IN ('gym','pilates','unclassified'));
 ALTER TABLE club.cash_entries ADD COLUMN activity text NOT NULL DEFAULT 'unclassified' CHECK(activity IN ('gym','padel','pilates','unclassified'));
 GRANT UPDATE(activity) ON club.cash_entries TO gold_gym_app;
 CREATE FUNCTION club.staff_allows_operation(p_owner text,p_actor text,a text,v text) RETURNS boolean

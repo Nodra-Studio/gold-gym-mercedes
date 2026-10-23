@@ -713,7 +713,7 @@ export async function POST(req: Request) {
           const result = await db.batch([
             db
               .prepare(
-                "INSERT INTO payments(id,owner,member_id,amount,method,created_at,request_key,venue,membership_id) SELECT ?,?,?,?,?,?,?,?,? WHERE EXISTS(SELECT 1 FROM member_memberships mm JOIN plans p ON p.id=mm.plan_id AND p.owner=mm.owner WHERE mm.id=? AND mm.member_id=? AND mm.owner=? AND p.price=? AND p.days=?)",
+                "INSERT INTO payments(id,owner,member_id,amount,method,created_at,request_key,venue,membership_id,activity) SELECT ?,?,?,?,?,?,?,?,?,? WHERE EXISTS(SELECT 1 FROM member_memberships mm JOIN plans p ON p.id=mm.plan_id AND p.owner=mm.owner WHERE mm.id=? AND mm.member_id=? AND mm.owner=? AND p.price=? AND p.days=? AND p.access_scope=?)",
               )
               .bind(
                 paymentId,
@@ -725,11 +725,13 @@ export async function POST(req: Request) {
                 input.requestKey,
                 input.venue,
                 input.membershipId,
+                ["gym","pilates"].includes(mm.access_scope)?mm.access_scope:"unclassified",
                 input.membershipId,
                 input.memberId,
                 owner,
                 mm.price,
                 mm.days,
+                mm.access_scope,
               ),
             db
               .prepare(
@@ -774,7 +776,7 @@ export async function POST(req: Request) {
         const result = await db.batch([
           db
             .prepare(
-              "INSERT INTO payments (id,owner,member_id,amount,method,created_at,request_key,venue) SELECT ?,?,?,?,?,?,?,? WHERE EXISTS(SELECT 1 FROM plans p JOIN members m ON m.plan_id=p.id WHERE m.id=? AND m.owner=? AND p.owner=? AND p.id=? AND p.price=? AND p.days=?)",
+              "INSERT INTO payments (id,owner,member_id,amount,method,created_at,request_key,venue,activity) SELECT ?,?,?,?,?,?,?,?,? WHERE EXISTS(SELECT 1 FROM plans p JOIN members m ON m.plan_id=p.id WHERE m.id=? AND m.owner=? AND p.owner=? AND p.id=? AND p.price=? AND p.days=? AND p.access_scope=?)",
             )
             .bind(
               paymentId,
@@ -785,12 +787,14 @@ export async function POST(req: Request) {
               now,
               input.requestKey,
               input.venue,
+              ["gym","pilates"].includes(String(p.access_scope))?p.access_scope:"unclassified",
               input.memberId,
               owner,
               owner,
               p.id,
               p.price,
               p.days,
+              p.access_scope,
             ),
           db
             .prepare(

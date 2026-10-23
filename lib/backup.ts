@@ -192,6 +192,7 @@ const row = {
     .strict(),
   payments: z
     .object({
+      activity:z.enum(["gym","pilates","unclassified"]).default("unclassified"),
       membership_id:id.nullable().default(null),
       id,
       member_id: id,

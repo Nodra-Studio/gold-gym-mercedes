@@ -106,7 +106,7 @@ export function financialQuery(owner: string, selection: ReportSelection) {
     end = new Date(shift(last, 1) + "T00:00:00-03:00").toISOString();
   const sql = `WITH ledger AS (
     SELECT to_char(p.created_at::timestamptz AT TIME ZONE 'America/Argentina/Buenos_Aires','YYYY-MM-DD') AS day,p.venue,
-      CASE WHEN p.venue='pilates' THEN 'pilates' ELSE 'gym' END AS activity,'Cuotas' AS category,p.amount AS incoming,0 AS outgoing
+      p.activity AS activity,'Cuotas' AS category,p.amount AS incoming,0 AS outgoing
       FROM payments p WHERE p.owner=? AND p.voided=0 AND p.created_at>=? AND p.created_at<?
     UNION ALL SELECT to_char(p.created_at::timestamptz AT TIME ZONE 'America/Argentina/Buenos_Aires','YYYY-MM-DD'),p.venue,'padel','Pádel',p.amount,0
       FROM booking_payments p WHERE p.owner=? AND p.voided=0 AND p.created_at>=? AND p.created_at<?

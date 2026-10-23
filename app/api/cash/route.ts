@@ -224,7 +224,7 @@ export async function GET(req: Request) {
    SELECT c.id,c.venue,c.activity,NULL::text AS source,0 AS voided,c.kind,c.category,c.concept,c.amount,c.method,c.day,c.created_at,c.actor,c.reverses,c.revision,
     EXISTS(SELECT 1 FROM cash_entries r WHERE r.owner=c.owner AND r.reverses=c.id) AS reversed
     FROM cash_entries c WHERE c.owner=?
-   UNION ALL SELECT p.id,p.venue,CASE WHEN p.venue='pilates' THEN 'pilates' ELSE 'gym' END,'membership',p.voided,'membership','Cuotas','Cuota · '||m.name,p.amount,p.method,
+   UNION ALL SELECT p.id,p.venue,p.activity,'membership',p.voided,'membership','Cuotas','Cuota · '||m.name,p.amount,p.method,
     to_char(p.created_at::timestamptz AT TIME ZONE 'America/Argentina/Buenos_Aires','YYYY-MM-DD'),p.created_at,NULL,NULL,p.revision,p.voided=1
     FROM payments p JOIN members m ON m.id=p.member_id AND m.owner=p.owner WHERE p.owner=?
    UNION ALL SELECT b.id,b.venue,'padel','booking',b.voided,'padel','Pádel','Pádel · '||r.name,b.amount,b.method,

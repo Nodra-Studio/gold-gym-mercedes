@@ -28,6 +28,11 @@ export async function operationalRegressions(t,{api,team,cash,history,db,runtime
   await grant('scope-gym30','gym','calle30');const member=(await get()).members.find(m=>m.id===shared);assert.equal(member.profile_locked,1);assert.equal((await post(api,{action:'member',id:member.id,original:member,name:member.name,dni:member.dni,phone:member.phone,homeBranch:'calle30',planId:gym,status:'paused',expires:member.expires,reason:'Intento de pausar una ficha compartida'})).status,403);
   runtime.setUser('owner-a');assert.equal((await db.prepare('SELECT status FROM members WHERE id=?').bind(shared).first()).status,'active');
  });
+ await t.test('A membership receipt keeps its activity when its collection branch or plan later changes',async()=>{
+  runtime.setUser('owner-a');const member=ids['23'];const input={action:'payment',memberId:member,venue:'pilates',method:'Efectivo',expectedPrice:500,requestKey:key()};assert.equal((await post(api,input)).status,200);
+  const receipt=await db.prepare("SELECT id,activity FROM payments WHERE owner='owner-a' AND request_key=?").bind(input.requestKey).first();assert.equal(receipt.activity,'gym');
+  await db.prepare('UPDATE plans SET access_scope=? WHERE id=?').bind('pilates',gym).run();assert.equal((await db.prepare('SELECT activity FROM payments WHERE id=?').bind(receipt.id).first()).activity,'gym');await db.prepare('UPDATE plans SET access_scope=? WHERE id=?').bind('gym',gym).run();
+ });
  await t.test('An actor scope changed after validation aborts the entire write batch',async()=>{
   await grant('scope-race','gym','calle30');const originalDB=runtime.env.DB;let fired=false;
   runtime.env.DB={prepare:originalDB.prepare.bind(originalDB),batch:async statements=>{if(!fired){fired=true;await pg.query("UPDATE club.staff SET branch_scope='calle23' WHERE user_id='scope-race'");}return originalDB.batch(statements);}};
