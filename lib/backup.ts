@@ -11,7 +11,10 @@ const id = z.string().min(1).max(200),
     .regex(/^[+\d\s()-]*$/);
 const venue = z.enum(["calle30", "calle23", "velez", "pilates"]);
 const cashAmount = z.number().int().min(-10000000).max(10000000).refine((n) => n !== 0);
+const activity = z.enum(["gym","padel","pilates","unclassified"]);
+const jsonState = z.string().max(30000).refine(raw=>{try { const v=JSON.parse(raw);return v!==null&&typeof v==="object"&&!Array.isArray(v); } catch{return false;} });
 const cashState = z.object({
+  activity: activity.default("unclassified"),
   venue,
   kind: z.enum(["expense", "income"]),
   category: name,
@@ -52,6 +55,8 @@ const stateText = z
     }
   });
 const row = {
+  operational_changes: z.object({id,table_name:z.enum(["staff","members","plans","member_memberships","payments","bookings","booking_payments","sessions","enrollments","products","cash_entries","stock_moves","settings","issuer_settings"]),entity_id:id,operation:z.enum(["INSERT","UPDATE","DELETE"]),before_state:jsonState.nullable(),after_state:jsonState.nullable(),actor:id.nullable(),reason:z.string().max(300).nullable(),created_at:stamp}).strict(),
+  payment_changes:z.object({...cashCommon,source:z.enum(["membership","booking"]),payment_id:id,before_state:jsonState,after_state:jsonState,reason:z.string().trim().min(3).max(300)}).strict(),
   cash_entry_changes: z.object({
     ...cashCommon,
     actor: id.refine((value) => value.trim().length > 0),
@@ -98,6 +103,7 @@ const row = {
   cash_entries: z
     .object({
       ...cashCommon,
+      activity: activity.default("unclassified"),
       venue,
       kind: z.enum(["sale", "expense", "income", "reversal"]),
       category: name,
@@ -189,6 +195,8 @@ const row = {
       membership_id:id.nullable().default(null),
       id,
       member_id: id,
+      revision:z.number().int().min(1).default(1),
+      voided:z.number().int().min(0).max(1).default(0),
       amount: money,
       method: z.enum(["Efectivo", "Transferencia", "Tarjeta"]),
       created_at: stamp,
@@ -234,6 +242,8 @@ const row = {
       booking_id: id,
       venue: venue.nullable().default(null),
       kind: z.enum(["deposit", "settlement"]),
+      revision:z.number().int().min(1).default(1),
+      voided:z.number().int().min(0).max(1).default(0),
       amount: money.refine((n) => n > 0),
       method: z.enum(["Efectivo", "Transferencia", "Tarjeta", "No informado"]),
       created_at: stamp,
@@ -277,6 +287,8 @@ export const backupTables = [
   "product_changes",
   "booking_requests",
   "issuer_settings",
+  "payment_changes",
+  "operational_changes",
 ] as const;
 export const backupSchema = z
   .object({
@@ -288,6 +300,7 @@ export const backupSchema = z
       z.literal(5),
       z.literal(6),
       z.literal(7),
+      z.literal(8),
     ]),
     configuration: z
       .object({
@@ -319,6 +332,8 @@ export const backupSchema = z
         cash_entry_changes: z.array(row.cash_entry_changes).optional(),
         stock_moves: z.array(row.stock_moves).optional(),
         issuer_settings: z.array(row.issuer_settings).optional(),
+        payment_changes:z.array(row.payment_changes).optional(),
+        operational_changes:z.array(row.operational_changes).optional(),
       })
       .strict(),
   })
@@ -329,6 +344,7 @@ export function validateBackup(value: unknown) {
     throw Error(
       "El respaldo tiene un formato no admitido o campos inválidos. Usá el JSON exportado por Gold Gym.",
     );
+  if(parsed.data.schemaVersion>=8&&(!parsed.data.records.payment_changes||!parsed.data.records.operational_changes)) throw Error("El respaldo debe incluir los historiales de cobros y operaciones.");
   if (parsed.data.schemaVersion === 2 && !parsed.data.records.booking_payments)
     throw Error("El respaldo versión 2 debe incluir los cobros de pádel.");
   if (
@@ -364,6 +380,8 @@ export function validateBackup(value: unknown) {
         stock_moves: parsed.data.records.stock_moves ?? [],
         booking_payments: parsed.data.records.booking_payments ?? [],
         issuer_settings: parsed.data.records.issuer_settings ?? [],
+        payment_changes:parsed.data.records.payment_changes??[],
+        operational_changes:parsed.data.records.operational_changes??[],
       },
     },
     ids = new Set<string>();
@@ -402,18 +420,37 @@ export function validateBackup(value: unknown) {
     )
   )
     throw Error("El respaldo contiene solicitudes sin su reserva vinculada.");
+  const correctionKeys = new Set<string>();
+  for (const source of ["membership","booking"] as const) {
+    const payments = source==="membership" ? b.records.payments : b.records.booking_payments;
+    for(const payment of payments){
+      const changes=b.records.payment_changes.filter(c=>c.source===source&&c.payment_id===payment.id).sort((a,b)=>JSON.parse(a.after_state).revision-JSON.parse(b.after_state).revision);
+      if(changes.length!==payment.revision-1)throw Error("El historial de correcciones de cobros está incompleto.");
+      let previous:Record<string,unknown>|null=null;
+      for(const c of changes){
+        const before=JSON.parse(c.before_state),after=JSON.parse(c.after_state);
+        if(before.id!==payment.id||after.id!==payment.id||before.revision!==(previous?.revision??1)||after.revision!==before.revision+1||before.voided!==0||![0,1].includes(after.voided)||after.amount<0||after.amount>10000000||!["Efectivo","Transferencia","Tarjeta","No informado"].includes(after.method)||![null,"calle30","calle23","velez","pilates"].includes(after.venue))throw Error("Corrección de cobro inconsistente.");
+        const same=(a:Record<string,unknown>,b:Record<string,unknown>)=>["amount","method","venue","revision","voided"].every(k=>a[k]===b[k]);
+        if(previous&&!same(previous,before))throw Error("La cadena de correcciones de cobros es inconsistente.");
+        previous=after;correctionKeys.add(c.id);
+      }
+      if(previous&&!["amount","method","venue","revision","voided"].every(k=>previous![k]===payment[k as keyof typeof payment]))throw Error("La corrección no coincide con el cobro actual.");
+    }
+  }
+  if(correctionKeys.size!==b.records.payment_changes.length)throw Error("Historial de cobro sin cobro asociado.");
+  unique(b.records.payment_changes.map(c=>c.request_key));
   const paid = new Map<string, number>();
   for (const payment of b.records.booking_payments) {
     const booking = bookings.get(payment.booking_id);
     if (!booking || booking.kind !== "booking")
       throw Error("Un cobro de pádel no tiene una reserva válida.");
-    paid.set(booking.id, (paid.get(booking.id) ?? 0) + payment.amount);
+    paid.set(booking.id, (paid.get(booking.id) ?? 0) + (payment.voided ? 0 : payment.amount));
     if (paid.get(booking.id)! > booking.deposit)
       throw Error(
         "Los cobros detallados superan el total pagado de la reserva.",
       );
   }
-  unique(b.records.booking_payments.map((p) => `${p.booking_id}:${p.kind}`));
+  unique(b.records.booking_payments.filter(p=>!p.voided&&p.kind==="deposit").map((p) => `${p.booking_id}:${p.kind}`));
   unique(b.records.members.map((m) => m.dni));
   unique(b.records.payments.map((p) => p.request_key));
   unique(b.records.bookings.map((b) => b.request_key));
@@ -576,6 +613,6 @@ export function validateBackup(value: unknown) {
     unique(rows.map((r) => r.request_key));
   return b;
 }
-function sameCashState(a: z.infer<typeof cashState>, b: { venue: string; kind: string; category: string; concept: string; amount: number; method: string; day: string; revision: number }) {
-  return a.venue === b.venue && a.kind === b.kind && a.category === b.category && a.concept === b.concept && a.amount === b.amount && a.method === b.method && a.day === b.day && a.revision === b.revision;
+function sameCashState(a: z.infer<typeof cashState>, b: { activity?:string; venue: string; kind: string; category: string; concept: string; amount: number; method: string; day: string; revision: number }) {
+  return a.activity === (b.activity??"unclassified") && a.venue === b.venue && a.kind === b.kind && a.category === b.category && a.concept === b.concept && a.amount === b.amount && a.method === b.method && a.day === b.day && a.revision === b.revision;
 }

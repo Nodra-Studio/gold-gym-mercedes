@@ -1,4 +1,7 @@
 import { slotPassed } from "@/lib/club";
+import { allowsActivity, allowsOperation } from "@/lib/staff-scope";
+import { authenticatedDatabase, resourceScopeAssertion } from "@/lib/scoped-database";
+import { isRestricted, memberEditSQL, memberScopeSQL, planScopeSQL, venueScopeSQL, paymentScopeSQL, venueBranch, venueActivity } from "@/lib/scoped-records";
 import { z } from "zod";
 import { principal, permit, database, body, ClubError } from "@/lib/server";
 import { createManagedPlan, livePlanActor } from "@/lib/plan-management";
@@ -24,6 +27,7 @@ const homeBranch = z.enum(["calle30", "calle23", "velez", "pilates"]);
 const schema = z.discriminatedUnion("action", [
   z.object({
     action: z.literal("membership"),
+    reason: z.string().trim().min(3).max(300).optional(),
     memberId: id,
     planId: id,
     expires: day,
@@ -56,6 +60,7 @@ const schema = z.discriminatedUnion("action", [
   }),
   z.object({
     action: z.literal("member"),
+    reason: z.string().trim().min(3).max(300).optional(),
     original: z
       .object({
         name: z.string(),
@@ -116,7 +121,7 @@ const schema = z.discriminatedUnion("action", [
     weeks: z.number().int().min(1).max(12),
     requestKey: key,
   }),
-  z.object({ action: z.literal("cancelBooking"), id }),
+  z.object({ action: z.literal("cancelBooking"), id, reason: z.string().trim().min(3).max(300).optional() }),
   z.object({
     action: z.literal("session"),
     name,
@@ -137,7 +142,7 @@ const schema = z.discriminatedUnion("action", [
       ),
   }),
   z.object({ action: z.literal("enroll"), sessionId: id, memberId: id }),
-  z.object({ action: z.literal("cancelEnrollment"), id }),
+  z.object({ action: z.literal("cancelEnrollment"), id, reason: z.string().trim().min(3).max(300).optional() }),
 ]);
 function reply(value: unknown, status = 200) {
   return Response.json(value, {
@@ -177,21 +182,23 @@ export async function GET(req: Request) {
     const context = await principal();
     permit(context, ["owner", "reception"]);
     const owner = context.owner,
-      db = database();
+      db = authenticatedDatabase(database(), context);
     const queries = [
-      "SELECT id,name,price,days,access_scope FROM plans WHERE owner=? ORDER BY name",
-      "SELECT m.*,p.name as plan_name,p.price,p.access_scope FROM members m JOIN plans p ON p.id=m.plan_id AND p.owner=m.owner WHERE m.owner=? ORDER BY m.name",
-      "SELECT p.*,m.name FROM payments p JOIN members m ON m.id=p.member_id AND m.owner=p.owner WHERE p.owner=? ORDER BY p.created_at DESC LIMIT 500",
-      "SELECT * FROM accesses WHERE owner=? ORDER BY created_at DESC LIMIT 100",
-      "SELECT * FROM bookings WHERE owner=? ORDER BY day,start",
-      "SELECT s.*,(SELECT count(*) FROM enrollments e WHERE e.session_id=s.id) as enrolled FROM sessions s WHERE s.owner=? ORDER BY s.day,s.time",
-      "SELECT e.*,m.name FROM enrollments e JOIN members m ON m.id=e.member_id AND m.owner=e.owner WHERE e.owner=?",
-      "SELECT * FROM audit WHERE owner=? ORDER BY created_at DESC LIMIT 100",
-      "SELECT mm.*,p.name AS plan_name,p.price,p.days,p.access_scope FROM member_memberships mm JOIN plans p ON p.id=mm.plan_id AND p.owner=mm.owner WHERE mm.owner=? ORDER BY p.name",
+      `SELECT p.id,p.name,p.price,p.days,p.access_scope FROM plans p WHERE p.owner=? AND ${planScopeSQL(context)} ORDER BY p.name`,
+      `SELECT m.*,p.name as plan_name,p.price,p.access_scope,CASE WHEN ${memberEditSQL(context)} THEN 0 ELSE 1 END AS profile_locked FROM members m JOIN plans p ON p.id=m.plan_id AND p.owner=m.owner WHERE m.owner=? AND ${memberScopeSQL(context)} ORDER BY m.name`,
+      `SELECT p.*,m.name FROM payments p JOIN members m ON m.id=p.member_id AND m.owner=p.owner WHERE p.owner=? AND p.voided=0 AND ${paymentScopeSQL(context)} AND ${memberScopeSQL(context)} ORDER BY p.created_at DESC LIMIT 500`,
+      `SELECT * FROM accesses WHERE owner=? AND ${venueScopeSQL(context,"venue")} ORDER BY created_at DESC LIMIT 100`,
+      `SELECT * FROM bookings WHERE owner=? AND ${allowsActivity(context,"padel") ? "1=1" : "1=0"} ORDER BY day,start`,
+      `SELECT s.*,(SELECT count(*) FROM enrollments e WHERE e.session_id=s.id) as enrolled FROM sessions s WHERE s.owner=? AND ${venueScopeSQL(context,"s.venue")} ORDER BY s.day,s.time`,
+      `SELECT e.*,m.name FROM enrollments e JOIN members m ON m.id=e.member_id AND m.owner=e.owner JOIN sessions s ON s.id=e.session_id AND s.owner=e.owner WHERE e.owner=? AND ${venueScopeSQL(context,"s.venue")} AND ${memberScopeSQL(context)}`,
+      `SELECT * FROM audit WHERE owner=? AND ${context.role === "owner" ? "1=1" : "1=0"} ORDER BY created_at DESC LIMIT 100`,
+      `SELECT mm.*,p.name AS plan_name,p.price,p.days,p.access_scope FROM member_memberships mm JOIN plans p ON p.id=mm.plan_id AND p.owner=mm.owner JOIN members m ON m.id=mm.member_id AND m.owner=mm.owner WHERE mm.owner=? AND ${planScopeSQL(context)} AND ${memberScopeSQL(context)} ORDER BY p.name`,
     ];
     const padelOnly =
       req && new URL(req.url).searchParams.get("view") === "padel";
     // The agenda only consumes bookings. Avoid eight unrelated reads and payloads.
+    if (padelOnly && !allowsActivity(context, "padel"))
+      throw new ClubError("Tu acceso no incluye la agenda de pádel.", 403);
     const indexes = padelOnly ? [4] : queries.map((_, i) => i);
     const rows = await db.batch(
       indexes.map((i) => db.prepare(queries[i]).bind(owner)),
@@ -214,6 +221,9 @@ export async function GET(req: Request) {
         ].map((k, i) => [k, r[i].results]),
         ["today", localDay()],
         ["role", context.role],
+        ["scope", { activity_scope: context.activity_scope, branch_scope: context.branch_scope }],
+        ["activity_scope", context.activity_scope],
+        ["branch_scope", context.branch_scope],
       ]),
     );
   } catch (e) {
@@ -225,7 +235,8 @@ export async function POST(req: Request) {
     const context = await principal(),
       owner = context.owner,
       input = schema.parse(await body(req)),
-      db = database(),
+      resourceChecks: D1PreparedStatement[] = [],
+      db = authenticatedDatabase(database(), context, "reason" in input ? String(input.reason ?? "") || null : null,resourceChecks),
       now = new Date().toISOString(),
       today = localDay();
     const allowed =
@@ -235,6 +246,25 @@ export async function POST(req: Request) {
           ? (["owner"] as const)
           : (["owner", "reception"] as const);
     permit(context, [...allowed]);
+    if (((input.action === "member" || input.action === "membership") && input.id || input.action === "cancelBooking") && (!("reason" in input) || !String(input.reason??"").trim()))
+      throw new ClubError("Explicá el motivo del cambio o la cancelación.");
+    const requireOperation = (activity: "gym" | "padel" | "pilates", branch: string | null) => {
+      if (!allowsOperation(context, activity, branch)) throw new ClubError("Tu acceso no incluye esa actividad o sede.", 403);
+    };
+    if (["booking", "cancelBooking", "settleBooking"].includes(input.action)) requireOperation("padel", "velez");
+    if (["plan", "planPrice"].includes(input.action) && isRestricted(context))
+      throw new ClubError("Las tarifas compartidas entre sedes requieren un dueño o recepción con acceso general.", 403);
+    if (input.action === "member") {
+      const plan = await db.prepare("SELECT access_scope FROM plans WHERE owner=? AND id=?").bind(owner,input.planId).first<{access_scope:string}>();
+      const activity = plan?.access_scope === "pilates" ? "pilates" : "gym";
+      if (isRestricted(context)) requireOperation(activity, activity === "pilates" ? "pilates" : input.homeBranch ?? null);
+      if (plan?.access_scope === "all" && isRestricted(context))
+        throw new ClubError("Un plan para todas las actividades requiere recepción con acceso general o un dueño.",403);
+    }
+    if (input.action === "payment") requireOperation(input.venue === "pilates" ? "pilates" : "gym", input.venue);
+    if (input.action === "access" && isRestricted(context) && !input.venue) throw new ClubError("Elegí una sede de tu alcance.",403);
+    if (input.action === "access" && input.venue) requireOperation(venueActivity(input.venue),venueBranch(input.venue));
+    if (input.action === "session") requireOperation(venueActivity(input.venue),venueBranch(input.venue));
     const log = (action: string, detail: string) =>
       db
         .prepare(
@@ -252,10 +282,14 @@ export async function POST(req: Request) {
       record: string,
     ) => {
       const r = await db
-        .prepare(`SELECT * FROM ${table} WHERE id=? AND owner=?`)
+        .prepare(`SELECT * FROM ${table} WHERE id=? AND owner=?${table === "members" ? ` AND ${memberScopeSQL(context,"members")}` : table === "plans" ? ` AND ${planScopeSQL(context,"plans")}` : table === "sessions" ? ` AND ${venueScopeSQL(context,"venue")}` : ""}`)
         .bind(record, owner)
         .first<Record<string, string | number>>();
       if (!r) throw new ClubError("El registro ya no está disponible.", 404);
+      if(isRestricted(context)&&["members","plans","sessions"].includes(table)) {
+        const predicate=table==="members"?memberScopeSQL(context,"members"):table==="plans"?planScopeSQL(context,"plans"):venueScopeSQL(context,"venue");
+        resourceChecks.push(resourceScopeAssertion(database(),context,`SELECT 1 FROM ${table} WHERE id=? AND owner=? AND ${predicate}`,[record,owner]));
+      }
       return r;
     };
     switch (input.action) {
@@ -465,6 +499,8 @@ export async function POST(req: Request) {
           );
         const ident = input.id ?? crypto.randomUUID(),
           audit = crypto.randomUUID();
+        const plan = await owned("plans", input.planId);
+        if (isRestricted(context)) requireOperation(plan.access_scope === "pilates" ? "pilates" : "gym", plan.access_scope === "pilates" ? "pilates" : String(m.home_branch ?? ""));
         if (input.id) {
           if (!input.expectedExpires || !input.expectedStatus)
             throw new ClubError(
@@ -546,6 +582,11 @@ export async function POST(req: Request) {
               "Ese plan ya está asignado como membresía adicional. Conservá el principal y editá la membresía.",
             );
           const current = await owned("members", input.id);
+          if(isRestricted(context)) {
+            const editableSql=`SELECT 1 FROM members m WHERE m.owner=? AND m.id=? AND ${memberEditSQL(context)}`;
+            if(!await db.prepare(editableSql).bind(owner,input.id).first())throw new ClubError("La ficha afecta otras actividades. Un dueño o recepción general debe realizar este cambio.",403);
+            resourceChecks.push(resourceScopeAssertion(database(),context,editableSql,[owner,input.id]));
+          }
           if (!input.original)
             throw new ClubError("Actualizá la ficha antes de guardar.", 409);
           const original = input.original;
@@ -650,7 +691,7 @@ export async function POST(req: Request) {
         if (input.membershipId) {
           const mm = await db
             .prepare(
-              "SELECT mm.*,p.price,p.days,p.name FROM member_memberships mm JOIN plans p ON p.id=mm.plan_id AND p.owner=mm.owner WHERE mm.id=? AND mm.member_id=? AND mm.owner=?",
+              "SELECT mm.*,p.price,p.days,p.name,p.access_scope FROM member_memberships mm JOIN plans p ON p.id=mm.plan_id AND p.owner=mm.owner WHERE mm.id=? AND mm.member_id=? AND mm.owner=?",
             )
             .bind(input.membershipId, input.memberId, owner)
             .first<{
@@ -658,8 +699,11 @@ export async function POST(req: Request) {
               days: number;
               plan_id: string;
               name: string;
+              access_scope: string;
             }>();
           if (!mm) throw new ClubError("Membresía no disponible.", 404);
+          if (isRestricted(context) && mm.access_scope !== "all" && !allowsActivity(context, mm.access_scope === "pilates" ? "pilates" : "gym"))
+            throw new ClubError("Tu acceso no incluye esa membresía.",403);
           if (mm.price !== input.expectedPrice)
             throw new ClubError(
               "El precio cambió. Actualizá antes de cobrar.",
@@ -719,6 +763,8 @@ export async function POST(req: Request) {
           break;
         }
         const p = await owned("plans", String(m.plan_id));
+        if (isRestricted(context) && p.access_scope !== "all" && !allowsActivity(context, p.access_scope === "pilates" ? "pilates" : "gym"))
+          throw new ClubError("Tu acceso no incluye esa membresía.",403);
         if (input.expectedPrice !== p.price)
           throw new ClubError(
             "El precio cambió. Cerrá el formulario y revisá el importe antes de cobrar.",
@@ -788,7 +834,7 @@ export async function POST(req: Request) {
           }>();
         const m = rows.results[0];
         const decision = accessForMemberships(rows.results, today, input.venue);
-        await db
+        await db.batch([db
           .prepare(
             "INSERT INTO accesses (id,owner,member_id,name,allowed,reason,venue,created_at) VALUES (?,?,?,?,?,?,?,?)",
           )
@@ -801,8 +847,7 @@ export async function POST(req: Request) {
             decision.reason,
             input.venue ?? "Todas las sedes",
             now,
-          )
-          .run();
+          )]);
         return reply({
           ...decision,
           name: m?.name ?? null,
@@ -987,6 +1032,10 @@ export async function POST(req: Request) {
         break;
       }
       case "cancelEnrollment": {
+        const enrollment = await db.prepare("SELECT session_id,member_id FROM enrollments WHERE id=? AND owner=?").bind(input.id,owner).first<{session_id:string;member_id:string}>();
+        if (!enrollment) throw new ClubError("La inscripción ya no está disponible.",404);
+        await owned("sessions",enrollment.session_id);
+        await owned("members",enrollment.member_id);
         const result = await db.batch([
           db
             .prepare(

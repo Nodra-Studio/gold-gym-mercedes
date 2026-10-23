@@ -8,6 +8,9 @@ import {
   apiError,
 } from "@/lib/server";
 import { createManagedPlan, livePlanActor } from "@/lib/plan-management";
+import { allowsActivity } from "@/lib/staff-scope";
+import { isRestricted, planScopeSQL } from "@/lib/scoped-records";
+import { authenticatedDatabase } from "@/lib/scoped-database";
 export const dynamic = "force-dynamic";
 const amount = z.number().int().min(0).max(10000000);
 const schema = z.discriminatedUnion("kind", [
@@ -51,22 +54,25 @@ export async function GET() {
   try {
     const p = await principal();
     permit(p, ["owner", "reception"]);
-    const db = database();
+    const db = authenticatedDatabase(database(),p);
     const rows = await db.batch([
       db
         .prepare(
-          "SELECT id,name,price,days,access_scope,published FROM plans WHERE owner=? ORDER BY name",
+          `SELECT p.id,p.name,p.price,p.days,p.access_scope,p.published FROM plans p WHERE p.owner=? AND ${planScopeSQL(p)} ORDER BY p.name`,
         )
         .bind(p.owner),
       db
         .prepare(
-          "SELECT padel_price,deposit_percent,payment_alias,whatsapp,revision FROM settings WHERE owner=?",
+          `SELECT padel_price,deposit_percent,payment_alias,whatsapp,revision FROM settings WHERE owner=? AND ${allowsActivity(p,"padel") ? "1=1" : "1=0"}`,
         )
         .bind(p.owner),
     ]);
     return Response.json(
       {
         role: p.role,
+        activity_scope: p.activity_scope,
+        branch_scope: p.branch_scope,
+        canEdit: !isRestricted(p),
         plans: rows[0].results,
         padel: rows[1].results[0] ?? {
           padel_price: 0,
@@ -86,11 +92,12 @@ export async function POST(req: Request) {
   try {
     const p = await principal();
     permit(p, ["owner", "reception"]);
+    if (isRestricted(p)) throw new ClubError("Las tarifas compartidas requieren un dueño o recepción con acceso general.",403);
     const parsed = schema.safeParse(await body(req));
     if (!parsed.success)
       throw new ClubError("Revisá los importes y datos de la tarifa.");
     const i = parsed.data,
-      db = database(),
+      db = authenticatedDatabase(database(),p),
       now = new Date().toISOString(),
       audit = crypto.randomUUID();
     if (i.kind === "createPlan")

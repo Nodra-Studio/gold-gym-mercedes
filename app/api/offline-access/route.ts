@@ -3,6 +3,9 @@ import { principal, permit, database, body, apiError, ClubError } from "@/lib/se
 import { accessForMemberships, localDay } from "@/lib/club";
 import { hashTerminalDni, OFFLINE_HOURS, terminalVenues, type OfflineMembership, type OfflineSnapshot } from "@/lib/terminal-offline";
 
+import { allowsOperation } from "@/lib/staff-scope";
+import { venueActivity, venueBranch } from "@/lib/scoped-records";
+import { authenticatedDatabase } from "@/lib/scoped-database";
 export const dynamic = "force-dynamic";
 const uuid = z.string().uuid();
 const eventSchema = z.object({ id: uuid, snapshotId: uuid, dniHash: z.string().regex(/^[a-f0-9]{64}$/), observedAt: z.string().datetime() }).strict();
@@ -37,7 +40,7 @@ export async function POST(req: Request) {
     const context = await principal();
     permit(context, [...roles]);
     const input = schema.parse(await body(req, 40000));
-    const db = database(), now = new Date(), nowText = now.toISOString();
+    const db = authenticatedDatabase(database(),context), now = new Date(), nowText = now.toISOString();
     // principal established the canonical owner's fallback. Repeat staff state
     // in the write transaction, so revocation during request parsing takes effect.
     const authorization = "((?=1 AND NOT EXISTS(SELECT 1 FROM staff WHERE user_id=?)) OR EXISTS(SELECT 1 FROM staff WHERE user_id=? AND owner=? AND status='active' AND role IN ('owner','reception','gate')))";
@@ -55,6 +58,8 @@ export async function POST(req: Request) {
       return reply({ ok: true });
     }
     if (input.action === "prepare") {
+      if (!allowsOperation(context,venueActivity(input.venue),venueBranch(input.venue)))
+        throw new ClubError("Tu acceso no incluye esa terminal.",403);
       // Fetch only eligibility. Contact, prices, payments and names never enter a copy.
       const rows = await db.prepare(
         "SELECT m.id,m.dni,m.status,m.expires,p.access_scope FROM members m JOIN plans p ON p.id=m.plan_id AND p.owner=m.owner WHERE m.owner=? UNION ALL SELECT m.id,m.dni,CASE WHEN m.status='paused' THEN 'paused' ELSE mm.status END AS status,mm.expires,p.access_scope FROM members m JOIN member_memberships mm ON mm.member_id=m.id AND mm.owner=m.owner JOIN plans p ON p.id=mm.plan_id AND p.owner=mm.owner WHERE m.owner=? LIMIT 20001",
@@ -98,6 +103,8 @@ export async function POST(req: Request) {
     const copies = new Map(snapshotRows.results.map(copy => [copy.id, { ...copy, parsedEntries: JSON.parse(copy.entries) as StoredEntry[] }]));
     for (const event of input.events) {
       const copy = copies.get(event.snapshotId), observed = Date.parse(event.observedAt);
+      if (copy && !allowsOperation(context,venueActivity(copy.venue),venueBranch(copy.venue)))
+        throw new ClubError("Tu acceso ya no incluye la sede de esa copia. Consultá a administración.",403);
       if (!copy || now.getTime() > Date.parse(copy.expires_at) + 7 * 86400000 ||
         observed < Date.parse(copy.prepared_at) - 60000 || observed >= Date.parse(copy.expires_at) || observed > now.getTime() + 60000)
         throw new ClubError("Hay consultas fuera de la vigencia de su copia. Conservá el registro manual y consultá a administración.", 409);

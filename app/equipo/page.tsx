@@ -7,7 +7,7 @@ export const metadata = { title: "Equipo y permisos" };
 export default async function TeamPage() {
   const user = await requirePageRole(["owner", "reception"], "/equipo");
   return (
-    <AdminShell role={user.role}>
+    <AdminShell role={user.role} scope={{activity_scope:user.activity_scope,branch_scope:user.branch_scope}}>
       {user.role === "owner" ? <TeamClient /> : <RestrictedFeature path="/equipo" />}
     </AdminShell>
   );

@@ -95,6 +95,7 @@ export default function Tariffs({ initialCreate = false }: { initialCreate?: boo
       document.getElementById(`plan-${createdId}`)?.focus();
   }, [createdId, data]);
   const owner = data?.role === "owner";
+  const canEdit = owner || (data?.activity_scope === "all" && data?.branch_scope === "all");
   return (
     <main className="workspace tariffs-workspace">
       <header className="work-header">
@@ -108,17 +109,20 @@ export default function Tariffs({ initialCreate = false }: { initialCreate?: boo
       {notice && <p role="status" className="success-box">{notice}</p>}
       {!data && loading && <p role="status">Cargando planes y tarifas…</p>}
       {data && <>
+        {!canEdit && <p className="notice"><LockKeyhole size={16} aria-hidden="true"/> Las tarifas se comparten entre sedes. Para modificarlas necesitás ser dueño o tener acceso general de recepción.</p>}
+        <fieldset disabled={!canEdit || busy} className="tariffs-scope-fieldset">
         <section className="panel" aria-labelledby="plans-heading">
           <div className="tariffs-toolbar">
             <div><h2 id="plans-heading">Planes disponibles</h2><p className="muted">Dueños y recepción pueden crear planes, ajustar precios y decidir cuáles se muestran en el sitio.</p></div>
             {!creating && <button className="button gold" disabled={busy} onClick={() => setCreating(true)}><Plus size={18} aria-hidden="true" /> Crear plan</button>}
           </div>
           <p className="tariffs-role-note"><LockKeyhole size={16} aria-hidden="true" /> {owner ? "Como dueño, también podés cambiar el nombre, la vigencia y los accesos de los planes existentes." : "Solo los dueños pueden cambiar el nombre, la vigencia y los accesos de los planes existentes. Esas opciones aparecen con un candado."}</p>
-          {creating && <CreatePlanEditor busy={busy} save={save} onCancel={() => setCreating(false)} onCreated={(id) => { setCreating(false); setCreatedId(id); }} />}
+          {creating && canEdit && <CreatePlanEditor busy={busy} save={save} onCancel={() => setCreating(false)} onCreated={(id) => { setCreating(false); setCreatedId(id); }} />}
           {!data.plans.length && !creating && <div className="tariffs-empty"><h3>Todavía no hay planes</h3><p>Creá el primer plan con el nombre, precio y vigencia que usa el club. Después estará disponible para registrar las membresías.</p></div>}
           {data.plans.map((plan) => <ExistingPlanEditor key={plan.id} plan={plan} owner={owner} busy={busy} save={save} />)}
         </section>
         <PadelEditor padel={data.padel} owner={owner} busy={busy} save={save} />
+        </fieldset>
       </>}
     </main>
   );

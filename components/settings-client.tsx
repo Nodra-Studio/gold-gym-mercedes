@@ -1,4 +1,5 @@
 "use client";
+import { DondeJuegoIntegration } from "@/components/dondejuego-integration";
 import { apiFetch } from "@/lib/api-fetch";
 import { useEffect, useState } from "react";
 import Link from "next/link";
@@ -57,6 +58,7 @@ export default function SettingsClient() {
           <Link href="/ingreso" className="button gold" target="_blank" rel="noopener noreferrer">Abrir terminal de ingreso ↗</Link>
         </div>
       </section>
+      {data?.role === "owner" && <DondeJuegoIntegration />}
       {data?.role === "owner" && (
         <form
           className="panel"

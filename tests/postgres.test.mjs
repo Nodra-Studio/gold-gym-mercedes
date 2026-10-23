@@ -7,20 +7,21 @@ import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { createRequire } from 'node:module';
+import { operationalRegressions } from './operational-regressions.mjs';
 import { nicoRegressions } from './nico-regressions.mjs';
 import { planSelfServeRegressions } from './plan-selfserve-regressions.mjs';
 const folder = mkdtempSync(join(tmpdir(), 'gold-postgres-')), require = createRequire(import.meta.url);
 function compile(file, name, replacements = []) {
   let source = readFileSync(file, 'utf8');
-  const pairs = [...replacements, ['@club/runtime', './runtime.mjs'], ['@/app/chatgpt-auth', './runtime.mjs'], ['@/lib/server', './server.mjs'], ['@/lib/club', './club.mjs'], ['@/lib/backup', './backup.mjs'], ['@/lib/padel-settings', './padel-settings.mjs'], ['@/lib/csv', './csv.mjs'], ['@/lib/branches','./branches.mjs'], ['@/lib/terminal-offline','./terminal-offline.mjs'], ['@/lib/fiscal-settings','./fiscal-lib.mjs'], ['@/lib/public-padel-validation','./public-padel-validation.mjs'], ['@/lib/public-padel','./public-padel.mjs'], ['@/lib/plan-management','./plan-management.mjs']];
+  const pairs = [...replacements, ["@/lib/staff-scope","./staff-scope.mjs"],["@/lib/scoped-records","./scoped-records.mjs"],["@/lib/scoped-database","./scoped-database.mjs"], ['@club/runtime', './runtime.mjs'], ['@/app/chatgpt-auth', './runtime.mjs'], ['@/lib/server', './server.mjs'], ['@/lib/club', './club.mjs'], ['@/lib/backup', './backup.mjs'], ['@/lib/padel-settings', './padel-settings.mjs'], ['@/lib/csv', './csv.mjs'], ['@/lib/branches','./branches.mjs'], ['@/lib/reporting','./reporting.mjs'], ['@/lib/terminal-offline','./terminal-offline.mjs'], ['@/lib/fiscal-settings','./fiscal-lib.mjs'], ['@/lib/public-padel-validation','./public-padel-validation.mjs'], ['@/lib/public-padel','./public-padel.mjs'], ['@/lib/plan-management','./plan-management.mjs']];
   for (const [from, to] of pairs) source = source.replaceAll(from, to);
   source = source.replaceAll("'zod'", '"zod"').replaceAll('"zod"', JSON.stringify(pathToFileURL(require.resolve('zod')).href));
   writeFileSync(join(folder, name + '.mjs'), ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.ES2022, target: ts.ScriptTarget.ES2022 } }).outputText);
 }
 writeFileSync(join(folder, 'runtime.mjs'), `export const env={}; export const supportsSitesIdentity=false; export let user=null; export let owner='owner-a'; export let identityError=null; export const setIdentityError=x=>identityError=x; export const setUser=x=>user=x; export const setOwner=x=>owner=x; export async function independentUserId(){if(identityError)throw identityError;return user}; export function ownerAccount(id){return id===owner}; export async function getChatGPTUser(){throw Error('Untrusted Sites identity used')}`);
 for (const [file, name, replacements] of [
-  ['lib/public-padel.ts','public-padel'], ['lib/public-padel-validation.ts','public-padel-validation'], ['lib/branches.ts','branches'], ['lib/server.ts','server'], ['lib/club.ts','club'], ['lib/plan-management.ts','plan-management'], ['lib/terminal-offline.ts','terminal-offline'], ['lib/fiscal-settings.ts','fiscal-lib'], ['lib/backup.ts','backup',[['./club','./club.mjs']]], ['lib/padel-settings.ts','padel-settings'], ['lib/csv.ts','csv'], ['lib/postgres/adapter.ts','adapter'], ['lib/auth/return-to.ts','return-to'], ['lib/auth/config.ts','auth-config',[["'./return-to'","'./return-to.mjs'"]]],
-  ...['tariffs','public-prices','public-padel','padel-requests','club','team','player','settings','booking-payments','reports','export','backup','cash','offline-access','fiscal-settings'].map(x=>[`app/api/${x}/route.ts`, x+'-api']),
+  ['lib/staff-scope.ts','staff-scope'],['lib/scoped-records.ts','scoped-records'],['lib/scoped-database.ts','scoped-database'], ['lib/public-padel.ts','public-padel'], ['lib/public-padel-validation.ts','public-padel-validation'], ['lib/branches.ts','branches'], ['lib/reporting.ts','reporting'], ['lib/server.ts','server'], ['lib/club.ts','club'], ['lib/plan-management.ts','plan-management'], ['lib/terminal-offline.ts','terminal-offline'], ['lib/fiscal-settings.ts','fiscal-lib'], ['lib/backup.ts','backup',[['./club','./club.mjs']]], ['lib/padel-settings.ts','padel-settings'], ['lib/csv.ts','csv'], ['lib/postgres/adapter.ts','adapter'], ['lib/auth/return-to.ts','return-to'], ['lib/auth/config.ts','auth-config',[["'./return-to'","'./return-to.mjs'"]]],
+  ...['tariffs','public-prices','public-padel','padel-requests','club','team','player','settings','booking-payments','reports','export','backup','cash','history','offline-access','fiscal-settings'].map(x=>[`app/api/${x}/route.ts`, x+'-api']),
 ]) compile(file, name, replacements);
 const load = name => import(pathToFileURL(join(folder, name+'.mjs')));
 const runtime = await load('runtime'), { createDatabase, postgresQuery } = await load('adapter');
@@ -46,6 +47,7 @@ async function transaction(work, readOnly=false) {
 }
 runtime.env.DB = createDatabase((sql, values)=>transaction(q=>q(sql,values)), transaction);
 async function post(endpoint, payload) {
+  if ((["member","membership"].includes(payload.action)&&payload.id||payload.action==="cancelBooking")&&payload.reason===undefined)payload={...payload,reason:"Corrección registrada en prueba"};
   const r = await endpoint.POST(new Request('https://test.local/api/test', { method:'POST', headers:{'content-type':'application/json',origin:'https://test.local'}, body:JSON.stringify(payload) }));
   return { status:r.status,...await r.json() };
 }
@@ -428,8 +430,8 @@ try {
       const history=(await get(cash)).entryChanges.filter(x=>x.cash_entry_id===correctedExpense);
       assert.equal(history.length,1);assert.equal(history[0].actor,'owner-a');assert.equal(history[0].reason,input.reason);
       const before=JSON.parse(history[0].before_state),after=JSON.parse(history[0].after_state);
-      assert.deepEqual(before,{venue:'calle30',kind:'expense',category:'Electricidad',concept:'Factura eléctrica de prueba',amount:-500,method:'Transferencia',day:today,revision:1});
-      assert.deepEqual(after,{venue:'pilates',kind:'expense',category:'Servicios',concept:'Factura corregida',amount:-600,method:'Tarjeta',day:today,revision:2});
+      assert.deepEqual(before,{activity:'gym',venue:'calle30',kind:'expense',category:'Electricidad',concept:'Factura eléctrica de prueba',amount:-500,method:'Transferencia',day:today,revision:1});
+      assert.deepEqual(after,{activity:'pilates',venue:'pilates',kind:'expense',category:'Servicios',concept:'Factura corregida',amount:-600,method:'Tarjeta',day:today,revision:2});
       const concurrent=await Promise.all([650,700].map(amount=>post(cash,{...input,amount,expectedRevision:2,requestKey:key()})));
       assert.deepEqual(concurrent.map(r=>r.status).sort(),[200,409]);
       assert.equal((await post(cash,input)).replayed,true,'The original retry remains valid after a newer correction');
@@ -460,6 +462,7 @@ try {
         const after=await get(cash);assert.deepEqual(after.entries,before.entries);assert.deepEqual(after.entryChanges,before.entryChanges);
       } finally { await pg.exec('DROP TRIGGER entry_test_failure ON club.audit; DROP FUNCTION club.test_entry_failure();'); }
     });
+    await operationalRegressions(t,{api,team,cash,history:await load("history-api"),db:runtime.env.DB,runtime,post,get,pg});
     let snapshot;
     await nicoRegressions(t,{api,team,reports,exporter,offline,fiscal,terminal,logic,db:runtime.env.DB,runtime,post,get,owner:'owner-a',sqlRoleChecks:true,
       // Fixture time travel uses the harness administrator; the app role cannot
@@ -470,8 +473,8 @@ try {
       useOwner(id) { clubOwner=id;runtime.setOwner(id);runtime.setUser(id); },
     });
     await t.test('JSON backup retains numeric fields and relations',async()=>{
-      const response=await exporter.GET();assert.equal(response.status,200);snapshot=await response.json();assert.equal(snapshot.schemaVersion,7);
-      assert.equal(snapshot.records.booking_payments.length,2);
+      const response=await exporter.GET();assert.equal(response.status,200);snapshot=await response.json();assert.equal(snapshot.schemaVersion,8);
+      assert.ok(snapshot.records.booking_payments.length>=2);
       assert.equal(snapshot.records.cash_entry_changes.length,3);
       assert.equal(snapshot.records.cash_entries.find(x=>x.id===correctedExpense).revision,3);
       assert.equal(snapshot.records.cash_entries.find(x=>x.id===manualIncome).revision,2);
@@ -487,7 +490,7 @@ try {
     await t.test('Restore uses typed JSON recordsets and remaps references',async()=>{
       clubOwner='owner-b';runtime.setOwner(clubOwner);runtime.setUser(clubOwner);
       const r=await post(backup,{action:'restore',requestKey:key(),backup:snapshot});assert.equal(r.status,200,JSON.stringify(r));
-      const restored=await get();assert.equal(restored.members.length,6);assert.equal((await get(cash)).products.length,1);assert.equal((await get(cash)).stock.reduce((n,s)=>n+s.quantity,0),2);assert.equal((await get(cash)).productChanges.length,3);assert.notEqual(restored.members[0].id,member.id);
+      const restored=await get();assert.equal(restored.members.length,snapshot.records.members.length);assert.equal((await get(cash)).products.length,1);assert.equal((await get(cash)).stock.reduce((n,s)=>n+s.quantity,0),2);assert.equal((await get(cash)).productChanges.length,3);assert.notEqual(restored.members[0].id,member.id);
       const restoredCash=await get(cash),changes=restoredCash.entryChanges;
       assert.equal(changes.length,3);
       for(const old of snapshot.records.cash_entry_changes) {

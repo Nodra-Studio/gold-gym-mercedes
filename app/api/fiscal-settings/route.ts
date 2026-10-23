@@ -1,3 +1,4 @@
+import { authenticatedDatabase } from "@/lib/scoped-database";
 import { principal, permit, database, body, ClubError, apiError } from "@/lib/server";
 import { fiscalSettingsSchema, fiscalSelectFields, type FiscalIssuer } from "@/lib/fiscal-settings";
 
@@ -25,7 +26,7 @@ export async function POST(req: Request) {
     const parsed = fiscalSettingsSchema.safeParse(await body(req));
     if (!parsed.success) throw new ClubError(parsed.error.issues[0]?.message ?? "Revisá los datos fiscales.");
     const input = parsed.data;
-    const db = database();
+    const db = authenticatedDatabase(database(),user);
     const auditId = crypto.randomUUID();
     const stamp = new Date().toISOString();
     const result = await db.batch([

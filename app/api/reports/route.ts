@@ -1,6 +1,8 @@
 import { principal, permit, database, ClubError, apiError } from "@/lib/server";
 import { localDay, addDays, isValidDay } from "@/lib/club";
 import { csvDocument } from "@/lib/csv";
+import { reportSelection, financialQuery, financialReport, type FinancialRow } from "@/lib/reporting";
+import { branchName } from "@/lib/branches";
 export const dynamic = "force-dynamic";
 const pageSize = 25;
 function page(value: string | null) {
@@ -15,6 +17,30 @@ export async function GET(req: Request) {
     const db = database(),
       owner = context.owner,
       query = new URL(req.url).searchParams;
+    if (query.get("view") === "financial") {
+      let selection;
+      try { selection = reportSelection(query, localDay()); }
+      catch (e) { throw new ClubError(e instanceof Error ? e.message : "Filtros inválidos."); }
+      const format = query.get("format");
+      if (format && format !== "csv") throw new ClubError("Formato inválido.");
+      const command = financialQuery(owner, selection);
+      const result = await db.prepare(command.sql).bind(...command.args).all<FinancialRow>();
+      const report = financialReport(result.results, selection);
+      const headers = { "Cache-Control": "no-store", "X-Content-Type-Options": "nosniff" };
+      if (format === "csv") {
+        const periods = [["Actual",report.current],["Comparación",report.comparison]] as const;
+        return new Response(csvDocument([
+          ["Período","Desde","Hasta","Agrupación","Detalle","Ingresos ARS","Gastos ARS","Resultado ARS","Movimientos"],
+          ...periods.flatMap(([name,p]) => [
+            [name,p.from,p.to,"Total","",p.totals.incoming,p.totals.outgoing,p.totals.balance,p.totals.count],
+            ...p.months.map(g=>[name,p.from,p.to,"Mes",g.key,g.incoming,g.outgoing,g.balance,g.count]),
+            ...p.venues.map(g=>[name,p.from,p.to,"Sede",branchName(g.key),g.incoming,g.outgoing,g.balance,g.count]),
+            ...p.categories.map(g=>[name,p.from,p.to,"Categoría",g.key,g.incoming,g.outgoing,g.balance,g.count]),
+          ]),
+        ]),{headers:{...headers,"Content-Type":"text/csv; charset=utf-8","Content-Disposition":`attachment; filename="gold-gym-informe-${selection.from}-${selection.to}.csv"`}});
+      }
+      return Response.json(report,{headers});
+    }
     const today = localDay(),
       from = query.get("from") ?? today.slice(0, 8) + "01",
       to = query.get("to") ?? today;
@@ -37,7 +63,7 @@ export async function GET(req: Request) {
     const format = query.get("format");
     if (format && format !== "csv") throw new ClubError("Formato inválido.");
     const movements =
-      "SELECT p.id,p.amount,p.method,p.created_at,m.name,'Gimnasio' AS activity,'Cuota' AS concept FROM payments p JOIN members m ON m.id=p.member_id AND m.owner=p.owner WHERE p.owner=? AND p.created_at>=? AND p.created_at<? UNION ALL SELECT p.id,p.amount,p.method,p.created_at,b.name,'Pádel' AS activity,CASE p.kind WHEN 'deposit' THEN 'Seña' ELSE 'Saldo' END AS concept FROM booking_payments p JOIN bookings b ON b.id=p.booking_id AND b.owner=p.owner WHERE p.owner=? AND p.created_at>=? AND p.created_at<?";
+      "SELECT p.id,p.amount,p.method,p.created_at,m.name,'Gimnasio' AS activity,'Cuota' AS concept FROM payments p JOIN members m ON m.id=p.member_id AND m.owner=p.owner WHERE p.owner=? AND p.voided=0 AND p.created_at>=? AND p.created_at<? UNION ALL SELECT p.id,p.amount,p.method,p.created_at,b.name,'Pádel' AS activity,CASE p.kind WHEN 'deposit' THEN 'Seña' ELSE 'Saldo' END AS concept FROM booking_payments p JOIN bookings b ON b.id=p.booking_id AND b.owner=p.owner WHERE p.owner=? AND p.voided=0 AND p.created_at>=? AND p.created_at<?";
     const paymentQuery = `SELECT * FROM (${movements}) ORDER BY created_at DESC,id DESC`;
     const movementArgs = [owner, begin, end, owner, begin, end];
     if (format === "csv") {

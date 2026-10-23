@@ -8,12 +8,15 @@ import {
   apiError,
 } from "@/lib/server";
 import { slotPassed } from "@/lib/club";
+import { allowsActivity } from "@/lib/staff-scope";
+import { authenticatedDatabase } from "@/lib/scoped-database";
 export const dynamic = "force-dynamic";
 export async function GET(req: Request) {
   try {
     const p = await principal();
     permit(p, ["owner", "reception"]);
-    const db = database(),
+    if (!allowsActivity(p,"padel")) throw new ClubError("Tu acceso no incluye pádel.",403);
+    const db = authenticatedDatabase(database(),p),
       receipt = new URL(req.url).searchParams.get("receipt");
     if (receipt) {
       const row = await db
@@ -58,6 +61,7 @@ export async function POST(req: Request) {
   try {
     const p = await principal();
     permit(p, ["owner", "reception"]);
+    if (!allowsActivity(p,"padel")) throw new ClubError("Tu acceso no incluye pádel.",403);
     const parsed = z
       .object({
         id: z.string().uuid(),
@@ -71,7 +75,7 @@ export async function POST(req: Request) {
     if (!parsed.success)
       throw new ClubError("Revisá la solicitud y el importe recibido.");
     const i = parsed.data,
-      db = database(),
+      db = authenticatedDatabase(database(),p),
       r = await db
         .prepare("SELECT * FROM booking_requests WHERE id=? AND owner=?")
         .bind(i.id, p.owner)

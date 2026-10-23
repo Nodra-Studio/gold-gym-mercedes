@@ -1,3 +1,4 @@
+import { authenticatedDatabase } from "@/lib/scoped-database";
 import { z } from "zod";
 import {
   principal,
@@ -37,7 +38,7 @@ export async function POST(req: Request) {
         "Revisá precio, anticipación y plazo de cancelación.",
       );
     const s = parsed.data;
-    await database().batch([
+    await authenticatedDatabase(database(),p).batch([
       database()
         .prepare(
           "INSERT INTO settings(owner,padel_price,booking_days,cancel_hours,price_published) VALUES(?,?,?,?,?) ON CONFLICT(owner) DO UPDATE SET booking_days=excluded.booking_days,cancel_hours=excluded.cancel_hours,revision=settings.revision+1,padel_price=coalesce(?,settings.padel_price),price_published=CASE WHEN CAST(? AS integer) IS NULL THEN settings.price_published ELSE 1 END",

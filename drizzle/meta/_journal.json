@@ -99,6 +99,27 @@
       "when": 1792001657244,
       "tag": "0013_fiscal_issuer_settings",
       "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "6",
+      "when": 1792766807761,
+      "tag": "0014_reception_scope_cash_activity",
+      "breakpoints": true
+    },
+    {
+      "idx": 15,
+      "version": "6",
+      "when": 1792766807762,
+      "tag": "0015_payment_corrections",
+      "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "6",
+      "when": 1792766807763,
+      "tag": "0016_operational_audit",
+      "breakpoints": true
     }
   ]
 }

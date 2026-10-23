@@ -2,6 +2,7 @@
 import { apiFetch } from "@/lib/api-fetch";
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { scopeLabel, type StaffScope } from "@/lib/staff-scope";
 import {
   Field,
   SelectField,
@@ -10,13 +11,14 @@ import {
   SaveButton,
   FormModal,
 } from "@/components/club-client";
-type Staff = {
+type Staff = StaffScope & {
   user_id: string;
   name: string;
   role: "owner" | "reception" | "gate" | "player";
   status: "active" | "revoked";
+  reason?: string;
 };
-type Team = {
+type Team = Partial<StaffScope> & {
   authProvider?: "sites" | "supabase";
   userId: string;
   role: "owner" | "reception" | "gate" | "player" | "revoked" | "pending";
@@ -57,6 +59,9 @@ export default function TeamClient() {
             name: input.name,
             role: input.role,
             status: input.status,
+            activity_scope: input.activity_scope,
+            branch_scope: input.branch_scope,
+            reason: input.reason,
           }),
         }),
         j = (await r.json()) as { error?: string };
@@ -126,6 +131,7 @@ export default function TeamClient() {
               : "Cargando…"}
           </strong>
         </p>
+        {data?.role === "reception" && <p className="muted" style={{ marginTop: 12 }}>Alcance: {scopeLabel(data)}</p>}
         {data?.role === "player" && (
           <Link href="/jugar" className="button gold" style={{ marginTop: 20 }}>
             Abrir mis reservas
@@ -171,6 +177,7 @@ export default function TeamClient() {
                   <p className="muted">
                     {{ owner: "Dueño / administración", reception: "Recepción", player: "Jugador de pádel", gate: "Terminal de ingreso" }[m.role]}{" "}
                     · {m.status === "active" ? "Activo" : "Desactivado"}
+                    {m.role === "reception" && <> · {scopeLabel(m)}</>}
                   </p>
                 </div>
                 <button
@@ -203,11 +210,12 @@ export default function TeamClient() {
             <div className="list-row">
               <strong>Recepción</strong>
               <p>
-                Socios, cuotas, clases, reservas y caja diaria. Puede crear
-                planes y actualizar sus precios y publicación. Los permisos,
+                Socios, cuotas, clases, reservas y caja diaria dentro de su alcance.
+                Con acceso general puede crear planes y actualizar sus precios y publicación. Los permisos,
                 respaldos y ajustes financieros sensibles quedan para los dueños.
-                Su cuenta puede usarse en varias recepciones a la vez y comparte
-                la información del club.
+                El dueño define si trabaja en todas las actividades, sólo gimnasio,
+                pádel o Pilates. Para gimnasio también puede limitarla a una sede.
+                Los datos y operaciones quedan limitados a ese alcance.
               </p>
             </div>
             <div className="list-row">
@@ -246,12 +254,19 @@ function StaffForm({
   const [id, setId] = useState(staff?.user_id ?? ""),
     [name, setName] = useState(staff?.name ?? ""),
     [role, setRole] = useState<Staff["role"]>(staff?.role ?? "reception"),
-    [status, setStatus] = useState<Staff["status"]>(staff?.status ?? "active");
+    [status, setStatus] = useState<Staff["status"]>(staff?.status ?? "active"),
+    [activity, setActivity] = useState<StaffScope["activity_scope"]>(staff?.activity_scope ?? "all"),
+    [branch, setBranch] = useState<StaffScope["branch_scope"]>(staff?.branch_scope ?? "all"),
+    [reason, setReason] = useState("");
   return (
     <form
       onSubmit={(e) => {
         e.preventDefault();
-        submit({ user_id: id, name, role, status });
+        submit({ user_id: id, name, role, status,
+          activity_scope: role === "reception" ? activity : "all",
+          branch_scope: role === "reception" && ["all", "gym"].includes(activity) ? branch : "all",
+          ...(reason.trim() ? { reason: reason.trim() } : {}),
+        });
       }}
     >
       <div className="form-grid">
@@ -292,6 +307,28 @@ function StaffForm({
             <Option value="active">Activo</Option>
             <Option value="revoked">Desactivado</Option>
           </SelectField>
+        </Field>
+        {role === "reception" && <>
+          <Field label="Actividad habilitada" full>
+            <SelectField value={activity} onChange={(value) => setActivity(value as StaffScope["activity_scope"])}>
+              <Option value="all">Todas las actividades</Option>
+              <Option value="gym">Sólo gimnasio</Option>
+              <Option value="padel">Sólo pádel · Club Unión</Option>
+              <Option value="pilates">Sólo Pilates</Option>
+            </SelectField>
+          </Field>
+          {["all", "gym"].includes(activity) && <Field label="Sedes de gimnasio habilitadas" full>
+            <SelectField value={branch} onChange={(value) => setBranch(value as StaffScope["branch_scope"])}>
+              <Option value="all">Todos los gimnasios</Option>
+              <Option value="calle30">Sólo Calle 30</Option>
+              <Option value="calle23">Sólo Calle 23</Option>
+              <Option value="velez">Sólo Club Unión</Option>
+            </SelectField>
+          </Field>}
+          <p className="muted">{scopeLabel({ activity_scope: activity, branch_scope: ["all", "gym"].includes(activity) ? branch : "all" })}. Los permisos se comprueban también al consultar o guardar datos.</p>
+        </>}
+        <Field label="Motivo o nota del cambio (opcional)" full>
+          <textarea value={reason} minLength={3} maxLength={300} onChange={(event) => setReason(event.target.value)} />
         </Field>
       </div>
       <p className="muted" style={{ marginTop: 18 }}>

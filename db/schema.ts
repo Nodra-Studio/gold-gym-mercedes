@@ -68,6 +68,8 @@ export const payments = sqliteTable(
       .references(() => members.id),
     membershipId: text("membership_id").references(() => memberMemberships.id),
     amount: integer("amount").notNull(),
+    revision: integer("revision").notNull().default(1),
+    voided: integer("voided").notNull().default(0),
     method: text("method").notNull(),
     venue: text("venue"),
     createdAt: text("created_at").notNull(),
@@ -166,6 +168,8 @@ export const staff = sqliteTable(
     owner: text("owner").notNull(),
     name: text("name").notNull(),
     role: text("role").notNull(),
+    activityScope: text("activity_scope").notNull().default("all"),
+    branchScope: text("branch_scope").notNull().default("all"),
     status: text("status").notNull().default("active"),
     createdAt: text("created_at").notNull(),
   },
@@ -211,12 +215,14 @@ export const bookingPayments = sqliteTable(
       .references(() => bookings.id),
     kind: text("kind").notNull(),
     amount: integer("amount").notNull(),
+    revision: integer("revision").notNull().default(1),
+    voided: integer("voided").notNull().default(0),
     method: text("method").notNull(),
     venue: text("venue"),
     createdAt: text("created_at").notNull(),
   },
   (t) => [
-    uniqueIndex("booking_payments_kind").on(t.owner, t.bookingId, t.kind),
+    uniqueIndex("booking_payments_kind").on(t.owner, t.bookingId, t.kind).where(sql`${t.voided} = 0 AND ${t.kind} = 'deposit'`),
     index("booking_payments_owner_date").on(t.owner, t.createdAt),
   ],
 );
@@ -246,6 +252,7 @@ export const cashEntries = sqliteTable(
   "cash_entries",
   {
     ...cashCommon(),
+    activity: text("activity").notNull().default("unclassified"),
     venue: text("venue").notNull(),
     kind: text("kind").notNull(),
     category: text("category").notNull(),
@@ -363,3 +370,10 @@ export const bookingRequests = sqliteTable(
     index("booking_requests_queue").on(t.owner, t.status, t.day),
   ],
 );
+
+export const operationalChanges = sqliteTable("operational_changes", {
+ id: text("id").primaryKey(), owner: text("owner").notNull(),tableName: text("table_name").notNull(),entityId: text("entity_id").notNull(),operation:text("operation").notNull(),beforeState:text("before_state"),afterState:text("after_state"),actor:text("actor"),reason:text("reason"),createdAt:text("created_at").notNull(),
+});
+export const paymentChanges = sqliteTable("payment_changes", {
+ id:text("id").primaryKey(),owner:text("owner").notNull(),source:text("source").notNull(),paymentId:text("payment_id").notNull(),beforeState:text("before_state").notNull(),afterState:text("after_state").notNull(),reason:text("reason").notNull(),createdAt:text("created_at").notNull(),actor:text("actor").notNull(),requestKey:text("request_key").notNull(),payload:text("payload").notNull(),
+});

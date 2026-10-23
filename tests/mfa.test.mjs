@@ -37,7 +37,8 @@ export const authClient=async()=>({auth:{
 compile('lib/auth/return-to.ts', 'return-to');
 compile('lib/auth/config.ts', 'config', [["'./return-to'", "'./return-to.mjs'"]]);
 compile('lib/auth/mfa.ts', 'mfa', [["'./return-to'", "'./return-to.mjs'"]]);
-compile('lib/server.ts', 'server', [['@club/runtime','./mock.mjs'],['@/app/chatgpt-auth','./mock.mjs']]);
+compile('lib/staff-scope.ts','staff-scope',[]);
+compile('lib/server.ts', 'server', [['@/lib/staff-scope','./staff-scope.mjs'],['@club/runtime','./mock.mjs'],['@/app/chatgpt-auth','./mock.mjs']]);
 compile('app/api/mfa/route.ts', 'route', [["'zod'", JSON.stringify(pathToFileURL(require.resolve('zod')).href)], ['@/lib/auth/client','./mock.mjs'],['@/lib/auth/config','./mock.mjs'],['@/lib/auth/rate-limit','./mock.mjs'],['@/lib/auth/mfa','./mfa.mjs'],['@/lib/server','./server.mjs']]);
 const mock = await import(pathToFileURL(join(folder, 'mock.mjs'))), api = await import(pathToFileURL(join(folder, 'route.mjs'))), helpers = await import(pathToFileURL(join(folder, 'mfa.mjs')));
 const originalFlag = process.env.GOLD_GYM_SMS_MFA_ENABLED;

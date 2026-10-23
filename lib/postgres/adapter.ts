@@ -75,7 +75,7 @@ export function createDatabase(
           /^\s*(SELECT|WITH)\s/i.test(s.sql) &&
           !/\b(INSERT|UPDATE|DELETE|MERGE)\b/i.test(s.sql) &&
           !/\bFOR\s+(?:KEY\s+)?SHARE\b/i.test(s.sql) &&
-          !/\b(record_cash|pg_advisory|nextval|setval)\s*\(/i.test(s.sql),
+          !/\b(record_cash|record_payment_change|pg_advisory|nextval|setval)\s*\(/i.test(s.sql),
       );
       return transaction(async (run) => {
         if (readOnly && statements.length > 1) {
