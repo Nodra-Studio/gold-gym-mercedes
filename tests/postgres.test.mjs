@@ -462,7 +462,7 @@ try {
         const after=await get(cash);assert.deepEqual(after.entries,before.entries);assert.deepEqual(after.entryChanges,before.entryChanges);
       } finally { await pg.exec('DROP TRIGGER entry_test_failure ON club.audit; DROP FUNCTION club.test_entry_failure();'); }
     });
-    await operationalRegressions(t,{api,team,cash,history:await load("history-api"),db:runtime.env.DB,runtime,post,get,pg});
+    await operationalRegressions(t,{api,team,cash,history:await load("history-api"),db:runtime.env.DB,runtime,post,get,pg,offline,terminal});
     let snapshot;
     await nicoRegressions(t,{api,team,reports,exporter,offline,fiscal,terminal,logic,db:runtime.env.DB,runtime,post,get,owner:'owner-a',sqlRoleChecks:true,
       // Fixture time travel uses the harness administrator; the app role cannot

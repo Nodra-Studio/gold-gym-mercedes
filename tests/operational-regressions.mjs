@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-export async function operationalRegressions(t,{api,team,cash,history,db,runtime,post,get,pg}) {
+export async function operationalRegressions(t,{api,team,cash,history,db,runtime,post,get,pg,offline,terminal}) {
  const key=()=>crypto.randomUUID();
  runtime.setUser('owner-a');
  const day=(await get()).today, gym=key(),pilates=key();
@@ -27,6 +27,17 @@ export async function operationalRegressions(t,{api,team,cash,history,db,runtime
   runtime.setUser('owner-a');const shared=ids['union'];await db.prepare("UPDATE members SET home_branch='calle30' WHERE id=?").bind(shared).run();await db.prepare("INSERT INTO member_memberships(id,owner,member_id,plan_id,status,expires,created_at) VALUES(?,'owner-a',?,?,'active','2099-12-31',?)").bind(key(),shared,pilates,new Date().toISOString()).run();
   await grant('scope-gym30','gym','calle30');const member=(await get()).members.find(m=>m.id===shared);assert.equal(member.profile_locked,1);assert.equal((await post(api,{action:'member',id:member.id,original:member,name:member.name,dni:member.dni,phone:member.phone,homeBranch:'calle30',planId:gym,status:'paused',expires:member.expires,reason:'Intento de pausar una ficha compartida'})).status,403);
   runtime.setUser('owner-a');assert.equal((await db.prepare('SELECT status FROM members WHERE id=?').bind(shared).first()).status,'active');
+ });
+ await t.test('One gym membership paid at Calle 23 admits the same client at all three gyms, online and offline',async()=>{
+  runtime.setUser('owner-a');const member=await db.prepare('SELECT dni FROM members WHERE id=?').bind(ids['23']).first();const payment={action:'payment',memberId:ids['23'],venue:'calle23',method:'Efectivo',expectedPrice:500,requestKey:key()};assert.equal((await post(api,payment)).status,200);
+  const expiry=(await db.prepare('SELECT expires FROM members WHERE id=?').bind(ids['23']).first()).expires;
+  for(const [branch,venue] of [['calle23','Calle 23'],['velez','Club Unión'],['calle30','Calle 30']]) {
+    await grant('travel-desk-'+branch,'gym',branch);
+    const result=await post(api,{action:'access',dni:member.dni,venue});assert.equal(result.status,200,JSON.stringify(result));assert.equal(result.allowed,true,venue);assert.equal(result.expires,expiry,venue);
+    const prepared=await post(offline,{action:'prepare',deviceId:key(),venue});assert.equal(prepared.status,200,JSON.stringify(prepared));
+    const hash=await terminal.hashTerminalDni(prepared.snapshot.salt,member.dni);assert.equal(terminal.offlineDecision(prepared.snapshot,hash).allowed,true,venue+' offline');
+  }
+  runtime.setUser('owner-a');assert.equal((await db.prepare('SELECT home_branch FROM members WHERE id=?').bind(ids['23']).first()).home_branch,'calle23');
  });
  await t.test('A membership receipt keeps its activity when its collection branch or plan later changes',async()=>{
   runtime.setUser('owner-a');const member=ids['23'];const input={action:'payment',memberId:member,venue:'pilates',method:'Efectivo',expectedPrice:500,requestKey:key()};assert.equal((await post(api,input)).status,200);

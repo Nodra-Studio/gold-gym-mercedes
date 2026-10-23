@@ -742,7 +742,7 @@ export default function ClubDashboard() {
                     <TableRow>
                       {[
                         "Socio",
-                        "Sede de pertenencia",
+                        "Sede de referencia",
                         "Plan",
                         "Vencimiento",
                         "Estado",
@@ -1210,7 +1210,7 @@ function MemberForm({
             ))}
           </SelectField>
         </Field>
-        <Field label="Sede de pertenencia" full>
+        <Field label="Sede de referencia" full>
           <SelectField
             value={homeBranch}
             onChange={setHomeBranch}
@@ -1226,7 +1226,7 @@ function MemberForm({
             ))}
           </SelectField>
           <small className="muted">
-            Sede a la que pertenece el socio; puede cobrar o entrenar en otra.
+            Referencia administrativa para organizar socios e informes. El plan de gimnasio permite entrenar en Calle 23, Calle 30 y Unión, sin importar dónde se pagó.
           </small>
         </Field>
         <Field label="Vigente hasta">
