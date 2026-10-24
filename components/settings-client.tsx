@@ -40,8 +40,7 @@ export default function SettingsClient() {
       </Link>
       <header className="work-header">
         <div>
-          <p className="eyebrow">GOLD GYM / CONFIGURACIÓN</p>
-          <h1>Configuración del club.</h1>
+          <h1>Configuración</h1>
         </div>
       </header>
       <ErrorNotice error={error || loadError} />
@@ -52,7 +51,7 @@ export default function SettingsClient() {
       )}
       <section className="panel settings-access">
         <h2>Cuenta y pantallas</h2>
-        <p className="muted">Consultá tu identificador y tus permisos, o prepará la pantalla de ingreso con tu sesión actual.</p>
+        <p className="muted">Consultá tus permisos o abrí la terminal de ingreso con tu sesión actual.</p>
         <div className="form-actions">
           <Link href="/cuenta" className="button">Mi cuenta e identificador</Link>
           <Link href="/ingreso" className="button gold" target="_blank" rel="noopener noreferrer">Abrir terminal de ingreso ↗</Link>
@@ -93,7 +92,7 @@ export default function SettingsClient() {
             Turnos de 90 minutos, cuatro canchas y confirmación por recepción.
           </p>
           <div className="form-grid">
-            <p>Para cambiar precios y señas, abrí <Link href="/tarifas">Planes y tarifas</Link>.</p>
+            <p>Para cambiar precios y señas, abrí <Link href="/tarifas">Planes y membresías</Link>.</p>
             <Field label="Anticipación máxima (días)">
               <input
                 type="number"

@@ -49,7 +49,7 @@ const details = [
   {
     image: "detalle-resortes",
     title: "Los resortes",
-    text: "Cada color, una resistencia. La clase se adapta a vos.",
+    text: "Resortes con distintas resistencias para cada ejercicio.",
     alt: "Resortes de colores del reformer",
   },
 ];
@@ -76,14 +76,14 @@ export default function Pilates() {
               <span /> GOLD PILATES / MERCEDES
             </p>
             <h1>
-              TU CUERPO,
+              CLASES
               <br />
-              <span>EN EQUILIBRIO.</span>
+              <span>DE PILATES</span>
             </h1>
             <p className="gg-lead">
-              Fuerza, postura y respiración en cada movimiento.
+              Reformer, tower, mat y accesorios.
               <br />
-              Un momento para conectar con vos.
+              Consultá los horarios y cupos en recepción.
             </p>
             <div className="gg-actions">
               <a
@@ -120,7 +120,7 @@ export default function Pilates() {
               height="256"
             />
             <div className="image-caption">
-              <span>CUERPO · MENTE · ESPÍRITU</span>
+              <span>GOLD PILATES · MERCEDES</span>
               <ArrowUpRight />
             </div>
           </div>
@@ -128,10 +128,10 @@ export default function Pilates() {
 
         <WaveMarquee
           items={[
-            { text: "RESPIRÁ", icon: <Wind size={24} /> },
-            { text: "FORTALECÉ", icon: <BicepsFlexed size={24} /> },
-            { text: "ALINEÁ", icon: <PersonStanding size={24} /> },
-            { text: "CONECTÁ", icon: <HeartPulse size={24} /> },
+            { text: "RESPIRACIÓN", icon: <Wind size={24} /> },
+            { text: "FUERZA", icon: <BicepsFlexed size={24} /> },
+            { text: "POSTURA", icon: <PersonStanding size={24} /> },
+            { text: "CONTROL", icon: <HeartPulse size={24} /> },
           ]}
         />
 
@@ -148,14 +148,14 @@ export default function Pilates() {
           <div className="club-copy" data-reveal data-reveal-delay="1">
             <p className="gg-kicker">01 / EL MÉTODO</p>
             <h2>
-              Cuerpo, mente
+              El método
               <br />
-              <span>y espíritu.</span>
+              <span>Pilates</span>
             </h2>
             <p>
-              Pilates es la coordinación plena de los tres. Un entrenamiento de
-              bajo impacto que fortalece desde el centro, mejora la postura y
-              suma flexibilidad, con cada movimiento hecho a conciencia.
+              Pilates combina ejercicios de fuerza, movilidad y respiración.
+              Es un entrenamiento de bajo impacto que trabaja el control del
+              movimiento y la postura.
             </p>
             <div className="club-facts">
               <span>
@@ -175,17 +175,17 @@ export default function Pilates() {
         <section className="gg-section">
           <div className="gg-section-head" data-reveal>
             <div>
-              <p className="gg-kicker">02 / CADA DETALLE CUENTA</p>
+              <p className="gg-kicker">02 / EQUIPAMIENTO</p>
               <h2>
-                Precisión
+                El reformer
                 <br />
-                <span>en cada movimiento.</span>
+                <span>y sus accesorios</span>
               </h2>
             </div>
             <p>
-              Equipos pensados para acompañarte.
+              Conocé las partes del equipo
               <br />
-              Vos ponés las ganas.
+              que se usan en las clases.
             </p>
           </div>
           <div className="pilates-details">
@@ -215,15 +215,15 @@ export default function Pilates() {
             <div>
               <p className="gg-kicker">03 / EL ESTUDIO</p>
               <h2>
-                Un espacio para
+                Conocé
                 <br />
-                <span>bajar un cambio.</span>
+                <span>Gold Pilates</span>
               </h2>
             </div>
             <p>
-              Luz cálida, madera y calma.
+              Sala, equipos y recepción
               <br />
-              Entrás y el ritmo cambia.
+              en Calle 20 entre 15 y 17.
             </p>
           </div>
           <div className="pilates-gallery">
@@ -244,12 +244,12 @@ export default function Pilates() {
 
         <section className="gg-final">
           <p className="gg-kicker" data-reveal>
-            TU PRIMERA CLASE
+            HORARIOS E INSCRIPCIÓN
           </p>
           <h2 data-reveal data-reveal-delay="1">
-            Reservá tu lugar.
+            Consultá
             <br />
-            <span>Nosotros te guiamos.</span>
+            <span>por las clases</span>
           </h2>
           <a
             className="gg-button"
@@ -259,8 +259,7 @@ export default function Pilates() {
             data-reveal
             data-reveal-delay="2"
           >
-            <BrandIcon name="whatsapp" /> Escribinos por WhatsApp{" "}
-            
+            <BrandIcon name="whatsapp" /> Escribinos por WhatsApp
           </a>
           <p className="muted">Te contamos horarios y planes disponibles.</p>
         </section>

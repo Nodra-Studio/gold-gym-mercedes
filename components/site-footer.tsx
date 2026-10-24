@@ -13,9 +13,9 @@ export function SiteFooter() {
           </span>
         </Link>
         <p>
-          Tu lugar para entrenar.
+          Musculación, Pilates y pádel.
           <br />
-          Tu club para encontrarte.
+          Mercedes, Buenos Aires.
         </p>
         <nav className="gg-footer-social" aria-label="Redes y contacto">
           <a

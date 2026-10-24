@@ -100,9 +100,8 @@ export default function DataClient() {
       </Link>
       <header className="work-header">
         <div>
-          <p className="eyebrow">GOLD GYM / DATOS</p>
-          <h1>Datos que podés llevarte.</h1>
-          <p>Importación validada y copias completas del club.</p>
+          <h1>Datos y respaldos</h1>
+          <p>Importá socios, descargá respaldos o restaurá una copia.</p>
         </div>
       </header>
       <ErrorNotice error={error} />

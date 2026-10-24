@@ -100,9 +100,8 @@ export default function Tariffs({ initialCreate = false }: { initialCreate?: boo
     <main className="workspace tariffs-workspace">
       <header className="work-header">
         <div>
-          <p className="eyebrow">ADMINISTRACIÓN / PLANES Y TARIFAS</p>
           <h1>Planes y membresías</h1>
-          <p className="muted">Creá planes y mantené sus precios desde el sistema. Los precios y la vigencia se aplican a los próximos cobros y renovaciones. Los pagos registrados y las fechas de vencimiento no cambian.</p>
+          <p className="muted">Creá planes y actualizá sus precios. Los precios y la vigencia se aplican a los próximos cobros y renovaciones. Los pagos registrados y las fechas de vencimiento no cambian.</p>
         </div>
       </header>
       {error && <p role="alert" className="error-box">{error}{" "}<button className="button small" disabled={busy || loading} onClick={() => void load()}>Actualizar datos</button></p>}

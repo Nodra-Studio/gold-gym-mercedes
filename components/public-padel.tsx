@@ -363,9 +363,7 @@ export default function PublicPadel() {
           SOLICITUD RECIBIDA · #{done.slice(0, 8).toUpperCase()}
         </p>
         <h1 ref={heading} tabIndex={-1}>
-          Tu próximo partido,
-          <br />
-          un paso más cerca.
+          Solicitud enviada
         </h1>
         <p className={s.lead}>
           Recepción debe confirmar tu turno. Todavía no está reservado ni se
@@ -439,12 +437,12 @@ export default function PublicPadel() {
         <div>
           <p className={s.eyebrow}>GOLD GYM / PÁDEL</p>
           <h1 ref={heading} tabIndex={-1}>
-            {review ? "Revisá tu turno." : "Nos vemos en la cancha."}
+            {review ? "Revisar solicitud" : "Reservar cancha de pádel"}
           </h1>
           <p className={s.lead}>
             {review
-              ? "Tu partido, tus datos y la seña. Todo en un solo lugar."
-              : "Elegí cuándo jugar. Nosotros ponemos la cancha."}
+              ? "Revisá el horario, tus datos y la forma de pago antes de enviar."
+              : "Consultá los horarios disponibles y enviá una solicitud a recepción."}
           </p>
         </div>
         <a
@@ -626,8 +624,8 @@ export default function PublicPadel() {
             </p>
           </div>
           <aside className={s.summary} aria-label="Resumen del turno">
-            <p className={s.eyebrow}>TU PRÓXIMO PARTIDO</p>
-            <h2>{slot ? `Cancha ${slot.court}` : "Armá tu partido."}</h2>
+            <p className={s.eyebrow}>RESUMEN DEL TURNO</p>
+            <h2>{slot ? `Cancha ${slot.court}` : "Seleccioná un turno"}</h2>
             <p>Club Unión · Gold Gym</p>
             <div className={s.summaryDetails}>
               <span>

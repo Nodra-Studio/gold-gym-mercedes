@@ -8,12 +8,12 @@ export const metadata: Metadata = {
     template: "%s | Gold Gym Mercedes",
   },
   description:
-    "Musculación, Pilates y pádel en Mercedes, Buenos Aires. Conocé nuestras sedes y encontrá tu lugar en Gold Gym.",
+    "Musculación, Pilates y pádel en Mercedes, Buenos Aires. Sedes, horarios y consultas de Gold Gym.",
   robots: { index: false, follow: false },
   icons: { icon: "/favicon.jpg", shortcut: "/favicon.jpg" },
   openGraph: {
     title: "Gold Gym · Mercedes",
-    description: "Tu lugar para entrenar. Tu club para encontrarte.",
+    description: "Musculación, Pilates y pádel en Mercedes, Buenos Aires.",
     locale: "es_AR",
     type: "website",
   },

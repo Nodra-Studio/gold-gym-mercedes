@@ -13,16 +13,16 @@ export default function Club() {
       <main id="contenido">
         <section className="gg-hero">
           <div>
-            <p className="gg-kicker">SUMATE A GOLD</p>
+            <p className="gg-kicker">INSCRIPCIÓN / GOLD GYM</p>
             <h1>
-              TU DNI.
+              ASOCIATE
               <br />
-              <span>TU ENTRADA.</span>
+              <span>A GOLD</span>
             </h1>
             <p className="gg-lead">
-              Sin cuentas ni contraseñas.
+              Inscribite en recepción con tu DNI.
               <br />
-              Pasá por recepción. El equipo se ocupa de tu inscripción.
+              Después, usá tu documento para ingresar al gimnasio.
             </p>
             <a
               href={brand.contact}
@@ -36,20 +36,20 @@ export default function Club() {
           <div className="gg-document-art">
             <span>GOLD GYM / SOCIOS</span>
             <strong>
-              VOS TRAÉS
+              INGRESO
               <br />
-              LAS GANAS.
+              CON DNI
             </strong>
-            <p>Nosotros te ayudamos a dar el primer paso.</p>
+            <p>Consultá tu inscripción, plan y vencimiento en recepción.</p>
           </div>
         </section>
         <section className="gg-club-band">
           <div data-reveal>
-            <p className="gg-kicker">TODO EMPIEZA EN RECEPCIÓN</p>
+            <p className="gg-kicker">INSCRIPCIÓN E INGRESO</p>
             <h2>
-              TRES PASOS.
+              ALTA, INGRESO
               <br />
-              <span>Y A MOVERTE.</span>
+              <span>Y RENOVACIÓN</span>
             </h2>
           </div>
           <div className="gg-steps">
@@ -66,7 +66,7 @@ export default function Club() {
               ],
               [
                 "03",
-                "Te avisamos con tiempo",
+                "Renovás tu plan",
                 "Desde 7 días antes del vencimiento, la terminal te avisa que tenés que renovar. Si hay un problema, recepción te ayuda.",
               ],
             ].map(([n, t, p]) => (
@@ -82,11 +82,11 @@ export default function Club() {
         </section>
         <section className="gg-faq gg-section">
           <div data-reveal>
-            <p className="gg-kicker">TU ACTIVIDAD, ORGANIZADA</p>
+            <p className="gg-kicker">INFORMACIÓN ÚTIL</p>
             <h2>
-              LO COORDINAMOS
+              CONSULTAS
               <br />
-              <span>CON VOS.</span>
+              <span>FRECUENTES</span>
             </h2>
           </div>
           <div>
@@ -101,7 +101,7 @@ export default function Club() {
             </details>
             <details data-reveal data-reveal-delay="1">
               <summary>
-                Qué pasa si mi cuota está vencida? <ArrowUpRight size={20} />
+                ¿Qué pasa si mi cuota está vencida? <ArrowUpRight size={20} />
               </summary>
               <p>
                 La terminal te avisa y te indica que pases por recepción para

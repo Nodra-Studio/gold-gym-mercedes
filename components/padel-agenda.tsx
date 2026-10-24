@@ -64,15 +64,15 @@ export default function PadelAgenda() {
     try {
       await mutate(p);
       setSlot(null);
-      setNotice("Reserva guardada. La agenda ya está actualizada.");
+      setNotice("Reserva guardada.");
     } catch {}
   }
   return (
     <main className="workspace">
       <WorkspaceHeader
         active="reservas"
-        title="El próximo partido, organizado."
-        subtitle="Agenda de las cuatro canchas · Unión Gold Club"
+        title="Agenda de pádel"
+        subtitle="Reservas y cobros de las cuatro canchas del Club Unión."
       />
       <ErrorNotice error={slot || detail ? "" : error} />
       {notice && (

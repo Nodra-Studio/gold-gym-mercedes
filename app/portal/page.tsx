@@ -2,7 +2,7 @@ import { redirect } from 'next/navigation';
 import { principal, ClubError } from '@/lib/server';
 import { portalForRole } from '@/lib/auth/navigation';
 export const dynamic = 'force-dynamic';
-export const metadata = { title: 'Tu espacio', robots: { index: false, follow: false } };
+export const metadata = { title: 'Panel del club', robots: { index: false, follow: false } };
 export default async function Portal() {
   let destination: string;
   try {
