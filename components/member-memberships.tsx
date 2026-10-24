@@ -12,17 +12,19 @@ export default function MemberMemberships({
   busy: boolean;
   submit: (p: Record<string, unknown>) => void;
 }) {
+  const canCombined = data.role === "owner" || data.activity_scope === "all" && data.branch_scope === "all";
   const existing = (data.memberships ?? []).filter(
       (m) => m.member_id === member.id,
     ),
     available = data.plans.filter(
       (p) =>
-        p.id !== member.plan_id && !existing.some((m) => m.plan_id === p.id),
+        (canCombined || p.access_scope !== "all") && p.id !== member.plan_id && !existing.some((m) => m.plan_id === p.id),
     );
   const [selected, setSelected] = useState<(typeof existing)[number] | null>(null),
     [planId, setPlan] = useState(available[0]?.id ?? ""),
     [expires, setExpires] = useState(data.today),
-    [status, setStatus] = useState("active");
+    [status, setStatus] = useState("active"),
+    [reason,setReason]=useState("");
   // Background refreshes must not replace the version this form is editing.
   const current = selected;
   return (
@@ -38,6 +40,7 @@ export default function MemberMemberships({
           ...(current
             ? {
                 id: current.id,
+                reason,
                 expectedExpires: current.expires,
                 expectedStatus: current.status,
               }
@@ -55,6 +58,7 @@ export default function MemberMemberships({
         elegido.
       </p>
       <div className="form-grid">
+        {current&&<label className="field full">Motivo del cambio<textarea required minLength={3} maxLength={300} value={reason} onChange={e=>setReason(e.target.value)}/></label>}
         <label className="field full">
           Membresía
           <select
@@ -64,14 +68,15 @@ export default function MemberMemberships({
               const v = e.target.value,
                 m = existing.find((m) => m.id === v);
               setSelected(m ? { ...m } : null);
+              setReason("");
               setExpires(m?.expires ?? data.today);
               setStatus(m?.status ?? "active");
             }}
           >
             <option value="">Agregar otro plan</option>
             {existing.map((m) => (
-              <option key={m.id} value={m.id}>
-                {m.plan_name} · {dateLabel(m.expires)}
+              <option key={m.id} value={m.id} disabled={!canCombined&&m.access_scope==="all"}>
+                {m.plan_name} · {dateLabel(m.expires)}{!canCombined&&m.access_scope==="all"?" · Acceso general":""}
               </option>
             ))}
           </select>

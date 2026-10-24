@@ -4,5 +4,5 @@ import Tariffs from "@/components/tariffs-client";
 export const dynamic = "force-dynamic";
 export default async function Page({ searchParams }: { searchParams: Promise<{ crear?: string | string[] }> }) {
   const user = await requirePageRole(["owner", "reception"], "/tarifas"), params = await searchParams;
-  return <AdminShell role={user.role}><Tariffs initialCreate={params.crear === "1"} /></AdminShell>;
+  return <AdminShell role={user.role} scope={{activity_scope:user.activity_scope,branch_scope:user.branch_scope}}><Tariffs initialCreate={params.crear === "1"} /></AdminShell>;
 }

@@ -188,3 +188,13 @@
 .cash-count-results p { padding: 16px; background: #e1e8d5; border-radius: 6px; margin: 0 0 12px; }
 .cash-count-results span { display: block; margin-top: 8px; font-weight: 600; }
 @media(max-width:800px) { .cash-count-grid,.cash-count-results { grid-template-columns: 1fr; } .cash-reconciliation { padding: 18px; } }
+
+.cash-scope-notice {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+.cash-scope-notice > svg {
+  flex: 0 0 auto;
+  margin-top: 3px;
+}

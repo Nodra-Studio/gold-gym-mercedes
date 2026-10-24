@@ -4,6 +4,16 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { apiFetch } from "@/lib/api-fetch";
 import { branches, branchName, expenseCategories } from "@/lib/branches";
 import CashReconciliation from "@/components/cash-reconciliation";
+import PaymentCorrection, { type CorrectablePayment } from "@/components/payment-corrections";
+import { LockKeyhole } from "lucide-react";
+import {
+  allowsActivity,
+  allowsBranch,
+  allowsOperation,
+  scopeLabel,
+  type Activity,
+  type StaffScope,
+} from "@/lib/staff-scope";
 import { localDay, money, requestId } from "@/lib/club";
 import { WorkspaceHeader, Field } from "@/components/club-client";
 import "./cash.css";
@@ -19,6 +29,9 @@ type Entry = {
   id: string;
   venue: string | null;
   kind: string;
+  activity: string;
+  source?: "membership" | "booking";
+  voided?: number | boolean;
   category: string;
   concept: string;
   amount: number;
@@ -62,6 +75,8 @@ type Data = {
   productChanges: ProductChange[];
   entryChanges: EntryChange[];
   role: string;
+  activity_scope: StaffScope["activity_scope"];
+  branch_scope: StaffScope["branch_scope"];
   products: Product[];
   stock: { product_id: string; venue: string; quantity: number }[];
   entries: Entry[];
@@ -103,11 +118,18 @@ const movementNames: Record<string, string> = {
   adjustment: "Ajuste",
 };
 const methods = ["Efectivo", "Transferencia", "Tarjeta"];
+const activities: { id: Activity; name: string }[] = [
+  { id: "gym", name: "Gimnasio" },
+  { id: "padel", name: "Pádel" },
+  { id: "pilates", name: "Pilates" },
+];
+const activityName = (value: string) => activities.find((a) => a.id === value)?.name ?? "Sin actividad registrada";
 export function CashClient() {
   const [from, setFrom] = useState(() => localDay().slice(0, 7) + "-01"),
     [to, setTo] = useState(localDay),
     [venue, setVenue] = useState(""),
     [category, setCategory] = useState(""),
+    [activity, setActivity] = useState(""),
     [offset, setOffset] = useState(0);
   const [data, setData] = useState<Data | null>(null),
     [error, setError] = useState(""),
@@ -118,7 +140,11 @@ export function CashClient() {
   const [action, setAction] = useState<Action | null>(null),
     [target, setTarget] = useState<Entry | null>(null),
     [key, setKey] = useState(""),
-    [editing, setEditing] = useState<Product | null>(null);
+    [editing, setEditing] = useState<Product | null>(null),
+    [correction, setCorrection] = useState<{
+      payment: CorrectablePayment;
+      mode: "edit" | "void";
+    } | null>(null);
   const formPanel = useRef<HTMLElement | null>(null);
   useEffect(() => {
     if (action) {
@@ -142,6 +168,7 @@ export function CashClient() {
               to,
               venue,
               category,
+              activity,
               offset: String(offset),
             }),
           { cache: "no-store", signal: controller.signal },
@@ -163,7 +190,7 @@ export function CashClient() {
         pending.current = null;
       }
     }
-  }, [from, to, venue, category, offset]);
+  }, [from, to, venue, category, activity, offset]);
   useEffect(() => {
     setLoading(true);
     setData(null);
@@ -196,6 +223,22 @@ export function CashClient() {
     setKey(requestId());
     setNotice("");
     setError("");
+  }
+  function reviewPayment(entry: Entry, mode: "edit" | "void") {
+    const source = entry.source ?? (entry.kind === "membership" ? "membership" : entry.kind === "padel" ? "booking" : null);
+    if (!source || data?.role !== "owner") return;
+    setCorrection({
+      payment: {
+        id: entry.id,
+        source,
+        amount: entry.amount,
+        method: entry.method,
+        venue: entry.venue,
+        revision: entry.revision,
+        voided: Number(entry.voided ?? 0),
+      },
+      mode,
+    });
   }
   async function submit(payload: Record<string, unknown>) {
     if (saving.current) return;
@@ -238,7 +281,7 @@ export function CashClient() {
     try {
       const r = await apiFetch(
         "/api/cash?" +
-          new URLSearchParams({ from, to, venue, category, format: "csv" }),
+          new URLSearchParams({ from, to, venue, category, activity, format: "csv" }),
         { cache: "no-store", responseType: "csv" },
       );
       if (!r.ok) {
@@ -264,13 +307,24 @@ export function CashClient() {
       setExporting(false);
     }
   }
+  const visibleBranches = branches.filter((b) => data && allowsBranch(data, b.id));
+  const visibleActivities = activities.filter((a) => data && allowsActivity(data, a.id));
   return (
     <main className="workspace cash-workspace">
       <WorkspaceHeader
         active="caja"
         title="Caja y stock"
-        subtitle="Ingresos, cobros, gastos y productos de las cuatro sedes."
+        subtitle="Ingresos, cobros, gastos y existencias de las sedes habilitadas."
       />
+      {data?.role === "reception" && (
+        <p className="notice cash-scope-notice">
+          <LockKeyhole size={16} aria-hidden="true" />
+          <span>
+            Tu acceso: {scopeLabel(data)}. Las otras sedes y actividades
+            requieren autorización de un dueño.
+          </span>
+        </p>
+      )}
       <div className="cash-actions">
         <button
           className="button gold"
@@ -307,7 +361,8 @@ export function CashClient() {
         )}
         <button
           className="button outline"
-          disabled={!data}
+          disabled={!data || visibleBranches.length < 2}
+          title={data && visibleBranches.length < 2 ? "Tu acceso necesita al menos dos sedes para trasladar stock" : undefined}
           onClick={() => open("transfer")}
         >
           Trasladar stock
@@ -327,6 +382,18 @@ export function CashClient() {
         <p className="notice" role="status">
           {notice}
         </p>
+      )}
+      {correction && (
+        <PaymentCorrection
+          key={`${correction.payment.source}:${correction.payment.id}`}
+          payment={correction.payment}
+          mode={correction.mode}
+          onClose={() => setCorrection(null)}
+          onSaved={async () => {
+            setNotice("Cobro actualizado. El historial conserva el cambio y su motivo.");
+            await load();
+          }}
+        />
       )}
       {action && data && (
         <section
@@ -365,6 +432,7 @@ export function CashClient() {
             action={action}
             data={data}
             defaultVenue={venue === "unknown" ? "" : venue}
+            defaultActivity={activity}
             target={target}
             editing={editing}
             busy={busy}
@@ -396,6 +464,17 @@ export function CashClient() {
               }}
             />
           </Field>
+          <Field label="Actividad">
+            <select disabled={busy || !data} value={activity} onChange={(e) => {
+              setActivity(e.target.value);
+              setVenue("");
+              setOffset(0);
+            }}>
+              <option value="">Todas las actividades habilitadas</option>
+              {visibleActivities.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
+              {data?.role === "owner" && <option value="unclassified">Sin actividad registrada</option>}
+            </select>
+          </Field>
           <Field label="Sede">
             <select
               disabled={busy}
@@ -405,13 +484,13 @@ export function CashClient() {
                 setOffset(0);
               }}
             >
-              <option value="">Todas las sedes</option>
-              {branches.map((b) => (
+              <option value="">Todas las sedes habilitadas</option>
+              {visibleBranches.filter((b) => !activity || activity === "unclassified" || (data && allowsOperation(data, activity as Activity, b.id))).map((b) => (
                 <option key={b.id} value={b.id}>
                   {b.name}
                 </option>
               ))}
-              <option value="unknown">Sin sede registrada</option>
+              {data?.role === "owner" && <option value="unknown">Sin sede registrada</option>}
             </select>
           </Field>
           <Field label="Categoría">
@@ -455,9 +534,9 @@ export function CashClient() {
               el historial de cambios.
             </p>
             <CashReconciliation
-              key={`${from}:${to}:${venue}:${category}`}
+              key={`${from}:${to}:${venue}:${category}:${activity}`}
               enabled={
-                from === to && branches.some((b) => b.id === venue) && !category
+                from === to && branches.some((b) => b.id === venue) && !category && !activity
               }
               rows={data.byMethod}
               day={from}
@@ -508,6 +587,7 @@ export function CashClient() {
                       <td>
                         {e.day}
                         <small>{branchName(e.venue)}</small>
+                        <small>{activityName(e.activity)}</small>
                       </td>
                       <td>
                         {e.concept}
@@ -526,8 +606,27 @@ export function CashClient() {
                         {money(e.amount)}
                       </td>
                       <td>
-                        {e.reversed ? (
-                          "Anulado"
+                        {e.reversed || e.voided ? (
+                          <>
+                            Anulado
+                            {["membership", "padel"].includes(e.kind) && (
+                              <OwnerAction role={data.role} compact className="text-link"
+                                onClick={() => reviewPayment(e, "edit")}>
+                                Ver historial
+                              </OwnerAction>
+                            )}
+                          </>
+                        ) : ["membership", "padel"].includes(e.kind) ? (
+                          <>
+                            <OwnerAction role={data.role} compact className="text-link"
+                              onClick={() => reviewPayment(e, "edit")}>
+                              Corregir / historial
+                            </OwnerAction>
+                            <OwnerAction role={data.role} compact className="text-link"
+                              onClick={() => reviewPayment(e, "void")}>
+                              Anular
+                            </OwnerAction>
+                          </>
                         ) : e.kind === "reversal" ? (
                           "Anulación"
                         ) : ["sale", "expense", "income"].includes(e.kind) ? (
@@ -628,7 +727,7 @@ export function CashClient() {
                 <tr>
                   <th>Producto</th>
                   <th>Precio</th>
-                  {branches.map((b) => (
+                  {visibleBranches.map((b) => (
                     <th key={b.id}>{b.name}</th>
                   ))}
                 </tr>
@@ -652,7 +751,7 @@ export function CashClient() {
                         Editar
                       </OwnerAction>
                     </td>
-                    {branches.map((b) => (
+                    {visibleBranches.map((b) => (
                       <td key={b.id}>
                         {data.stock.find(
                           (s) => s.product_id === p.id && s.venue === b.id,
@@ -806,7 +905,7 @@ function describeProduct(raw: string) {
 function describeEntry(raw: string) {
   try {
     const entry = JSON.parse(raw) as Entry;
-    return `${entry.day} · ${branchName(entry.venue)} · ${entry.category} · ${entry.concept} · ${money(entry.amount)} · ${entry.method} · versión ${entry.revision}`;
+    return `${entry.day} · ${branchName(entry.venue)} · ${activityName(entry.activity)} · ${entry.category} · ${entry.concept} · ${money(entry.amount)} · ${entry.method} · versión ${entry.revision}`;
   } catch {
     return "Detalle no disponible";
   }
@@ -815,6 +914,7 @@ function CashForm({
   action,
   data,
   defaultVenue,
+  defaultActivity,
   target,
   editing,
   busy,
@@ -823,6 +923,7 @@ function CashForm({
   action: Action;
   data: Data;
   defaultVenue: string;
+  defaultActivity: string;
   target: Entry | null;
   editing: Product | null;
   busy: boolean;
@@ -832,9 +933,15 @@ function CashForm({
     [selectedProduct, setSelectedProduct] = useState<Product | null>(null),
     [destination, setDestination] = useState(""),
     [units, setUnits] = useState(1),
+    [selectedActivity, setSelectedActivity] = useState(() => {
+      const proposed = action === "editEntry" ? target?.activity : defaultActivity;
+      return activities.some((a) => a.id === proposed && allowsActivity(data, a.id)) ? proposed! : data.activity_scope !== "all" ? data.activity_scope : "";
+    }),
     [branch, setBranch] = useState(
       action === "editEntry" ? target?.venue ?? defaultVenue : defaultVenue,
     );
+  const capturesActivity = ["sale", "expense", "income", "editEntry"].includes(action);
+  const permittedBranches = branches.filter((b) => allowsBranch(data, b.id) && (!capturesActivity || (selectedActivity && allowsOperation(data, selectedActivity as Activity, b.id))));
   const product = selectedProduct,
     stock =
       data.stock.find((s) => s.product_id === productId && s.venue === branch)
@@ -863,6 +970,19 @@ function CashForm({
     >
       <fieldset disabled={busy}>
         <div className="cash-filters">
+          {capturesActivity && <Field label="Actividad del movimiento">
+            <select name="activity" value={selectedActivity} required onChange={(e) => {
+              const next = e.target.value as Activity;
+              setSelectedActivity(next);
+              if (!allowsOperation(data, next, branch)) {
+                const choices = branches.filter((b) => allowsOperation(data, next, b.id));
+                setBranch(choices.length === 1 ? choices[0].id : "");
+              }
+            }}>
+              <option value="">Elegí una actividad</option>
+              {activities.filter((a) => allowsActivity(data, a.id)).map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
+            </select>
+          </Field>}
           {["sale", "receive", "expense", "income", "editEntry", "transfer", "adjust"].includes(
             action,
           ) && (
@@ -880,7 +1000,7 @@ function CashForm({
                 required
               >
                 <option value="">Elegí una sede</option>
-                {branches.map((b) => (
+                {permittedBranches.map((b) => (
                   <option key={b.id} value={b.id}>
                     {b.name}
                   </option>
@@ -947,7 +1067,7 @@ function CashForm({
               >
                 <option value="">Elegí otra sede</option>
                 {branches
-                  .filter((b) => b.id !== branch)
+                  .filter((b) => b.id !== branch && allowsBranch(data, b.id))
                   .map((b) => (
                     <option key={b.id} value={b.id}>
                       {b.name}

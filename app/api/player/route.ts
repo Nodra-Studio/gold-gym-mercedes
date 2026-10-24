@@ -1,3 +1,4 @@
+import { authenticatedDatabase } from "@/lib/scoped-database";
 import { z } from "zod";
 import {
   principal,
@@ -71,7 +72,7 @@ export async function POST(req: Request) {
     const parsed = schema.safeParse(await body(req));
     if (!parsed.success) throw new ClubError("Revisá la reserva.");
     const input = parsed.data,
-      db = database(),
+      db = authenticatedDatabase(database(),p),
       settings = await padelSettings(p.owner),
       now = new Date().toISOString();
     if (input.action === "book") {

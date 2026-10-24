@@ -1,5 +1,6 @@
 import { env, supportsSitesIdentity, independentUserId, ownerAccount } from "@club/runtime";
 import { getChatGPTUser } from "@/app/chatgpt-auth";
+import { unrestrictedScope, validStaffScope, type StaffScope } from "@/lib/staff-scope";
 export class ClubError extends Error {
   constructor(
     message: string,
@@ -9,7 +10,7 @@ export class ClubError extends Error {
   }
 }
 export type ClubRole = "owner" | "reception" | "gate" | "player";
-export type Principal = { userId: string; owner: string; role: ClubRole };
+export type Principal = { userId: string; owner: string; role: ClubRole } & StaffScope;
 export async function identity() {
   if (!supportsSitesIdentity) {
     let id: string | null;
@@ -39,11 +40,11 @@ export function database(): D1Database {
 export async function principal(): Promise<Principal> {
   const userId = await identity();
   const membership = await database()
-    .prepare("SELECT owner,role,status FROM staff WHERE user_id=?")
+    .prepare("SELECT owner,role,status,activity_scope,branch_scope FROM staff WHERE user_id=?")
     .bind(userId)
-    .first<{ owner: string; role: string; status: string }>();
+    .first<{ owner: string; role: string; status: string; activity_scope: string; branch_scope: string }>();
   if (!membership) {
-    if (supportsSitesIdentity || ownerAccount(userId)) return { userId, owner: userId, role: "owner" };
+    if (supportsSitesIdentity || ownerAccount(userId)) return { userId, owner: userId, role: "owner", ...unrestrictedScope };
     throw new ClubError("Tu cuenta todavía no tiene acceso al club. Contactá a la administración.", 403);
   }
   if (
@@ -54,7 +55,11 @@ export async function principal(): Promise<Principal> {
       "Tu acceso al club fue desactivado. Contactá a la administración.",
       403,
     );
-  return { userId, owner: membership.owner, role: membership.role as ClubRole };
+  if (membership.role === "owner") return { userId, owner: membership.owner, role: "owner", ...unrestrictedScope };
+  if (!validStaffScope(membership))
+    throw new ClubError("Tu alcance de trabajo requiere revisión de la administración.", 403);
+  return { userId, owner: membership.owner, role: membership.role as ClubRole,
+    activity_scope: membership.activity_scope, branch_scope: membership.branch_scope };
 }
 export function permit(p: Principal, roles: ClubRole[]) {
   if (!roles.includes(p.role))

@@ -7,10 +7,12 @@ import {
   ClubError,
   apiError,
 } from "@/lib/server";
+import { allowsBranch } from "@/lib/staff-scope";
 import { csvDocument } from "@/lib/csv";
 import { branchName, branchIds, expenseCategories } from "@/lib/branches";
 import { isValidDay, localDay } from "@/lib/club";
 export const dynamic = "force-dynamic";
+const activitySchema = z.enum(["gym", "padel", "pilates", "unclassified"]);
 const venue = z.enum(branchIds),
   amount = z.number().int().min(1).max(10000000),
   requestKey = z.string().uuid();
@@ -77,6 +79,7 @@ const schema = z.discriminatedUnion("action", [
   z
     .object({
       action: z.literal("sale"),
+      activity: activitySchema.optional(),
       venue,
       productId: z.string().uuid(),
       quantity,
@@ -88,6 +91,7 @@ const schema = z.discriminatedUnion("action", [
   z
     .object({
       action: z.literal("income"),
+      activity: activitySchema.optional(),
       venue,
       concept: z.string().trim().min(3).max(300),
       amount,
@@ -99,6 +103,7 @@ const schema = z.discriminatedUnion("action", [
   z
     .object({
       action: z.literal("expense"),
+      activity: activitySchema.optional(),
       venue,
       category: z.enum(expenseCategories),
       concept: z.string().trim().min(3).max(300),
@@ -111,6 +116,7 @@ const schema = z.discriminatedUnion("action", [
   z
     .object({
       action: z.literal("editEntry"),
+      activity: activitySchema.optional(),
       id: z.string().uuid(),
       venue,
       category: z.enum([...expenseCategories, "Otros ingresos"]),
@@ -189,6 +195,8 @@ export async function GET(req: Request) {
       (Date.parse(to) - Date.parse(from)) / 86400000 > 366
     )
       throw new ClubError("Elegí un período de hasta 366 días.");
+    const activity = q.get("activity") || "";
+    if (activity && !activitySchema.safeParse(activity).success) throw new ClubError("Actividad inválida.");
     const branch = q.get("venue") || "",
       category = q.get("category") || "",
       offset = Number(q.get("offset") || 0);
@@ -205,23 +213,32 @@ export async function GET(req: Request) {
       throw new ClubError("Categoría inválida.");
     if (!Number.isSafeInteger(offset) || offset < 0 || offset > 1000000)
       throw new ClubError("Página inválida.");
+    const visible = p.role === "owner" ? "true" : `(
+      (activity='gym' AND venue IN ('calle30','calle23','velez') AND (?='all' OR ?='gym') AND (?='all' OR venue=?)) OR
+      (activity='padel' AND venue='velez' AND (?='all' OR ?='padel')) OR
+      (activity='pilates' AND venue='pilates' AND (?='all' OR ?='pilates')) OR
+      (activity='unclassified' AND ?='all' AND ?='all')
+    )`;
+    const visibilityArgs = p.role === "owner" ? [] : [p.activity_scope,p.activity_scope,p.branch_scope,p.branch_scope,p.activity_scope,p.activity_scope,p.activity_scope,p.activity_scope,p.activity_scope,p.branch_scope];
     const union = `WITH ledger AS (
-   SELECT c.id,c.venue,c.kind,c.category,c.concept,c.amount,c.method,c.day,c.created_at,c.actor,c.reverses,c.revision,
+   SELECT c.id,c.venue,c.activity,NULL::text AS source,0 AS voided,c.kind,c.category,c.concept,c.amount,c.method,c.day,c.created_at,c.actor,c.reverses,c.revision,
     EXISTS(SELECT 1 FROM cash_entries r WHERE r.owner=c.owner AND r.reverses=c.id) AS reversed
     FROM cash_entries c WHERE c.owner=?
-   UNION ALL SELECT p.id,p.venue,'membership','Cuotas','Cuota · '||m.name,p.amount,p.method,
-    to_char(p.created_at::timestamptz AT TIME ZONE 'America/Argentina/Buenos_Aires','YYYY-MM-DD'),p.created_at,NULL,NULL,1,false
+   UNION ALL SELECT p.id,p.venue,p.activity,'membership',p.voided,'membership','Cuotas','Cuota · '||m.name,p.amount,p.method,
+    to_char(p.created_at::timestamptz AT TIME ZONE 'America/Argentina/Buenos_Aires','YYYY-MM-DD'),p.created_at,NULL,NULL,p.revision,p.voided=1
     FROM payments p JOIN members m ON m.id=p.member_id AND m.owner=p.owner WHERE p.owner=?
-   UNION ALL SELECT b.id,b.venue,'padel','Pádel','Pádel · '||r.name,b.amount,b.method,
-    to_char(b.created_at::timestamptz AT TIME ZONE 'America/Argentina/Buenos_Aires','YYYY-MM-DD'),b.created_at,NULL,NULL,1,false
+   UNION ALL SELECT b.id,b.venue,'padel','booking',b.voided,'padel','Pádel','Pádel · '||r.name,b.amount,b.method,
+    to_char(b.created_at::timestamptz AT TIME ZONE 'America/Argentina/Buenos_Aires','YYYY-MM-DD'),b.created_at,NULL,NULL,b.revision,b.voided=1
     FROM booking_payments b JOIN bookings r ON r.id=b.booking_id AND r.owner=b.owner WHERE b.owner=?
-  ), filtered AS (SELECT * FROM ledger WHERE day>=? AND day<=? ${branch === "unknown" ? "AND venue IS NULL" : branch ? "AND venue=?" : ""} ${category ? "AND category=?" : ""})`;
+  ), filtered AS (SELECT * FROM ledger WHERE day>=? AND day<=? AND ${visible} ${activity ? "AND activity=?" : ""} ${branch === "unknown" ? "AND venue IS NULL" : branch ? "AND venue=?" : ""} ${category ? "AND category=?" : ""})`;
     const args = [
       p.owner,
       p.owner,
       p.owner,
       from,
       to,
+      ...visibilityArgs,
+      ...(activity ? [activity] : []),
       ...(branch && branch !== "unknown" ? [branch] : []),
       ...(category ? [category] : []),
     ];
@@ -244,7 +261,8 @@ export async function GET(req: Request) {
           "Sede",
           "Categoría",
           "Concepto",
-          "Importe ARS",
+          "Importe registrado ARS",
+          "Importe vigente ARS",
           "Medio",
           "Operador",
           "Estado",
@@ -256,6 +274,7 @@ export async function GET(req: Request) {
           e.category,
           e.concept,
           e.amount,
+          e.voided ? 0 : e.amount,
           e.method,
           e.actor ?? "",
           e.reversed
@@ -284,7 +303,7 @@ export async function GET(req: Request) {
       db
         .prepare(
           union +
-            ` SELECT CASE WHEN GROUPING(venue)=0 THEN 'venue' WHEN GROUPING(method)=0 THEN 'method' ELSE 'total' END AS scope,venue,method,count(*)::integer AS count,coalesce(sum(amount) FILTER(WHERE amount>0),0)::float8 AS incoming,coalesce(-sum(amount) FILTER(WHERE amount<0),0)::float8 AS outgoing,coalesce(sum(amount),0)::float8 AS balance FROM filtered GROUP BY GROUPING SETS ((),(venue),(method))`,
+            ` SELECT CASE WHEN GROUPING(venue)=0 THEN 'venue' WHEN GROUPING(method)=0 THEN 'method' ELSE 'total' END AS scope,venue,method,count(*)::integer AS count,coalesce(sum(amount) FILTER(WHERE amount>0 AND voided=0),0)::float8 AS incoming,coalesce(-sum(amount) FILTER(WHERE amount<0 AND voided=0),0)::float8 AS outgoing,coalesce(sum(CASE WHEN voided=0 THEN amount ELSE 0 END),0)::float8 AS balance FROM filtered GROUP BY GROUPING SETS ((),(venue),(method))`,
         )
         .bind(...args),
       db
@@ -316,6 +335,8 @@ export async function GET(req: Request) {
     return Response.json(
       {
         role: p.role,
+        activity_scope: p.activity_scope,
+        branch_scope: p.branch_scope,
         from,
         to,
         entries: data[0].results,
@@ -323,10 +344,10 @@ export async function GET(req: Request) {
         byVenue: data[1].results.filter((r) => r.scope === "venue"),
         byMethod: data[1].results.filter((r) => r.scope === "method"),
         products: data[2].results,
-        stock: data[3].results,
-        stockMoves: data[4].results,
-        productChanges: data[5].results,
-        entryChanges: data[6].results,
+        stock: data[3].results.filter((r) => allowsBranch(p, String(r.venue))),
+        stockMoves: data[4].results.filter((r) => allowsBranch(p, String(r.venue))),
+        productChanges: p.role === "owner" ? data[5].results : [],
+        entryChanges: p.role === "owner" ? data[6].results : [],
       },
       { headers },
     );

@@ -1,0 +1,82 @@
+.dondejuego-integration {
+  display: grid;
+  gap: 18px;
+  margin-top: 24px;
+  overflow-wrap: anywhere;
+}
+.dondejuego-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 14px;
+}
+.dondejuego-heading h2 {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0;
+}
+.dondejuego-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  border: 1px solid #e2d4b4;
+  border-radius: 999px;
+  padding: 7px 10px;
+  background: #fcf5e4;
+  color: #70541b;
+  font-size: 12px;
+  line-height: 1.5;
+  font-weight: 600;
+}
+.dondejuego-integration p {
+  margin: 0;
+  line-height: 1.65;
+}
+.dondejuego-current {
+  display: grid;
+  gap: 8px;
+  padding: 16px;
+  border: 1px solid #dce0d5;
+  border-radius: 10px;
+  background: #f4f4ef;
+}
+.dondejuego-integration h3 {
+  margin: 0;
+  font-size: 16px;
+}
+.dondejuego-integration ul {
+  display: grid;
+  gap: 8px;
+  padding-left: 20px;
+  margin: 0;
+  line-height: 1.6;
+}
+.dondejuego-integration .form-actions {
+  margin: 0;
+  align-items: center;
+  gap: 16px;
+}
+.dondejuego-integration .text-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+.dondejuego-contact-note {
+  font-size: 13px;
+}
+.dondejuego-heading svg,
+.dondejuego-status svg,
+.dondejuego-integration .form-actions svg {
+  flex-shrink: 0;
+}
+@media (max-width: 600px) {
+  .dondejuego-integration .form-actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .dondejuego-integration .button {
+    justify-content: center;
+  }
+}

@@ -26,7 +26,7 @@ write('link',`import * as React from ${JSON.stringify(reactUrl)};export default 
 write('mock',`
 import * as React from ${JSON.stringify(reactUrl)};
 export const state={role:'reception',path:'/reportes',pageCalls:[],dbCalls:[],ownerCalls:[],clubData:null};
-export function reset(role='reception',path='/reportes'){state.role=role;state.path=path;state.pageCalls=[];state.dbCalls=[];state.ownerCalls=[];state.clubData={role,today:'2026-10-15',members:[],memberships:[],payments:[],accesses:[],plans:[],sessions:[],enrollments:[],audit:[],bookings:[]};}
+export function reset(role='reception',path='/reportes'){state.role=role;state.path=path;state.pageCalls=[];state.dbCalls=[];state.ownerCalls=[];state.clubData={role,activity_scope:'all',branch_scope:'all',today:'2026-10-15',members:[],memberships:[],payments:[],accesses:[],plans:[],sessions:[],enrollments:[],audit:[],bookings:[]};}
 reset();
 export const usePathname=()=>state.path;
 export async function requirePageRole(roles,path){state.pageCalls.push({roles,path});if(!roles.includes(state.role))throw Error('Rejected page role');return {role:state.role,owner:'owner-fixture',userId:'operator-fixture'};}
@@ -51,13 +51,15 @@ export const TabsTrigger=({children})=>React.createElement('button',null,childre
 export const Table=({children})=>React.createElement('table',null,children),TableHeader=({children})=>React.createElement('thead',null,children),TableBody=({children})=>React.createElement('tbody',null,children),TableRow=({children})=>React.createElement('tr',null,children),TableHead=({children})=>React.createElement('th',null,children),TableCell=({children})=>React.createElement('td',null,children);
 export const NativeSelect=props=>React.createElement('select',props),NativeSelectOption=props=>React.createElement('option',props);
 `);
+write('payment-corrections','export default function PaymentCorrection(){return null;}');
 write('empty-client','export default function EmptyClient(){return null;}');
 write('tariffs-client',`import * as React from ${JSON.stringify(reactUrl)};export default function Tariffs({initialCreate}){return React.createElement('div',{'data-create-open':String(initialCreate)});}`);
 for (const [name,component] of [['reports-client','reports'],['team-client','team'],['data-client','data'],['fiscal-settings','fiscal'],['settings-client','settings']])
   write(name,`import {renderOwner} from './mock.mjs';export default function OwnerClient(props){return renderOwner(${JSON.stringify(component)},props);}`);
 compile('lib/features.ts','features');
 compile('lib/branches.ts','branches');
-const basePairs = [['next/link','./link.mjs'],['next/navigation','./mock.mjs'],['lucide-react','./icons.mjs'],['@/lib/features','./features.mjs']];
+compile('lib/staff-scope.ts','staff-scope');
+const basePairs = [['@/components/payment-corrections','./payment-corrections.mjs'],['@/lib/staff-scope','./staff-scope.mjs'],['next/link','./link.mjs'],['next/navigation','./mock.mjs'],['lucide-react','./icons.mjs'],['@/lib/features','./features.mjs']];
 compile('components/admin-shell.tsx','admin-shell',basePairs);
 compile('components/restricted-feature.tsx','restricted-feature',basePairs);
 compile('components/owner-action.tsx','owner-action',basePairs);

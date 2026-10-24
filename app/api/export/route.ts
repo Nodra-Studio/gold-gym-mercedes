@@ -33,13 +33,15 @@ export async function GET() {
     return new Response(
       JSON.stringify(
         {
-          schemaVersion: 7,
+          schemaVersion: 8,
           configuration: results[tables.length].results[0] ?? {
             padel_price: 24000,
             booking_days: 30,
             cancel_hours: 24,
           },
           fieldNotes: {
+            "payment_changes":"Correcciones y anulaciones de cobros conservan antes, después, motivo y operador. Los cobros anulados permanecen con voided=1 y no suman en informes.",
+            "operational_changes":"Historial de filas desde su incorporación. Los datos anteriores pueden no identificar operador. Las referencias se remapean al restaurar en otro espacio.",
             "bookings.deposit":
               "Total pagado acumulado. booking_payments detalla cobros registrados desde la incorporación del historial; los pagos anteriores pueden no tener detalle.",
             "cash_entry_changes":

@@ -1,3 +1,4 @@
+import { authenticatedDatabase } from "@/lib/scoped-database";
 import { z } from "zod";
 import {
   principal,
@@ -45,7 +46,7 @@ export async function POST(req: Request) {
       throw new ClubError(
         "La restauración desde la pantalla admite hasta 5.000 registros. Para un respaldo mayor se requiere una migración supervisada.",
       );
-    const db = database(),
+    const db = authenticatedDatabase(database(),p,"Restauración de respaldo"),
       previous = await db
         .prepare("SELECT request_key FROM restores WHERE owner=?")
         .bind(p.owner)
@@ -63,6 +64,18 @@ export async function POST(req: Request) {
     for (const table of backupTables)
       for (const record of backup.records[table])
         ids.set(record.id, crypto.randomUUID());
+    for(const change of backup.records.operational_changes) {
+      if(!["staff","settings"].includes(change.table_name)&&!ids.has(change.entity_id))ids.set(change.entity_id,crypto.randomUUID());
+    }
+    const snapshot=(raw:unknown)=>{
+      if(typeof raw!=="string")return raw;
+      const row=JSON.parse(raw) as Record<string,unknown>;
+      let changed=false;
+      if("owner" in row&&row.owner!==p.owner){row.owner=p.owner;changed=true;}
+      for(const field of ["id","membership_id","plan_id","member_id","session_id","booking_id","product_id","cash_entry_id","payment_id","reverses","transfer_id"])
+        if(typeof row[field]==="string"&&ids.has(row[field] as string)){row[field]=ids.get(row[field] as string);changed=true;}
+      return changed?JSON.stringify(row):raw;
+    };
     const exists = backupTables
       .map((t) => `EXISTS(SELECT 1 FROM ${t} WHERE owner=?)`)
       .join(" OR ");
@@ -86,8 +99,13 @@ export async function POST(req: Request) {
           id: ids.get(record.id),
           owner: p.owner,
         };
-        for (const key of ["membership_id", "plan_id", "member_id", "session_id", "booking_id", "product_id", "cash_entry_id", "reverses", "transfer_id"])
+        for (const key of ["membership_id", "plan_id", "member_id", "session_id", "booking_id", "product_id", "cash_entry_id", "payment_id", "reverses", "transfer_id"])
           if (typeof r[key] === "string") r[key] = ids.get(r[key] as string);
+        if(table==="operational_changes") {
+          r.entity_id=r.table_name==="settings"?p.owner:ids.get(String(r.entity_id))??r.entity_id;
+        }
+        if("before_state" in r)r.before_state=snapshot(r.before_state);
+        if("after_state" in r)r.after_state=snapshot(r.after_state);
         if ("created_by" in r) r.created_by = null;
         if ("request_key" in r)
           r.request_key = "restored-" + crypto.randomUUID();

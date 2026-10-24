@@ -6,5 +6,5 @@ export const dynamic = "force-dynamic";
 export const metadata = { title: "Informes de administración" };
 export default async function ReportsPage() {
   const user = await requirePageRole(["owner", "reception"], "/reportes");
-  return <AdminShell role={user.role}>{user.role === "owner" ? <ReportsClient /> : <RestrictedFeature path="/reportes" />}</AdminShell>;
+  return <AdminShell role={user.role} scope={{activity_scope:user.activity_scope,branch_scope:user.branch_scope}}>{user.role === "owner" ? <ReportsClient /> : <RestrictedFeature path="/reportes" />}</AdminShell>;
 }

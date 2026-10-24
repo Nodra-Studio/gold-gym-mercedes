@@ -1,3 +1,4 @@
+import type { StaffScope } from "@/lib/staff-scope";
 export type Plan = {
   id: string;
   name: string;
@@ -17,6 +18,7 @@ export type MemberMembership = {
   access_scope: string;
 };
 export type Member = {
+  profile_locked?:number;
   id: string;
   name: string;
   dni: string;
@@ -79,7 +81,7 @@ export type Audit = {
   detail: string;
   created_at: string;
 };
-export type ClubData = {
+export type ClubData = StaffScope & {
   role: "owner" | "reception";
   plans: Plan[];
   members: Member[];

@@ -26,17 +26,18 @@ compile('lib/postgres/query.ts', 'query');
 compile('lib/postgres/adapter.ts', 'adapter');
 compile('lib/club.ts', 'club');
 compile('lib/branches.ts', 'branches');
+compile('lib/staff-scope.ts','staff-scope');
 compile('lib/csv.ts', 'csv');
 writeFileSync(join(folder, 'server.mjs'), `
 export let db, role='owner';export const setDB=value=>db=value;export const setRole=value=>role=value;
-export const principal=async()=>({owner:'driver-owner',userId:role==='owner'?'driver-owner':'driver-reception',role});
+export const principal=async()=>({owner:'driver-owner',userId:role==='owner'?'driver-owner':'driver-reception',role,activity_scope:'all',branch_scope:'all'});
 export class ClubError extends Error {constructor(message,status=400){super(message);this.status=status;}}
 export function permit(p,roles){if(!roles.includes(p.role))throw new ClubError('Sin permiso',403);}
 export const body=req=>req.json();export const database=()=>db;
 export const apiError=error=>Response.json({error:error instanceof ClubError?error.message:'Backend failure'},{status:error instanceof ClubError?error.status:503});
 `);
 compile('app/api/cash/route.ts', 'cash', [
-  ['@/lib/server', './server.mjs'], ['@/lib/club', './club.mjs'], ['@/lib/branches', './branches.mjs'], ['@/lib/csv', './csv.mjs'],
+  ['@/lib/staff-scope','./staff-scope.mjs'], ['@/lib/server', './server.mjs'], ['@/lib/club', './club.mjs'], ['@/lib/branches', './branches.mjs'], ['@/lib/csv', './csv.mjs'],
 ]);
 const load = name => import(pathToFileURL(join(folder, name + '.mjs')));
 const { postgresConnectionQuery } = await load('query'), { createDatabase } = await load('adapter');

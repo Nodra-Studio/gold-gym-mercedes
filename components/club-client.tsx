@@ -1,5 +1,6 @@
 "use client";
 import { branches, branchName } from "@/lib/branches";
+import { allowsActivity, allowsOperation, scopeLabel } from "@/lib/staff-scope";
 import PadelRequests from "@/components/padel-requests";
 import MemberMemberships from "@/components/member-memberships";
 import { apiFetch } from "@/lib/api-fetch";
@@ -302,13 +303,15 @@ export function FormModal({
 }
 export function SaveButton({
   busy,
+  disabled = false,
   children = "Guardar",
 }: {
   busy: boolean;
+  disabled?: boolean;
   children?: React.ReactNode;
 }) {
   return (
-    <button className="button gold small" type="submit" disabled={busy}>
+    <button className="button gold small" type="submit" disabled={busy || disabled}>
       {busy ? (
         <LoaderCircle className="animate-spin" size={17} />
       ) : (
@@ -340,6 +343,12 @@ function downloadCsv(data: ClubData) {
   a.click();
   URL.revokeObjectURL(u);
 }
+export function ScopeLocked({ title }: { title: string }) {
+  return <section className="restricted-panel" aria-label={`${title}. Fuera de tu alcance`}>
+    <div className="restricted-preview" aria-hidden="true"><div className="restricted-preview-toolbar"><i /><i /></div><div className="restricted-preview-rows"><i /><i /><i /></div></div>
+    <div className="restricted-explanation"><span className="restricted-badge"><LockKeyhole size={15} aria-hidden="true" /> Acceso limitado</span><h2>{title}</h2><p>Esta función está fuera de la actividad o sede habilitada para tu cuenta. Un dueño puede revisar tu alcance desde Equipo y permisos.</p></div>
+  </section>;
+}
 export default function ClubDashboard() {
   const club = useClub(),
     { data, error, busy, loading, refresh, mutate, setError } = club;
@@ -358,6 +367,7 @@ export default function ClubDashboard() {
     [session, setSession] = useState<Session | null>(null),
     [success, setSuccess] = useState("");
   const open = (m: typeof modal, member: Member | null = null) => {
+    if (data && !allowsActivity(data, "gym") && !allowsActivity(data, "pilates")) return;
     setSelected(member);
     setError("");
     setSuccess("");
@@ -471,6 +481,10 @@ export default function ClubDashboard() {
           .toLowerCase()
           .includes(search.trim().toLowerCase()),
       ) ?? [];
+  const canMembers = data ? allowsActivity(data, "gym") || allowsActivity(data, "pilates") : false;
+  const canPadel = data ? allowsActivity(data, "padel") : false;
+  const canManagePlans = data?.role === "owner" || (data?.activity_scope === "all" && data?.branch_scope === "all");
+  const visibleBranches = branches.filter((b) => data && allowsOperation(data, b.id === "pilates" ? "pilates" : "gym", b.id));
   return (
     <main className="workspace">
       <WorkspaceHeader
@@ -504,7 +518,9 @@ export default function ClubDashboard() {
         )
       ) : (
         <>
-          <div className="stats">
+          {data.role === "reception" && <p className="notice">Tu alcance: {scopeLabel(data)}. Los socios de gimnasio se comparten entre las tres sedes; tus cobros y terminales respetan las sedes asignadas.</p>}
+          {!canMembers && <ScopeLocked title="Socios, cuotas y clases" />}
+          {canMembers && <div className="stats">
             <div className="stat">
               <span>SOCIOS VIGENTES</span>
               <strong>{valid.length}</strong>
@@ -542,7 +558,7 @@ export default function ClubDashboard() {
               </strong>
               <small>Últimos 100 eventos</small>
             </div>
-          </div>
+          </div>}
           <Tabs value={tab} onValueChange={setTab}>
             <TabsList aria-label="Secciones del gimnasio">
               {[
@@ -553,14 +569,14 @@ export default function ClubDashboard() {
                 ["planes", "Planes"],
                 ["actividad", "Actividad"],
               ].map(([v, l]) => (
-                <TabsTrigger key={v} value={v}>
-                  {l}
+                <TabsTrigger key={v} value={v} disabled={!canMembers && v !== "resumen"}>
+                  {!canMembers && v !== "resumen" && <LockKeyhole size={14} aria-hidden="true" />} {l}
                 </TabsTrigger>
               ))}
             </TabsList>
             <TabsContent value="resumen">
-              <PadelRequests onChange={refresh} limit={3} />
-              {!data.plans.length && (
+              {canPadel ? <PadelRequests onChange={refresh} limit={3} /> : <ScopeLocked title="Solicitudes de pádel" />}
+              {canMembers && !data.plans.length && canManagePlans && (
                 <div className="panel empty">
                   <h3>Creá el primer plan del club</h3>
                   <p>Definí el nombre, el precio y la vigencia. Después podés registrar socios con ese plan.</p>
@@ -574,24 +590,26 @@ export default function ClubDashboard() {
                     <button
                       className="quick-action"
                       style={{ width: "100%", textAlign: "left" }}
+                      disabled={!canMembers}
                       onClick={() => open("member")}
                     >
                       <div>
                         <h3>Sumar un socio</h3>
                         <p>Datos, plan y vencimiento.</p>
                       </div>
-                      <Users size={22} />
+                      {canMembers ? <Users size={22} /> : <LockKeyhole size={22} aria-hidden="true" />}
                     </button>
                     <button
                       className="quick-action"
                       style={{ width: "100%", textAlign: "left" }}
+                      disabled={!canMembers}
                       onClick={() => open("payment")}
                     >
                       <div>
                         <h3>Registrar un cobro</h3>
                         <p>La cuota se renueva automáticamente.</p>
                       </div>
-                      <CreditCard size={22} />
+                      {canMembers ? <CreditCard size={22} /> : <LockKeyhole size={22} aria-hidden="true" />}
                     </button>
                     <Link href="/reportes" className="quick-action" title={data.role !== "owner" ? "Solo dueños" : undefined}>
                       <div><h3>Informes de administración</h3><p>Cobros por período, vencimientos y saldos de pádel.{data.role !== "owner" && " · Solo dueños"}</p></div>
@@ -615,12 +633,12 @@ export default function ClubDashboard() {
                       </div>
                       <ScanLine size={22} />
                     </Link>
-                    <Link href="/reservas" className="quick-action">
+                    <Link href="/reservas" className="quick-action" aria-disabled={!canPadel || undefined} title={!canPadel ? "Fuera de tu alcance" : undefined} onClick={(event) => { if (!canPadel) event.preventDefault(); }}>
                       <div>
                         <h3>Ver la agenda de pádel</h3>
                         <p>Cuatro canchas y turnos fijos.</p>
                       </div>
-                      <CalendarDays size={22} />
+                      {canPadel ? <CalendarDays size={22} /> : <LockKeyhole size={22} aria-hidden="true" />}
                     </Link>
                     <Link href="/equipo" className="quick-action" title={data.role !== "owner" ? "Solo dueños" : undefined}>
                       <div><h3>Equipo y permisos</h3><p>Cuentas y permisos del personal.{data.role !== "owner" && " · Solo dueños"}</p></div>
@@ -668,7 +686,7 @@ export default function ClubDashboard() {
                 </div>
               </div>
             </TabsContent>
-            <TabsContent value="socios">
+            {canMembers && <TabsContent value="socios">
               <section className="panel">
                 <div className="panel-heading">
                   <h2>
@@ -683,6 +701,7 @@ export default function ClubDashboard() {
                     </button>
                     <button
                       className="button gold small"
+                      disabled={!canMembers}
                       onClick={() => open("member")}
                     >
                       <Plus size={17} /> Nuevo socio
@@ -692,12 +711,12 @@ export default function ClubDashboard() {
                 <Field label="Filtrar por sede de pertenencia">
                   <SelectField value={homeBranch} onChange={setHomeBranch}>
                     <Option value="all">Todas las sedes</Option>
-                    {branches.map((b) => (
+                    {visibleBranches.map((b) => (
                       <Option key={b.id} value={b.id}>
                         {b.name}
                       </Option>
                     ))}
-                    <Option value="unassigned">Sin sede registrada</Option>
+                    {data.branch_scope === "all" && <Option value="unassigned">Sin sede registrada</Option>}
                   </SelectField>
                 </Field>
                 <p className="muted" style={{ marginBottom: 16 }}>
@@ -725,7 +744,7 @@ export default function ClubDashboard() {
                     <TableRow>
                       {[
                         "Socio",
-                        "Sede de pertenencia",
+                        "Sede de referencia",
                         "Plan",
                         "Vencimiento",
                         "Estado",
@@ -815,12 +834,13 @@ export default function ClubDashboard() {
                               <Plus size={16} />
                             </button>
                             <button
-                              title="Editar socio"
+                              title={m.profile_locked ? "Ficha compartida con otra actividad · requiere acceso general" : "Editar socio"}
+                              disabled={Boolean(m.profile_locked)}
                               aria-label={`Editar a ${m.name}`}
                               className="icon-button"
                               onClick={() => open("member", m)}
                             >
-                              <Pencil size={16} />
+                              {m.profile_locked ? <LockKeyhole size={16} aria-hidden="true" /> : <Pencil size={16} />}
                             </button>
                             <button
                               title="Registrar cobro"
@@ -844,8 +864,8 @@ export default function ClubDashboard() {
                   </div>
                 )}
               </section>
-            </TabsContent>
-            <TabsContent value="cobros">
+            </TabsContent>}
+            {canMembers && <TabsContent value="cobros">
               <section className="panel">
                 <div className="panel-heading">
                   <div>
@@ -853,7 +873,8 @@ export default function ClubDashboard() {
                   </div>
                   <button
                     className="button gold small"
-                    onClick={() => open("payment")}
+                    disabled={!canMembers}
+                      onClick={() => open("payment")}
                   >
                     <Plus size={17} /> Registrar cobro
                   </button>
@@ -891,8 +912,8 @@ export default function ClubDashboard() {
                   </div>
                 )}
               </section>
-            </TabsContent>
-            <TabsContent value="clases">
+            </TabsContent>}
+            {canMembers && <TabsContent value="clases">
               <section className="panel">
                 <div className="panel-heading">
                   <h2>Clases y cupos</h2>
@@ -953,12 +974,12 @@ export default function ClubDashboard() {
                   </div>
                 )}
               </section>
-            </TabsContent>
-            <TabsContent value="planes">
+            </TabsContent>}
+            {canMembers && <TabsContent value="planes">
               <section className="panel">
                 <div className="panel-heading">
                   <h2>Planes del gimnasio</h2>
-                  <Link className="button gold small" href="/tarifas?crear=1"><Plus size={17} aria-hidden="true" /> Crear plan</Link>
+                  {canManagePlans ? <Link className="button gold small" href="/tarifas?crear=1"><Plus size={17} aria-hidden="true" /> Crear plan</Link> : <button className="button small" disabled><LockKeyhole size={15} aria-hidden="true" /> Crear plan · Acceso general</button>}
                 </div>
                 <p className="muted">
                   Creá y editá los planes desde Planes y membresías. Cada cobro extiende el vencimiento la cantidad de días del plan.
@@ -979,21 +1000,19 @@ export default function ClubDashboard() {
                     </div>
                     <div>
                       <strong>{money(p.price)}</strong>{" "}
-                      <Link className="button small" href="/tarifas">
-                        Editar tarifa
-                      </Link>
+                      {canManagePlans ? <Link className="button small" href="/tarifas">Editar tarifa</Link> : <button className="button small" disabled><LockKeyhole size={14} aria-hidden="true" /> Editar tarifa · Acceso general</button>}
                     </div>
                   </div>
                 ))}
                 {!data.plans.length && (
                   <div className="empty">
                     <p>Creá el primer plan para registrar socios.</p>
-                    <Link className="button gold small" href="/tarifas?crear=1">Crear primer plan</Link>
+                    {canManagePlans ? <Link className="button gold small" href="/tarifas?crear=1">Crear primer plan</Link> : <p className="muted">Pedí a administración que agregue un plan.</p>}
                   </div>
                 )}
               </section>
-            </TabsContent>
-            <TabsContent value="actividad">
+            </TabsContent>}
+            {canMembers && <TabsContent value="actividad">
               <div className="dashboard-grid">
                 <section className="panel">
                   <h2>Últimos ingresos</h2>
@@ -1045,7 +1064,7 @@ export default function ClubDashboard() {
                   )}
                 </section>
               </div>
-            </TabsContent>
+            </TabsContent>}
           </Tabs>
         </>
       )}
@@ -1094,7 +1113,7 @@ export default function ClubDashboard() {
             submit={submit}
           />
         )}{" "}
-        {modal === "session" && <SessionForm busy={busy} submit={submit} />}{" "}
+        {modal === "session" && data && <SessionForm data={data} busy={busy} submit={submit} />}{" "}
         {modal === "enroll" && data && session && (
           <EnrollmentForm
             session={session}
@@ -1124,7 +1143,9 @@ function MemberForm({
     [homeBranch, setHomeBranch] = useState(member?.home_branch ?? ""),
     [planId, setPlan] = useState(member?.plan_id ?? data.plans[0]?.id ?? ""),
     [expires, setExpires] = useState(member?.expires ?? data.today),
-    [status, setStatus] = useState(member?.status ?? "active");
+    [status, setStatus] = useState(member?.status ?? "active"),
+    [reason, setReason] = useState("");
+  const allowedBranches = branches.filter((b) => allowsOperation(data, b.id === "pilates" ? "pilates" : "gym", b.id));
   return !data.plans.length ? (
     <p>
       Primero <Link href="/tarifas?crear=1">creá un plan</Link>. Los socios se registran aquí
@@ -1138,6 +1159,7 @@ function MemberForm({
           action: "member",
           id: member?.id,
           original: member ?? undefined,
+          ...(member ? { reason } : {}),
           name,
           dni,
           phone,
@@ -1190,7 +1212,7 @@ function MemberForm({
             ))}
           </SelectField>
         </Field>
-        <Field label="Sede de pertenencia" full>
+        <Field label="Sede de referencia" full>
           <SelectField
             value={homeBranch}
             onChange={setHomeBranch}
@@ -1199,14 +1221,15 @@ function MemberForm({
             <Option value="">
               {member ? "Sin sede registrada" : "Elegí una sede"}
             </Option>
-            {branches.map((b) => (
+            {member?.home_branch&&!allowedBranches.some(b=>b.id===member.home_branch)&&<Option value={member.home_branch}>{branchName(member.home_branch)} · referencia actual</Option>}
+            {allowedBranches.map((b) => (
               <Option key={b.id} value={b.id}>
                 {b.name}
               </Option>
             ))}
           </SelectField>
           <small className="muted">
-            Sede a la que pertenece el socio; puede cobrar o entrenar en otra.
+            Referencia administrativa para organizar socios e informes. El plan de gimnasio permite entrenar en Calle 23, Calle 30 y Unión, sin importar dónde se pagó.
           </small>
         </Field>
         <Field label="Vigente hasta">
@@ -1217,6 +1240,7 @@ function MemberForm({
             onChange={(e) => setExpires(e.target.value)}
           />
         </Field>
+        {member && <Field label="Motivo del cambio" full><textarea required minLength={3} maxLength={300} value={reason} onChange={(event) => setReason(event.target.value)} /></Field>}
         <Field label="Estado del socio (pausa todos sus accesos)">
           <SelectField value={status} onChange={setStatus}>
             <Option value="active">Activo</Option>
@@ -1262,6 +1286,12 @@ function PaymentForm({
     (x) => x.member_id === memberId,
   );
   const chosen = extra.find((x) => x.id === membershipId) ?? m;
+  const chosenPlan = data.plans.find((plan) => plan.id === chosen?.plan_id);
+  const combinedBlocked = chosenPlan?.access_scope === "all" && data.role!=="owner" && (data.activity_scope!=="all"||data.branch_scope!=="all");
+  const allowedBranches = branches.filter((branch) => {
+    const activity = branch.id === "pilates" ? "pilates" : "gym";
+    return !combinedBlocked && allowsOperation(data, activity, branch.id) && (!chosenPlan || chosenPlan.access_scope === "all" || (chosenPlan.access_scope ?? "gym") === activity);
+  });
   return (
     <form
       onSubmit={(e) => {
@@ -1312,7 +1342,7 @@ function PaymentForm({
         <Field label="Sede donde se cobra" full>
           <SelectField value={venue} onChange={setVenue} required>
             <Option value="">Elegí una sede</Option>
-            {branches.map((b) => (
+            {allowedBranches.map((b) => (
               <Option key={b.id} value={b.id}>
                 {b.name}
               </Option>
@@ -1327,6 +1357,7 @@ function PaymentForm({
           </SelectField>
         </Field>
       </div>
+      {combinedBlocked&&<p className="notice"><LockKeyhole size={16} aria-hidden="true"/> Este plan combina actividades. Para renovarlo necesitás un dueño o recepción con acceso general.</p>}
       {chosen && (
         <div className="notice" style={{ marginTop: 20 }}>
           <strong>{money(chosen.price)}</strong> · {chosen.plan_name}
@@ -1347,23 +1378,26 @@ function PaymentForm({
         </div>
       )}
       <div className="form-actions">
-        <SaveButton busy={busy}>Confirmar cobro</SaveButton>
+        <SaveButton busy={busy} disabled={combinedBlocked}>Confirmar cobro</SaveButton>
       </div>
     </form>
   );
 }
 function SessionForm({
+  data,
   busy,
   submit,
 }: {
+  data: ClubData;
   busy: boolean;
   submit: (p: Record<string, unknown>) => void;
 }) {
+  const venues = branches.filter((b) => allowsOperation(data, b.id === "pilates" ? "pilates" : "gym", b.id)).map((b) => b.id === "velez" ? "Club Unión" : b.name);
   const [name, setName] = useState(""),
     [day, setDay] = useState(localDay()),
     [time, setTime] = useState("18:00"),
     [capacity, setCapacity] = useState("8"),
-    [venue, setVenue] = useState("Calle 30");
+    [venue, setVenue] = useState(venues[0] ?? "");
   return (
     <form
       onSubmit={(e) => {
@@ -1417,7 +1451,7 @@ function SessionForm({
         </Field>
         <Field label="Sede">
           <SelectField value={venue} onChange={setVenue}>
-            {["Calle 30", "Calle 23", "Club Unión", "Pilates"].map((x) => (
+            {venues.map((x) => (
               <Option key={x}>{x}</Option>
             ))}
           </SelectField>

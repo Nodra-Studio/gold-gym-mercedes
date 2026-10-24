@@ -9,6 +9,7 @@ type History = {
     kind: string;
     amount: number;
     method: string;
+    voided?: number;
     created_at: string;
   }[];
   undocumented: number;
@@ -66,7 +67,7 @@ export default function BookingPaymentHistory({
                 <li key={p.id}>
                   <div>
                     <strong>
-                      {p.kind === "deposit" ? "Seña" : "Saldo"} ·{" "}
+                      {p.voided ? "Anulado · " : ""}{p.kind === "deposit" ? "Seña" : "Saldo"} ·{" "}
                       {money(p.amount)}
                     </strong>
                     <span>

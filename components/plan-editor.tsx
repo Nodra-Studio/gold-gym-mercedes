@@ -18,7 +18,7 @@ export type Padel = {
   whatsapp: string;
   revision: number;
 };
-export type TariffData = { role: string; plans: Plan[]; padel: Padel };
+export type TariffData = { role: string; activity_scope?: string; branch_scope?: string; plans: Plan[]; padel: Padel };
 export type SaveOutcome =
   | { ok: true; data: TariffData; createdId?: string }
   | { ok: false; uncertain: boolean };

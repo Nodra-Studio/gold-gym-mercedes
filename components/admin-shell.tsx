@@ -2,6 +2,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState, useRef, useEffect } from "react";
+import { allowsActivity, type StaffScope } from "@/lib/staff-scope";
 import { navigationFeatures, isFeatureRestricted } from "@/lib/features";
 import "@/app/permissions.css";
 import "@/app/admin-layout.css";
@@ -24,9 +25,11 @@ import {
 const icons = { plans: Tags, members: Users, calendar: CalendarDays, cash: Wallet, reports: BarChart3, team: ShieldCheck, data: Database, fiscal: Wallet, settings: Settings };
 export function AdminShell({
   role,
+  scope,
   children,
 }: {
   role: string;
+  scope?: StaffScope;
   children: React.ReactNode;
 }) {
   const path = usePathname();
@@ -63,15 +66,17 @@ export function AdminShell({
           {navigationFeatures(role).map((feature) => {
             const { href, label, icon } = feature;
             const Icon = icons[icon];
-            const restricted = isFeatureRestricted(role, feature);
+            const outOfScope = href === "/reservas" && scope && !allowsActivity({role,...scope},"padel");
+            const restricted = isFeatureRestricted(role, feature) || outOfScope;
+            const lockLabel = outOfScope ? "Fuera de tu alcance" : "Solo dueños";
             return (
               <Link
                 key={href}
                 href={href}
                 aria-current={path === href ? "page" : undefined}
                 className={restricted ? "admin-nav-restricted" : undefined}
-                aria-label={restricted ? `${label}. Solo dueños` : undefined}
-                title={restricted ? "Solo dueños" : undefined}
+                aria-label={restricted ? `${label}. ${lockLabel}` : undefined}
+                title={restricted ? lockLabel : undefined}
                 onClick={() => setOpen(false)}
               >
                 <Icon size={19} className="admin-nav-icon" aria-hidden="true" />

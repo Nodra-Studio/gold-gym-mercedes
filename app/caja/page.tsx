@@ -5,7 +5,7 @@ export const dynamic = "force-dynamic";
 export default async function Page() {
   const user = await requirePageRole(["owner", "reception"], "/caja");
   return (
-    <AdminShell role={user.role}>
+    <AdminShell role={user.role} scope={{activity_scope:user.activity_scope,branch_scope:user.branch_scope}}>
       <CashClient />
     </AdminShell>
   );

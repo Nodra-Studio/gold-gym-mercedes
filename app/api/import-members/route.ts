@@ -8,6 +8,7 @@ import {
   apiError,
 } from "@/lib/server";
 import { isValidDay } from "@/lib/club";
+import { authenticatedDatabase } from "@/lib/scoped-database";
 export const dynamic = "force-dynamic";
 const rowSchema = z
   .object({
@@ -39,7 +40,7 @@ export async function POST(req: Request) {
     if (!parsed.success)
       throw new ClubError("Archivo inválido. El máximo es de 200 socios.");
     const input = parsed.data,
-      db = database();
+      db = authenticatedDatabase(database(),p);
     if (input.action === "commit") {
       const previous = await db
         .prepare("SELECT count FROM imports WHERE owner=? AND request_key=?")

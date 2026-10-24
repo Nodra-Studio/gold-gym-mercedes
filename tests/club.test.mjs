@@ -18,6 +18,7 @@ import { planSelfServeRegressions } from './plan-selfserve-regressions.mjs';
 const require = createRequire(import.meta.url),
   folder = mkdtempSync(join(tmpdir(), "gold-gym-test-"));
 const compile = (file, replacements) => {
+  replacements = [...replacements, ["@club/runtime","./runtime.mjs"], ["@/lib/server","./server.mjs"],["@/lib/staff-scope","./staff-scope.mjs"],["@/lib/scoped-records","./scoped-records.mjs"],["@/lib/scoped-database","./scoped-database.mjs"]];
   let text = readFileSync(resolve(file), "utf8");
   for (const [from, to] of replacements) {
     text = text.replaceAll(from, to);
@@ -34,8 +35,12 @@ writeFileSync(
   join(folder, "runtime.mjs"),
   `export const env={}; export const supportsSitesIdentity=true; export async function independentUserId(){return null} export function ownerAccount(){return false} export let currentUser=null; export function setUser(id){currentUser=id?{userId:id}:null} export async function getChatGPTUser(){return currentUser}`,
 );
+writeFileSync(join(folder,"staff-scope.mjs"),compile("lib/staff-scope.ts",[]));
+writeFileSync(join(folder,"scoped-records.mjs"),compile("lib/scoped-records.ts",[]));
+writeFileSync(join(folder,"scoped-database.mjs"),compile("lib/scoped-database.ts",[]));
 writeFileSync(join(folder, "club.mjs"), compile("lib/club.ts", []));
 writeFileSync(join(folder, "branches.mjs"), compile("lib/branches.ts", []));
+writeFileSync(join(folder, "reporting.mjs"), compile("lib/reporting.ts", []));
 writeFileSync(join(folder, "fiscal-lib.mjs"), compile("lib/fiscal-settings.ts", [["'zod'",JSON.stringify(pathToFileURL(require.resolve('zod')).href)],["@/lib/branches","./branches.mjs"]]));
 writeFileSync(join(folder, "terminal-offline.mjs"), compile("lib/terminal-offline.ts", [["@/lib/club", "./club.mjs"]]));
 writeFileSync(
@@ -106,6 +111,8 @@ writeFileSync(
     ["@/lib/server", "./server.mjs"],
     ["@/lib/club", "./club.mjs"],
     ["@/lib/csv", "./safe-csv.mjs"],
+    ["@/lib/reporting", "./reporting.mjs"],
+    ["@/lib/branches", "./branches.mjs"],
   ]),
 );
 const reportsApi = await import(pathToFileURL(join(folder, "reports.mjs"))),
@@ -122,6 +129,7 @@ const teamApi = await import(pathToFileURL(join(folder, "team.mjs"))),
   backupApi = await import(pathToFileURL(join(folder, "backup.mjs"))),
   csv = await import(pathToFileURL(join(folder, "csv.mjs")));
 async function call(endpoint, payload) {
+  if ((["member","membership"].includes(payload.action)&&payload.id||payload.action==="cancelBooking")&&payload.reason===undefined)payload={...payload,reason:"Corrección registrada en prueba"};
   const r = await endpoint.POST(
     new Request("https://test.local/api/test", {
       method: "POST",
@@ -192,6 +200,7 @@ runtime.env.DB = {
   },
 };
 async function post(body, origin = "https://test.local") {
+  if ((["member","membership"].includes(body.action)&&body.id||body.action==="cancelBooking")&&body.reason===undefined)body={...body,reason:"Corrección registrada en prueba"};
   const response = await api.POST(
     new Request("https://test.local/api/club", {
       method: "POST",
@@ -1261,7 +1270,7 @@ try {
         );
       for (const role of ["reception", "gate", "player"]) {
         const user = "report-" + role;
-        db.prepare("INSERT INTO staff VALUES (?,?,?,?,?,?)").run(
+        db.prepare("INSERT INTO staff(user_id,owner,name,role,status,created_at) VALUES (?,?,?,?,?,?)").run(
           user,
           "report-owner",
           role,
@@ -1307,7 +1316,7 @@ try {
       runtime.setUser("player-a");assert.equal((await bookingPaymentsApi.GET(new Request("https://test.local/api/booking-payments?bookingId="+booking.id))).status,403);
     });
     await t.test("Respaldo v2 conserva cobros de pádel; v1 no inventa historial",async()=>{
-      runtime.setUser("ledger-owner");const snapshot=await(await exporter.GET()).json();assert.equal(snapshot.schemaVersion,7);assert.equal(snapshot.records.booking_payments.length,2);
+      runtime.setUser("ledger-owner");const snapshot=await(await exporter.GET()).json();assert.equal(snapshot.schemaVersion,8);assert.equal(snapshot.records.booking_payments.length,2);
       runtime.setUser("ledger-restored");assert.equal((await call(backupApi,{action:"restore",requestKey:key(),backup:snapshot})).status,200);
       const restored=await(await exporter.GET()).json();assert.equal(restored.records.booking_payments.length,2);assert.ok(restored.records.booking_payments.every(p=>restored.records.bookings.some(b=>b.id===p.booking_id)));
       const missing=structuredClone(snapshot);delete missing.records.booking_payments;assert.equal((await call(backupApi,{action:"check",requestKey:key(),backup:missing})).status,400);

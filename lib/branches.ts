@@ -16,4 +16,9 @@ export const expenseCategories = [
   "Alquiler",
   "Servicios",
   "Otros",
+  "Insumos",
+  "Stock",
+  "Mantenimiento",
+  "Máquinas",
+  "Socios",
 ] as const;

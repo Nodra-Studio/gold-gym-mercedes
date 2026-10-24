@@ -43,6 +43,7 @@ export default function PadelAgenda() {
     } | null>(null),
     [detailId, setDetailId] = useState(""),
     [notice, setNotice] = useState(""),
+    [cancelReason,setCancelReason]=useState(""),
     [cancelId, setCancelId] = useState(""),
     [method, setMethod] = useState("Efectivo");
   const bookings =
@@ -396,17 +397,19 @@ export default function PadelAgenda() {
                   <button
                     className="button small"
                     disabled={busy}
-                    onClick={() => setCancelId("")}
+                    onClick={() => {setCancelId("");setCancelReason("");}}
                   >
                     Conservar turno
                   </button>
+                  <Field label="Motivo de la cancelación"><textarea required minLength={3} maxLength={300} value={cancelReason} onChange={e=>setCancelReason(e.target.value)} /></Field>
                   <button
                     className="button small"
-                    disabled={busy}
+                    disabled={busy||cancelReason.trim().length<3}
                     onClick={async () => {
                       try {
                         await mutate({
                           action: "cancelBooking",
+                          reason:cancelReason,
                           id: detail.id,
                         });
                         setDetailId("");

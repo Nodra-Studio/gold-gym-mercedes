@@ -10,10 +10,10 @@ export const metadata = { title: "Datos fiscales por sede" };
 
 export default async function FiscalSettingsPage() {
   const user = await requirePageRole(["owner", "reception"], "/datos-fiscales");
-  if (user.role !== "owner") return <AdminShell role={user.role}><RestrictedFeature path="/datos-fiscales" /></AdminShell>;
+  if (user.role !== "owner") return <AdminShell role={user.role} scope={{activity_scope:user.activity_scope,branch_scope:user.branch_scope}}><RestrictedFeature path="/datos-fiscales" /></AdminShell>;
   const rows = await database()
     .prepare(`SELECT ${fiscalSelectFields} FROM issuer_settings WHERE owner=? ORDER BY venue`)
     .bind(user.owner)
     .all<FiscalIssuer>();
-  return <AdminShell role={user.role}><FiscalSettings initialSettings={rows.results} /></AdminShell>;
+  return <AdminShell role={user.role} scope={{activity_scope:user.activity_scope,branch_scope:user.branch_scope}}><FiscalSettings initialSettings={rows.results} /></AdminShell>;
 }
