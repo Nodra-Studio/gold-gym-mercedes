@@ -84,9 +84,8 @@ export default function TeamClient() {
       </Link>
       <header className="work-header">
         <div>
-          <p className="eyebrow">GOLD GYM / EQUIPO</p>
-          <h1>Dueños y equipo.</h1>
-          <p>Permisos para trabajar sobre el mismo club.</p>
+          <h1>Equipo y permisos</h1>
+          <p>Administrá las cuentas del personal y sus permisos por actividad y sede.</p>
         </div>
       </header>
       {!open && <ErrorNotice error={error} />}{" "}
@@ -215,7 +214,7 @@ export default function TeamClient() {
                 respaldos y ajustes financieros sensibles quedan para los dueños.
                 El dueño define si trabaja en todas las actividades, sólo gimnasio,
                 pádel o Pilates. Para gimnasio también puede limitarla a una sede.
-                Los datos y operaciones quedan limitados a ese alcance.
+                Los socios de gimnasio se comparten entre las tres sedes; los cobros, la caja y las terminales respetan las sedes asignadas.
               </p>
             </div>
             <div className="list-row">
@@ -325,7 +324,7 @@ function StaffForm({
               <Option value="velez">Sólo Club Unión</Option>
             </SelectField>
           </Field>}
-          <p className="muted">{scopeLabel({ activity_scope: activity, branch_scope: ["all", "gym"].includes(activity) ? branch : "all" })}. Los permisos se comprueban también al consultar o guardar datos.</p>
+          <p className="muted">{scopeLabel({ activity_scope: activity, branch_scope: ["all", "gym"].includes(activity) ? branch : "all" })}.</p>
         </>}
         <Field label="Motivo o nota del cambio (opcional)" full>
           <textarea value={reason} minLength={3} maxLength={300} onChange={(event) => setReason(event.target.value)} />

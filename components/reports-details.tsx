@@ -184,8 +184,7 @@ export default function ReportsDetails() {
       </Link>
       <header className="work-header">
         <div>
-          <p className="eyebrow">GOLD GYM / ADMINISTRACIÓN</p>
-          <h1>Cobros y saldos detallados.</h1>
+          <h1>Detalle de cobros y saldos</h1>
           <p className="muted">
             Cobros de cuotas y pádel, saldos de reservas y estado de las membresías.
           </p>

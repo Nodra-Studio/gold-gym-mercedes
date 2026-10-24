@@ -15,14 +15,14 @@ export default function Padel() {
           <div>
             <p className="gg-kicker">PÁDEL / CLUB UNIÓN</p>
             <h1>
-              SALE
+              PÁDEL
               <br />
-              <span>PARTIDO?</span>
+              <span>EN UNIÓN</span>
             </h1>
             <p className="gg-lead">
-              Traé la paleta. Juntá a tu equipo.
+              Cuatro canchas con sintético y blindex.
               <br />
-              Nos vemos en la cancha.
+              Consultá horarios y solicitá tu turno.
             </p>
             <a href="/turnos" className="gg-button">
               Ver canchas y horarios <ArrowUpRight size={20} />
@@ -46,17 +46,17 @@ export default function Padel() {
         <section className="gg-section">
           <div className="gg-section-head" data-reveal>
             <div>
-              <p className="gg-kicker">MÁS QUE UN TURNO</p>
+              <p className="gg-kicker">INSTALACIONES</p>
               <h2>
-                TU PRÓXIMO
+                CANCHAS
                 <br />
-                <span>PUNTO DE ENCUENTRO.</span>
+                <span>Y SERVICIOS</span>
               </h2>
             </div>
             <p>
-              Un club para jugar,
+              Canchas, buffet, vestuarios
               <br />
-              competir y compartir.
+              y duchas en Club Unión.
             </p>
           </div>
           <div className="gg-feature-grid">
@@ -64,21 +64,21 @@ export default function Padel() {
               [
                 "01",
                 "Cuatro canchas",
-                "Canchas con sintético y blindex para armar tu próximo partido.",
+                "Canchas con sintético y blindex en Calle 103 y 28.",
               ],
               [
                 "02",
-                "Quedate un rato más",
-                "Buffet Lo de Bauti para compartir algo después de jugar.",
+                "Buffet Lo de Bauti",
+                "Consultá el menú del buffet desde esta página.",
               ],
               [
                 "03",
-                "Todo a mano",
-                "Vestuarios y duchas para que sigas con tu día.",
+                "Vestuarios y duchas",
+                "Disponibles para quienes vienen a jugar.",
               ],
               [
                 "04",
-                "Jugamos en comunidad",
+                "Torneos y novedades",
                 "Encontrá las novedades, torneos y encuentros en nuestro Instagram.",
               ],
             ].map(([n, t, p]) => (
@@ -106,12 +106,12 @@ export default function Padel() {
         </section>
         <section className="gg-final">
           <p className="gg-kicker" data-reveal>
-            HACETE EL ESPACIO
+            TURNOS DE PÁDEL
           </p>
           <h2 data-reveal data-reveal-delay="1">
-            UN TURNO FIJO.
+            HORARIOS
             <br />
-            <span>UN BUEN PLAN.</span>
+            <span>Y RESERVAS</span>
           </h2>
           <a
             href="/turnos"
@@ -122,8 +122,8 @@ export default function Padel() {
             Ver canchas y horarios <ArrowUpRight />
           </a>
           <p>
-            Recepción registra y confirma tu turno. No necesitás crear una
-            cuenta.
+            Enviá tu solicitud y esperá la confirmación de recepción.
+            No necesitás crear una cuenta.
           </p>
         </section>
         <PublicPrices section="padel" />

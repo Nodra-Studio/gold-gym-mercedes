@@ -102,17 +102,16 @@ export default function PlayerClient() {
       </Link>
       <header className="work-header">
         <div>
-          <p className="eyebrow">GOLD GYM / MIS PARTIDOS</p>
-          <h1>Elegí cancha. Armá el partido.</h1>
-          <p>Reservas de tu cuenta · pago coordinado con el club</p>
+          <h1>Mis reservas de pádel</h1>
+          <p>Consultá horarios, reservá una cancha y revisá tus reservas.</p>
         </div>
         <Link className="button small" href="/cuenta">
-          Mi acceso
+          Mi cuenta
         </Link>
       </header>
       <p className="notice">
-        Reservá directamente con Gold Gym y encontrá tus partidos en un solo lugar.
-        Si tu cuenta todavía no está habilitada, consultá en recepción.
+        El pago se coordina con el club. Si tu cuenta todavía no está habilitada,
+        consultá en recepción.
       </p>
       {!selected && !cancel && <ErrorNotice error={error} />}{" "}
       {notice && (

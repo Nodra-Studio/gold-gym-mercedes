@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { ArrowUpRight, ArrowLeft } from "lucide-react";
 export const metadata = {
-  title: "Presentación del ecosistema",
+  title: "Web y sistema de gestión",
   robots: { index: false, follow: false },
 };
 export default function Proposal() {
@@ -14,13 +14,13 @@ export default function Proposal() {
         NODRA STUDIO / PROPUESTA PARA GOLD GYM
       </p>
       <h1>
-        Todo el club.
+        Web y sistema
         <br />
-        <em>Una misma experiencia.</em>
+        <em>de Gold Gym</em>
       </h1>
       <p>
-        Una web propia para mostrar lo que ya construyeron. Una gestión que
-        acompañe el día a día. Y una agenda de pádel conectada con el club.
+        Página pública, gestión de socios, cobros, ingreso por DNI y agenda
+        de pádel. Estas son las funciones y los requisitos de puesta en marcha.
       </p>
       <div className="notice">
         Plataforma propia de Gold Gym: web, socios, acceso por DNI y reservas de
@@ -29,7 +29,7 @@ export default function Proposal() {
       </div>
       <section className="panel">
         <p className="phase">ETAPA 01 · PRESENCIA DIGITAL</p>
-        <h2>Una página que se sienta Gold.</h2>
+        <h2>Web pública</h2>
         <p>
           Musculación, Pilates y pádel, con sus fotos, su identidad y sus sedes.
           Desde el celular, una persona puede conocer el club, elegir dónde ir y
@@ -51,7 +51,7 @@ export default function Proposal() {
       </section>
       <section className="panel">
         <p className="phase">ETAPA 02 · GESTIÓN DEL GIMNASIO</p>
-        <h2>Menos tareas repetidas. Más control.</h2>
+        <h2>Socios, cobros e ingresos</h2>
         <p>
           Socios, planes y cobros en un mismo lugar. Vencimientos a la vista,
           cupos de clases y un ingreso por DNI que consulta la membresía.
@@ -83,7 +83,7 @@ export default function Proposal() {
       </section>
       <section className="panel">
         <p className="phase">ETAPA 03 · PÁDEL</p>
-        <h2>Cuatro canchas. Una agenda clara.</h2>
+        <h2>Agenda de pádel</h2>
         <p>
           Reservas por día y cancha, turnos fijos semanales, bloqueos y registro
           de señas. El sistema comprueba disponibilidad al guardar.
@@ -109,8 +109,8 @@ export default function Proposal() {
         </div>
       </section>
       <section className="panel">
-        <p className="phase">UNA TRANSICIÓN CUIDADA</p>
-        <h2>Cambiar de sistema, con un plan.</h2>
+        <p className="phase">PUESTA EN MARCHA</p>
+        <h2>Revisión y migración</h2>
         <p>
           La puesta en marcha se realiza después de revisar los equipos, los
           datos y las reglas del club. Primero se prueba; después se migra.

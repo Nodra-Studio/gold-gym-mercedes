@@ -92,8 +92,7 @@ export default function FiscalSettings({ initialSettings }: { initialSettings: F
       <Link className="text-link" href="/configuracion">← Configuración</Link>
       <header className="work-header">
         <div>
-          <p className="eyebrow">GOLD GYM / ADMINISTRACIÓN</p>
-          <h1>Datos fiscales por sede.</h1>
+          <h1>Datos fiscales por sede</h1>
           <p>Estos datos preparan la facturación; todavía no se emiten comprobantes fiscales.</p>
         </div>
       </header>

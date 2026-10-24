@@ -53,8 +53,8 @@ export default function PublicPrices({
   if (!plans.length && !padel) return null;
   return (
     <section className="public-prices" aria-label="Tarifas vigentes">
-      <p className="gg-kicker">ELEGÍ CÓMO ENTRENAR</p>
-      <h2>Planes y tarifas.</h2>
+      <p className="gg-kicker">PRECIOS VIGENTES</p>
+      <h2>{section === "padel" ? "Tarifas de pádel" : "Planes y tarifas"}</h2>
       <div className="public-price-grid">
         {plans.map((p) => (
           <article key={p.id}>

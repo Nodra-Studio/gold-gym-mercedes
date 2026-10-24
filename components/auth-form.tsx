@@ -8,24 +8,24 @@ type Mode = "login" | "signup" | "recover" | "password";
 const content: Record<Mode, { title: string; intro: string; button: string }> =
   {
     login: {
-      title: "Acceso del personal.",
+      title: "Acceso del personal",
       intro:
         "Solo para administración, recepción y terminales habilitadas. Los socios no necesitan una cuenta.",
       button: "Iniciar sesión",
     },
     signup: {
-      title: "Cuenta del personal.",
+      title: "Crear cuenta del personal",
       intro:
         "Registro exclusivo para el equipo. El dueño debe habilitar tu rol. Si sos socio, acercate a recepción: te registran con tu DNI, sin cuenta ni contraseña.",
       button: "Crear cuenta",
     },
     recover: {
-      title: "Recuperá el acceso.",
+      title: "Recuperar acceso",
       intro: "Te enviaremos un enlace para elegir una nueva contraseña.",
       button: "Enviar enlace",
     },
     password: {
-      title: "Elegí una nueva contraseña.",
+      title: "Cambiar contraseña",
       intro:
         "Usá al menos 8 caracteres. Al guardarla, vas a iniciar sesión nuevamente.",
       button: "Guardar contraseña",
@@ -94,14 +94,9 @@ export default function AuthForm({
           <img src="/images/logo.webp" alt="Gold Gym" width={80} height={80} />
         </Link>
         <div>
-          <h2>
-            EL CLUB.
-            <br />
-            <span>EN TUS MANOS.</span>
-          </h2>
+          <h2>GOLD GYM<br /><span>ADMINISTRACIÓN</span></h2>
           <p>
-            Un espacio de trabajo para organizar cada sede y acompañar a quienes
-            eligen Gold.
+            Acceso para el personal del club.
           </p>
         </div>
         <p>GOLD GYM / MERCEDES</p>

@@ -9,6 +9,7 @@ Web institucional y prototipo funcional privado de gestión de gimnasio y pádel
 - [Puesta en marcha y aceptación](docs/PUESTA-EN-MARCHA.md)
 - [Arquitectura y próximos pasos](docs/TECNICA.md)
 - [Investigación y fuentes](docs/research/HALLAZGOS.md)
+- [Criterios de texto y diseño de interfaz](docs/UX-CONTENIDO.md)
 
 React / Next.js App Router con runtime Vinext, Cloudflare Workers y D1. No sustituir los sistemas operativos del club hasta completar integración, migración y aceptación. No ingresar datos reales en la demostración.
 

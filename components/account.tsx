@@ -79,19 +79,19 @@ export default function Account() {
     <span className="sr-only" role="status">{copied ? "Identificador copiado" : ""}</span>
   </div>;
   const content = <main className="workspace account-home">
-    <Link href={active ? portalForRole(account!.role) : "/"} className="text-link">← {active ? "Volver a mi espacio" : "Gold Gym Mercedes"}</Link>
-    <header className="work-header"><div><p className="eyebrow">MI CUENTA</p><h1>{waiting ? "Un paso más para empezar." : "Tu acceso al club."}</h1><p>Sesión, permisos e identificación de tu cuenta.</p></div></header>
+    <Link href={active ? portalForRole(account!.role) : "/"} className="text-link">← {active ? "Volver al panel" : "Gold Gym Mercedes"}</Link>
+    <header className="work-header"><div><h1>Mi cuenta</h1><p>Estado de acceso, permisos y seguridad.</p></div></header>
     {error && <div className="error-box" role="alert"><p>{error}</p><button className="button small" onClick={() => setRevision(n => n + 1)}>Volver a cargar</button></div>}
     {!account && error && <button className="button" onClick={logout} disabled={busy}>{busy ? "Cerrando…" : "Cerrar sesión"}</button>}
     {!account && !error && <section className="panel" role="status">Cargando tu acceso…</section>}
     {account && <>
       <section className="panel account-status">
         <div className="account-status-icon">{active ? <ShieldCheck size={26} /> : <Clock3 size={26} />}</div>
-        <div><p className="eyebrow">{active ? "ACCESO HABILITADO" : "ESTADO DE LA CUENTA"}</p><h2>{roleLabels[account.role] ?? "Sin acceso"}</h2><p className="muted">{active ? "Tu sesión está activa. Podés continuar trabajando con tus permisos actuales." : waiting ? "Compartí este código con la administración una sola vez. Cuando habiliten tu acceso, te llevamos automáticamente a tu espacio." : "Contactá a la administración para revisar tu acceso."}</p></div>
+        <div><p className="eyebrow">{active ? "ACCESO HABILITADO" : "ESTADO DE LA CUENTA"}</p><h2>{roleLabels[account.role] ?? "Sin acceso"}</h2><p className="muted">{active ? "Tu cuenta tiene acceso al sistema." : waiting ? "Compartí el código de abajo con la administración para que habiliten tu cuenta. La página se actualizará cuando esté lista." : "Contactá a la administración para revisar tu acceso."}</p></div>
       </section>
       {!active ? <section className="panel"><h2>Código de habilitación</h2>{identifier}<p className="muted">Identifica tu cuenta. No es una contraseña.</p></section> : <details className="panel account-details"><summary>Identificador de la cuenta</summary><p className="muted">Conservalo por si la administración necesita revisar tus permisos.</p>{identifier}</details>}
       {administrative && <section className="panel"><h2>Pantalla de ingreso por DNI</h2><p className="muted">Abrila en otra pestaña y movela al monitor de la entrada. Usa esta misma sesión; no necesita un correo ni una cuenta adicional.</p><Link className="button gold" href="/ingreso" target="_blank" rel="noopener noreferrer"><ScanLine size={18} />Abrir terminal<ArrowUpRight size={16} /></Link></section>}
-      {active && account.role !== 'player' && <section className="panel"><h2>Seguridad de tu acceso</h2><p className="muted">Protegé las herramientas del club con una aplicación autenticadora gratuita.</p><Link className="button" href="/verificar?next=/cuenta"><ShieldCheck size={18} />Verificación en dos pasos</Link></section>}
+      {active && account.role !== 'player' && <section className="panel"><h2>Verificación en dos pasos</h2><p className="muted">Configurá una aplicación autenticadora gratuita para verificar tu acceso.</p><Link className="button" href="/verificar?next=/cuenta"><ShieldCheck size={18} />Configurar verificación</Link></section>}
       <section className="panel account-session"><div><h2>Sesión de este navegador</h2><p className="muted">Cerrar sesión también cierra el acceso de las otras pestañas, incluida la terminal.</p></div><button className="button" onClick={logout} disabled={busy}><LogOut size={17} />{busy ? "Cerrando…" : "Cerrar sesión"}</button></section>
     </>}
   </main>;

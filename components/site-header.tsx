@@ -89,12 +89,13 @@ export function SiteHeader() {
             </div>
             <a
               className="gg-button gg-nav-cta"
+              aria-label="Consultar por WhatsApp"
               href={brand.contact}
               target="_blank"
               rel="noopener noreferrer"
               onClick={() => setOpen(false)}
             >
-              <BrandIcon name="whatsapp" /> Empezá hoy
+              <BrandIcon name="whatsapp" /> Consultar
             </a>
           </nav>
         </div>

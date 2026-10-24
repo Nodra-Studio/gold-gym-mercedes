@@ -171,7 +171,6 @@ export function useClub(view: "all" | "padel" = "all") {
   return { data, error, loading, busy, refresh, mutate, setError };
 }
 export function WorkspaceHeader({
-  active,
   title,
   subtitle,
 }: {
@@ -182,13 +181,6 @@ export function WorkspaceHeader({
   return (
     <header className="work-header">
       <div>
-        <p className="eyebrow">
-          {active === "gestion"
-            ? "SOCIOS Y GIMNASIO"
-            : active === "reservas"
-              ? "CLUB UNIÓN / PÁDEL"
-              : "ADMINISTRACIÓN / CAJA"}
-        </p>
         <h1>{title}</h1>
         <p className="muted">{subtitle}</p>
       </div>
@@ -489,8 +481,8 @@ export default function ClubDashboard() {
     <main className="workspace">
       <WorkspaceHeader
         active="gestion"
-        title="Todo listo para un nuevo día."
-        subtitle="Registrá socios, controlá las cuotas y organizá las actividades del club."
+        title="Gestión del club"
+        subtitle="Socios, cuotas, clases e ingresos."
       />
       <ErrorNotice error={modal ? "" : error} />
       {!data && error && (
@@ -585,7 +577,7 @@ export default function ClubDashboard() {
               )}
               <div className="dashboard-grid">
                 <div className="panel">
-                  <h2>El día a día</h2>
+                  <h2>Acciones frecuentes</h2>
                   <div className="quick-actions">
                     <button
                       className="quick-action"
@@ -594,7 +586,7 @@ export default function ClubDashboard() {
                       onClick={() => open("member")}
                     >
                       <div>
-                        <h3>Sumar un socio</h3>
+                        <h3>Registrar socio</h3>
                         <p>Datos, plan y vencimiento.</p>
                       </div>
                       {canMembers ? <Users size={22} /> : <LockKeyhole size={22} aria-hidden="true" />}
@@ -612,7 +604,7 @@ export default function ClubDashboard() {
                       {canMembers ? <CreditCard size={22} /> : <LockKeyhole size={22} aria-hidden="true" />}
                     </button>
                     <Link href="/reportes" className="quick-action" title={data.role !== "owner" ? "Solo dueños" : undefined}>
-                      <div><h3>Informes de administración</h3><p>Cobros por período, vencimientos y saldos de pádel.{data.role !== "owner" && " · Solo dueños"}</p></div>
+                      <div><h3>Informes</h3><p>Cobros por período, vencimientos y saldos de pádel.{data.role !== "owner" && " · Solo dueños"}</p></div>
                       {data.role === "owner" ? <BarChart3 size={22} /> : <LockKeyhole size={22} aria-hidden="true" />}
                     </Link>
                     <Link href="/configuracion" className="quick-action" title={data.role !== "owner" ? "Solo dueños" : undefined}>
@@ -645,7 +637,7 @@ export default function ClubDashboard() {
                       {data.role === "owner" ? <ShieldCheck size={22} /> : <LockKeyhole size={22} aria-hidden="true" />}
                     </Link>
                     <Link href="/datos" className="quick-action" title={data.role !== "owner" ? "Solo dueños" : undefined}>
-                      <div><h3>Importación y respaldos</h3><p>Importá socios y guardá copias de los datos.{data.role !== "owner" && " · Solo dueños"}</p></div>
+                      <div><h3>Datos y respaldos</h3><p>Importá socios y guardá copias de los datos.{data.role !== "owner" && " · Solo dueños"}</p></div>
                       {data.role === "owner" ? <Database size={22} /> : <LockKeyhole size={22} aria-hidden="true" />}
                     </Link>
                   </div>

@@ -252,10 +252,9 @@ export default function ReportsClient() {
       </Link>
       <header className="work-header">
         <div>
-          <p className="eyebrow">GOLD GYM / INFORMES</p>
-          <h1>Los números del club.</h1>
+          <h1>Informes</h1>
           <p className="muted">
-            Compará períodos y explorá ingresos, gastos y resultados por sede y
+            Compará ingresos, gastos y resultados de caja por período, sede y
             actividad.
           </p>
         </div>
@@ -479,7 +478,7 @@ export default function ReportsClient() {
               </div>
             </section>
             <section className="panel">
-              <h2>Un período frente al otro</h2>
+              <h2>Comparación de períodos</h2>
               <p className="muted">
                 Actual: {rangeLabel(data.current.from, data.current.to)}
                 <br />
@@ -542,7 +541,7 @@ export default function ReportsClient() {
           />
           <section className="panel">
             <div className="report-section-heading">
-              <h2>Detalle mes a mes</h2>
+              <h2>Detalle mensual</h2>
               <button
                 className="button small"
                 disabled={busy || exporting}
