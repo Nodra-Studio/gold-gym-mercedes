@@ -1,15 +1,21 @@
 import PublicPrices from "@/components/public-prices";
+import { BenefitsCarousel } from "@/components/benefits-carousel";
+import { BrandIcon } from "@/components/brand-icon";
 import Link from "next/link";
 import {
+  Activity,
   ArrowRight,
   ArrowUpRight,
-  MapPin,
   Dumbbell,
-  MoveUpRight,
+  MapPin,
   MessageCircle,
+  MoveUpRight,
+  Plus,
+  Trophy,
 } from "lucide-react";
 import { SiteHeader } from "@/components/site-header";
 import { SiteFooter } from "@/components/site-footer";
+import { WaveMarquee } from "@/components/wave-marquee";
 import { brand, venues } from "@/lib/content";
 export default function Home() {
   return (
@@ -43,7 +49,7 @@ export default function Home() {
                 target="_blank"
                 rel="noopener noreferrer"
               >
-                <BrandIcon name="whatsapp" /> Quiero empezar <ArrowUpRight size={20} />
+                <MessageCircle size={18} /> Quiero empezar <ArrowUpRight size={20} />
               </a>
               <a className="gg-text-link" href="#actividades">
                 Encontrá tu actividad <ArrowRight size={18} />
