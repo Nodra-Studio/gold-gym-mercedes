@@ -1,56 +1,56 @@
 import PublicPrices from "@/components/public-prices";
 import Link from "next/link";
-import { WaveMarquee } from "@/components/wave-marquee";
-import { BrandIcon } from "@/components/brand-icon";
-import { BenefitsCarousel } from "@/components/benefits-carousel";
 import {
-  ArrowUpRight,
   ArrowRight,
+  ArrowUpRight,
   MapPin,
-  Plus,
   Dumbbell,
-  Activity,
-  Trophy,
+  MoveUpRight,
+  MessageCircle,
 } from "lucide-react";
 import { SiteHeader } from "@/components/site-header";
 import { SiteFooter } from "@/components/site-footer";
-import { ScrollReveal } from "@/components/scroll-reveal";
 import { brand, venues } from "@/lib/content";
 export default function Home() {
   return (
-    <div className="marketing">
+    <>
+      <a className="skip-link" href="#contenido">
+        Saltar al contenido
+      </a>
       <SiteHeader />
       <main id="contenido">
-        <section className="gg-hero">
-          <div className="gg-hero-copy">
-            <p className="gg-kicker">
+        <section className="hero">
+          <div className="hero-copy">
+            <p className="eyebrow">
               <span /> MERCEDES, BUENOS AIRES
             </p>
             <h1>
-              GOLD
+              HACÉ
               <br />
-              <span>GYM</span>
+              LUGAR
+              <br />
+              PARA <span>VOS.</span>
             </h1>
             <p className="gg-lead">
-              Musculación, Pilates y pádel en Mercedes.
+              Más fuerza. Más movimiento. Más encuentros.
               <br />
               Conocé las sedes, los planes y los horarios.
             </p>
-            <div className="gg-actions">
+            <div className="hero-actions">
               <a
-                className="gg-button"
+                className="button gold"
                 href={brand.contact}
                 target="_blank"
                 rel="noopener noreferrer"
               >
-                <BrandIcon name="whatsapp" /> Consultar por WhatsApp <ArrowUpRight size={20} />
+                <BrandIcon name="whatsapp" /> Quiero empezar <ArrowUpRight size={20} />
               </a>
               <a className="gg-text-link" href="#actividades">
-                Ver actividades <ArrowRight size={18} />
+                Encontrá tu actividad <ArrowRight size={18} />
               </a>
             </div>
             <div className="gg-hero-note">
-              <span>MUSCULACIÓN / PILATES / PÁDEL</span>
+              <span>01 — EL PRIMER PASO ES TUYO</span>
               <span>GOLD GYM / MERCEDES</span>
             </div>
           </div>
@@ -63,7 +63,7 @@ export default function Home() {
                 alt="Máquinas y pesas de Gold Gym en Mercedes"
                 fetchPriority="high"
               />
-              <span className="gg-photo-tag">SALA DE MUSCULACIÓN</span>
+              <span className="gg-photo-tag">TU LUGAR PARA ENTRENAR</span>
             </div>
             <div className="gg-photo-small">
               <img
@@ -73,7 +73,7 @@ export default function Home() {
                 alt="Un partido en las canchas de Club Unión"
               />
               <span>
-                PÁDEL EN CLUB UNIÓN <ArrowUpRight size={16} />
+                Y PARA ENCONTRARTE. <ArrowUpRight size={16} />
               </span>
             </div>
             <div className="gg-roundel" aria-hidden="true">
@@ -82,30 +82,29 @@ export default function Home() {
               <b>CLUB.</b>
               <Plus size={26} />
             </div>
-            <div className="gg-art-caption">MUSCULACIÓN / PILATES / PÁDEL</div>
           </div>
         </section>
         <WaveMarquee
           items={[
-            { text: "MUSCULACIÓN", icon: <Dumbbell size={24} /> },
-            { text: "PILATES", icon: <Activity size={24} /> },
-            { text: "PÁDEL", icon: <Trophy size={24} /> },
+            { text: "ENTRENÁ", icon: <Dumbbell size={24} /> },
+            { text: "CONECTÁ", icon: <Activity size={24} /> },
+            { text: "JUGÁ", icon: <Trophy size={24} /> },
           ]}
         />
         <section className="gg-section gg-activities" id="actividades">
           <div className="gg-section-head" data-reveal>
             <div>
-              <p className="gg-kicker">01 / GOLD GYM</p>
+              <p className="gg-kicker">01 / ENCONTRÁ LO TUYO</p>
               <h2>
-                ACTIVIDADES
+                CADA UNO A SU RITMO.
                 <br />
-                <span>DEL CLUB</span>
+                <span>TODOS EN MOVIMIENTO.</span>
               </h2>
             </div>
             <p>
-              Elegí una actividad y consultá
+              Arrancar de cero, volver o ir por más.
               <br />
-              los planes y horarios en recepción.
+              Hay un lugar para vos.
             </p>
           </div>
           <div className="gg-activity-grid">
@@ -118,22 +117,31 @@ export default function Home() {
                   alt="Equipamiento de musculación de Gold Gym"
                   loading="lazy"
                 />
-                <span>01 / MUSCULACIÓN</span>
+                <span>01 / FUERZA</span>
               </div>
-              <div className="gg-activity-body">
-                <h3>MUSCULACIÓN</h3>
+              <div>
+                <span className="number">01</span>
+                <h3>Musculación</h3>
                 <p>
-                  Salas de musculación en Calle 30, Calle 23 y Club Unión.
-                  Tu plan de gimnasio te permite entrenar en las tres.
+                  Hacé espacio para tus objetivos. Conocé nuestras salas y
+                  consultá el plan para empezar.
                 </p>
                 <a
+                  className="text-link"
                   href={brand.contact}
                   target="_blank"
                   rel="noopener noreferrer"
                 >
-                  <BrandIcon name="whatsapp" /> Consultar planes <ArrowUpRight />
+                  Consultá por tu plan <ArrowUpRight size={18} />
                 </a>
               </div>
+              <img
+                src="/images/gym-detail.webp"
+                alt="Equipamiento de la sala de Gold Gym"
+                loading="lazy"
+                width="300"
+                height="400"
+              />
             </article>
             <article
               data-reveal
@@ -148,13 +156,13 @@ export default function Home() {
                   alt="Clase de reformer en Gold Pilates"
                   loading="lazy"
                 />
-                <span>02 / PILATES</span>
+                <span>02 / EQUILIBRIO</span>
               </div>
               <div className="gg-activity-body">
                 <h3>PILATES</h3>
                 <p>
-                  Clases en reformer, tower y mat para trabajar fuerza,
-                  postura y movilidad.
+                  Un espacio para dedicarte tiempo, trabajar tu movilidad y
+                  conectar con tu cuerpo.
                 </p>
                 <Link href="/pilates">
                   Conocer el estudio <ArrowUpRight />
@@ -170,13 +178,13 @@ export default function Home() {
                   alt="Jugadores de pádel en Club Unión"
                   loading="lazy"
                 />
-                <span>03 / PÁDEL</span>
+                <span>03 / ENCUENTRO</span>
               </div>
               <div className="gg-activity-body">
                 <h3>PÁDEL</h3>
                 <p>
-                  Cuatro canchas en Club Unión. Consultá los horarios
-                  disponibles y coordiná tu turno con recepción.
+                  Armá el equipo, elegí un día y coordiná tu turno con la
+                  recepción de Club Unión.
                 </p>
                 <Link href="/padel">
                   Conocer las canchas <ArrowUpRight />
@@ -187,11 +195,13 @@ export default function Home() {
         </section>
         <section className="gg-club-band">
           <div data-reveal>
-            <p className="gg-kicker">INSCRIPCIÓN E INGRESO</p>
+            <p className="gg-kicker">ASÍ DE SIMPLE</p>
             <h2>
-              CÓMO
+              VENÍ A ENTRENAR.
               <br />
-              <span>ASOCIARTE</span>
+              DEL RESTO,
+              <br />
+              <span>NOS OCUPAMOS.</span>
             </h2>
           </div>
           <div className="gg-steps">
@@ -208,7 +218,7 @@ export default function Home() {
               ],
               [
                 "03",
-                "Renovás tu plan",
+                "Seguís con lo tuyo",
                 "La terminal te avisa cuando se acerca el vencimiento de tu cuota.",
               ],
             ].map(([n, t, d]) => (
@@ -225,64 +235,59 @@ export default function Home() {
             </Link>
           </div>
         </section>
-        <section className="gg-section" id="sedes">
-          <div className="gg-section-head" data-reveal>
+        <section id="sedes" className="section">
+          <div className="section-heading">
             <div>
-              <p className="gg-kicker">02 / MERCEDES</p>
+              <p className="gg-kicker">02 / CERCA TUYO</p>
               <h2>
-                SEDES
+                TU LUGAR.
                 <br />
-                <span>Y UBICACIONES</span>
+                <span>EN MERCEDES.</span>
               </h2>
             </div>
             <p>
-              Tres gimnasios y un estudio de Pilates.
+              Cuatro sedes. Una misma energía.
               <br />
-              Pádel en Club Unión.
+              Elegí dónde querés empezar.
             </p>
           </div>
-          <div className="gg-venues">
+          <div className="venue-list">
             {venues.map((v, i) => (
-              <article
-                className="gg-venue"
+              <a
                 key={v.name}
-                data-reveal
-                data-reveal-delay={Math.min(i, 3)}
+                href={v.map}
+                className="venue"
+                target="_blank"
+                rel="noopener noreferrer"
               >
-                <span className="gg-venue-number">0{i + 1}</span>
+                <span className="venue-index">0{i + 1}</span>
                 <div>
                   <small>{v.category}</small>
                   <h3>{v.name}</h3>
                 </div>
-                <p>
-                  <MapPin size={16} />
+                <span className="venue-address">
+                  <MapPin size={17} />
                   {v.address}
-                </p>
-                <a
-                  href={v.map}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  aria-label={`${v.name}: cómo llegar`}
-                >
-                  Cómo llegar
-                  <ArrowUpRight size={22} />
-                </a>
-              </article>
+                </span>
+                <span className="venue-directions">
+                  Cómo llegar <MoveUpRight size={24} />
+                </span>
+              </a>
             ))}
           </div>
-          <p className="gg-footnote">
-            Consultá los horarios y la disponibilidad de cada actividad antes de
-            tu primera visita.
+          <p className="muted venue-note">
+            Los horarios pueden variar por sede y actividad. Consultanos antes
+            de tu primera visita.
           </p>
         </section>
         <section className="gg-section gg-benefits" id="beneficios">
           <div className="gg-section-head" data-reveal>
             <div>
-              <p className="gg-kicker">03 / COMERCIOS ADHERIDOS</p>
+              <p className="gg-kicker">03 / SER PARTE TIENE SUS BENEFICIOS</p>
               <h2>
-                BENEFICIOS
+                GOLD TE ACOMPAÑA.
                 <br />
-                <span>PARA SOCIOS</span>
+                <span>TAMBIÉN AFUERA.</span>
               </h2>
             </div>
             <p>
@@ -300,11 +305,11 @@ export default function Home() {
         </section>
         <section className="gg-faq gg-section">
           <div data-reveal>
-            <p className="gg-kicker">INFORMACIÓN ÚTIL</p>
+            <p className="gg-kicker">ANTES DE VENIR</p>
             <h2>
-              PREGUNTAS
+              MENOS DUDAS.
               <br />
-              <span>FRECUENTES</span>
+              <span>MÁS GANAS.</span>
             </h2>
           </div>
           <div>
@@ -314,16 +319,12 @@ export default function Home() {
                 "No. Si sos socio, recepción registra tus datos y después ingresás al club con tu DNI. Las cuentas del sistema son solo para el personal.",
               ],
               [
-                "¿Puedo entrenar en cualquiera de los gimnasios?",
-                "Sí. Tu plan de gimnasio te permite entrenar en Calle 30, Calle 23 y Club Unión, sin importar en cuál pagaste. Pilates tiene planes separados, salvo que tu plan lo incluya.",
-              ],
-              [
                 "¿Cómo consulto planes y horarios?",
                 "Escribinos por WhatsApp o acercate a la sede. El equipo te informa los planes, los horarios y la disponibilidad actual.",
               ],
               [
                 "¿Cómo reservo una cancha de pádel?",
-                "Podés ver los horarios y enviar una solicitud desde la página de turnos, o comunicarte con recepción. La reserva queda confirmada cuando recepción te avisa. No necesitás una cuenta.",
+                "Coordiná el día y el horario con recepción. Ellos registran tu turno y te confirman los detalles. No necesitás una cuenta.",
               ],
             ].map(([q, a]) => (
               <details key={q} data-reveal>
@@ -338,27 +339,26 @@ export default function Home() {
         </section>
         <section className="gg-final">
           <p className="gg-kicker" data-reveal>
-            GOLD GYM / MERCEDES
+            EL MOMENTO ES AHORA
           </p>
           <h2 data-reveal data-reveal-delay="1">
-            CONTACTO
+            NOS VEMOS
+            <br />
+            EN <span>GOLD.</span>
           </h2>
           <a
-            className="gg-button gg-button-dark"
-            data-reveal
-            data-reveal-delay="2"
+            className="button gold"
             href={brand.contact}
             target="_blank"
             rel="noopener noreferrer"
           >
-            <BrandIcon name="whatsapp" /> Escribinos por WhatsApp <ArrowUpRight />
+            <BrandIcon name="whatsapp" /> Hablemos por WhatsApp <ArrowUpRight />
           </a>
-          <p>Recepción te informa los planes, horarios y cupos disponibles.</p>
+          <p>Contanos qué te gustaría hacer. Te ayudamos a empezar.</p>
         </section>
         <PublicPrices section="all" />
       </main>
       <SiteFooter />
-      <ScrollReveal />
-    </div>
+    </>
   );
 }
